@@ -138,4 +138,10 @@ export default function StudentCaseDetail() {
 
       {lightbox && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" onClick={() => setLightbox(null)}>
-          {/* eslint-disable-next-line @next/next/no-img-element
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={lightbox} alt="visual" className="max-w-full max-h-[90vh] rounded-lg" />
+        </div>
+      )}
+    </div>
+  );
+}

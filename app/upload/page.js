@@ -503,4 +503,18 @@ function FileField({ label, accept, onChange, busy, done, doneLabel }) {
 function MapPicker({ options, selected, onToggle, emptyText }) {
   if (!options.length) return <p className="text-xs text-on-surface-variant">{emptyText}</p>;
   return (
-    <div className="
+    <div className="flex flex-wrap gap-2">
+      {options.map((o) => {
+        const on = selected.includes(o.id);
+        return (
+          <button type="button" key={o.id} onClick={() => onToggle(o.id)}
+            className={on
+              ? 'px-3 py-1.5 rounded-full text-xs bg-primary text-on-primary font-bold'
+              : 'px-3 py-1.5 rounded-full text-xs border border-white/10 text-on-surface-variant hover:border-primary/50'}>
+            {o.title}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
