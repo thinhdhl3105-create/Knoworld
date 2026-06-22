@@ -9,6 +9,7 @@ const empty = {
   kind: 'research', title: '', summary: '', body: '', category: '', tags: '',
   media_url: '', cover_url: '', paper_url: '', source_url: '', is_foundation: false,
   context: '', insight: '', creative_approach: '', execution: '', images: [],
+  student_name: '', school: '', year: '',
   concept_id: '', file_url: '', file_name: '', links: [],
   // Theoretical Map: ids of the OTHER end of foundation_links.
   // Editing a Foundation → research ids it links to.
@@ -134,6 +135,9 @@ export default function UploadPage() {
         creative_approach: form.creative_approach.trim() || null,
         execution: form.execution.trim() || null,
         images: form.images || [],
+        student_name: form.kind === 'student' ? (form.student_name.trim() || null) : null,
+        school: form.kind === 'student' ? (form.school.trim() || null) : null,
+        year: form.kind === 'student' ? (form.year.trim() || null) : null,
         concept_id:
           (form.kind === 'video' || form.kind === 'student') && form.concept_id
             ? form.concept_id
@@ -210,6 +214,7 @@ export default function UploadPage() {
       is_foundation: !!c.is_foundation,
       context: c.context || '', insight: c.insight || '', creative_approach: c.creative_approach || '',
       execution: c.execution || '', images: c.images || [],
+      student_name: c.student_name || '', school: c.school || '', year: c.year || '',
       concept_id: c.concept_id || '', file_url: c.file_url || '', file_name: c.file_name || '',
       links, flinks,
     });
@@ -316,6 +321,17 @@ export default function UploadPage() {
           {/* student case study */}
           {k === 'student' && (
             <>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Field label="Student(s)">
+                  <input value={form.student_name} onChange={(e) => set('student_name', e.target.value)} className={inputCls} placeholder="Name (comma-separated for teams)" />
+                </Field>
+                <Field label="School">
+                  <input value={form.school} onChange={(e) => set('school', e.target.value)} className={inputCls} placeholder="University / school" />
+                </Field>
+                <Field label="Year">
+                  <input value={form.year} onChange={(e) => set('year', e.target.value)} className={inputCls} placeholder="e.g. 2025" />
+                </Field>
+              </div>
               <Field label="Context"><textarea value={form.context} onChange={(e) => set('context', e.target.value)} rows={3} className={inputCls} placeholder="Background & brief…" /></Field>
               <Field label="Insight"><textarea value={form.insight} onChange={(e) => set('insight', e.target.value)} rows={3} className={inputCls} placeholder="The key human truth…" /></Field>
               <Field label="Creative Approach"><textarea value={form.creative_approach} onChange={(e) => set('creative_approach', e.target.value)} rows={3} className={inputCls} placeholder="Big idea & concept…" /></Field>
@@ -487,18 +503,4 @@ function FileField({ label, accept, onChange, busy, done, doneLabel }) {
 function MapPicker({ options, selected, onToggle, emptyText }) {
   if (!options.length) return <p className="text-xs text-on-surface-variant">{emptyText}</p>;
   return (
-    <div className="flex flex-wrap gap-2">
-      {options.map((o) => {
-        const on = selected.includes(o.id);
-        return (
-          <button type="button" key={o.id} onClick={() => onToggle(o.id)}
-            className={on
-              ? 'px-3 py-1.5 rounded-full text-xs bg-primary text-on-primary font-bold'
-              : 'px-3 py-1.5 rounded-full text-xs border border-white/10 text-on-surface-variant hover:border-primary/50'}>
-            {o.title}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+    <div className="
