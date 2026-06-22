@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 import { useAuth } from '../components/AuthProvider';
@@ -22,6 +22,49 @@ const empty = {
 const tableOf = (kind) =>
   kind === 'concept' ? 'concepts' : kind === 'framework' ? 'frameworks' : 'content';
 
+// ---- auto cover helpers (video case studies) ----
+// Derive a cover thumbnail directly from a YouTube link (no upload needed).
+function youtubeThumb(url) {
+  const yt = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/);
+  return yt ? `https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg` : null;
+}
+// Vimeo needs an oEmbed lookup to get its thumbnail URL.
+async function vimeoThumb(url) {
+  if (!/vimeo\.com\/\d+/.test(url)) return null;
+  try {
+    const r = await fetch(`https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`);
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j.thumbnail_url || null;
+  } catch { return null; }
+}
+// Capture a single frame from an uploaded video file -> JPEG blob.
+function captureVideoFrame(file) {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+    const url = URL.createObjectURL(file);
+    video.src = url;
+    const cleanup = () => URL.revokeObjectURL(url);
+    video.onloadeddata = () => {
+      // Seek to the middle (or 1s) for a representative frame.
+      video.currentTime = Math.min(Math.max(video.duration / 2 || 1, 0.1), video.duration || 1);
+    };
+    video.onseeked = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 1280;
+        canvas.height = video.videoHeight || 720;
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => { cleanup(); resolve(blob); }, 'image/jpeg', 0.82);
+      } catch { cleanup(); resolve(null); }
+    };
+    video.onerror = () => { cleanup(); resolve(null); };
+  });
+}
+
 const kindLabel = {
   research: 'Research / Foundation', student: 'Student Case Study',
   video: 'Video Case Study', concept: 'Key Concept (Knowledge Hub)',
@@ -40,6 +83,48 @@ export default function UploadPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState('');
+  // True while the current cover was auto-derived (so we may overwrite it),
+  // false once the user picks a cover manually (so we leave it alone).
+  const coverAuto = useRef(false);
+
+  // Apply an auto-derived cover only if the user hasn't set one manually.
+  function applyAutoCover(url) {
+    if (!url) return;
+    setForm((f) => (!f.cover_url || coverAuto.current) ? { ...f, cover_url: url } : f);
+    coverAuto.current = true;
+  }
+
+  // Handle the YouTube/Vimeo link field for video case studies.
+  async function onVideoLink(value) {
+    set('media_url', value);
+    if (form.kind !== 'video') return;
+    const yt = youtubeThumb(value);
+    if (yt) { applyAutoCover(yt); return; }
+    applyAutoCover(await vimeoThumb(value));
+  }
+
+  // Handle an uploaded video file: upload it, then capture a cover frame.
+  async function onVideoFile(e) {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploading('video'); setError('');
+    try {
+      const { url } = await uploadFile(file);
+      setForm((f) => ({ ...f, media_url: url }));
+      // Generate a poster frame and upload it as the cover (if none set yet).
+      if (!form.cover_url || coverAuto.current) {
+        try {
+          const blob = await captureVideoFrame(file);
+          if (blob) {
+            const thumbFile = new File([blob], `cover-${Date.now()}.jpg`, { type: 'image/jpeg' });
+            const { url: coverUrl } = await uploadFile(thumbFile);
+            applyAutoCover(coverUrl);
+          }
+        } catch { /* cover is optional — ignore frame-capture failures */ }
+      }
+    } catch (err) { setError(err.message); }
+    setUploading('');
+  }
 
   useEffect(() => {
     if (!authLoading && !user && configured) router.push('/login');
@@ -74,7 +159,7 @@ export default function UploadPage() {
   useEffect(() => { loadMine(); loadAux(); }, [user]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  function reset() { setForm(empty); setEditing(null); }
+  function reset() { setForm(empty); setEditing(null); coverAuto.current = false; }
 
   // ---- file uploads ----
   async function uploadFile(file) {
@@ -208,6 +293,7 @@ export default function UploadPage() {
       }
     }
     setEditing({ table, id: c.id });
+    coverAuto.current = false; // keep the saved cover unless the user re-picks a video
     setForm({
       ...empty,
       kind: c.kind, title: c.title || '', summary: c.summary || '', body: c.body || '',
@@ -381,10 +467,13 @@ export default function UploadPage() {
                 <input value={form.brand} onChange={(e) => set('brand', e.target.value)} className={inputCls} placeholder="e.g. Nike, Coca-Cola" />
               </Field>
               <Field label="YouTube / Vimeo link (or upload a file below)">
-                <input value={form.media_url} onChange={(e) => set('media_url', e.target.value)} className={inputCls} placeholder="https://youtube.com/watch?v=…" />
+                <input value={form.media_url} onChange={(e) => onVideoLink(e.target.value)} className={inputCls} placeholder="https://youtube.com/watch?v=…" />
               </Field>
               <FileField label="…or upload a video file" accept="video/*" busy={uploading === 'video'}
-                onChange={(e) => onSingleFile(e, 'media_url', 'video')} done={form.media_url} />
+                onChange={onVideoFile} done={form.media_url} />
+              <p className="text-xs text-on-surface-variant -mt-2">
+                Cover image sẽ tự cập nhật từ video. Bạn vẫn có thể tự đổi ở phần Cover image bên dưới.
+              </p>
               <Field label="Link to a Knowledge Hub concept (optional)">
                 <select value={form.concept_id} onChange={(e) => set('concept_id', e.target.value)} className={inputCls}>
                   <option value="">— none —</option>
@@ -442,7 +531,7 @@ export default function UploadPage() {
           {(isContent || k === 'framework') && (
             <>
               <Field label="Cover image">
-                <input type="file" accept="image/*" onChange={(e) => onSingleFile(e, 'cover_url', 'cover')} disabled={!user || uploading === 'cover'} className={fileCls} />
+                <input type="file" accept="image/*" onChange={(e) => { coverAuto.current = false; onSingleFile(e, 'cover_url', 'cover'); }} disabled={!user || uploading === 'cover'} className={fileCls} />
                 {uploading === 'cover' && <span className="text-xs text-on-surface-variant">Uploading…</span>}
               </Field>
               {form.cover_url && (
