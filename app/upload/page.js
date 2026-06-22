@@ -5,92 +5,191 @@ import { useRouter } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 import { useAuth } from '../components/AuthProvider';
 
-const empty = { kind: 'research', title: '', summary: '', body: '', category: '', tags: '', media_url: '', cover_url: '' };
+const empty = {
+  kind: 'research', title: '', summary: '', body: '', category: '', tags: '',
+  media_url: '', cover_url: '', paper_url: '', is_foundation: false,
+  context: '', insight: '', creative_approach: '', execution: '', images: [],
+  concept_id: '', file_url: '', file_name: '', links: [],
+};
+
+// Which table a kind lives in.
+const tableOf = (kind) =>
+  kind === 'concept' ? 'concepts' : kind === 'framework' ? 'frameworks' : 'content';
+
+const kindLabel = {
+  research: 'Research / Foundation', student: 'Student Case Study',
+  video: 'Video Case Study', concept: 'Key Concept (Knowledge Hub)',
+  framework: 'Framework (downloadable)',
+};
 
 export default function UploadPage() {
   const router = useRouter();
   const { user, loading: authLoading, configured } = useAuth();
   const [form, setForm] = useState(empty);
-  const [editingId, setEditingId] = useState(null);
+  const [editing, setEditing] = useState(null); // {table, id}
   const [mine, setMine] = useState([]);
+  const [concepts, setConcepts] = useState([]);
+  const [videoCats, setVideoCats] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user && configured) router.push('/login');
   }, [authLoading, user, configured, router]);
 
+  async function loadAux() {
+    if (!isSupabaseConfigured) return;
+    const [{ data: cs }, { data: vids }] = await Promise.all([
+      supabase.from('concepts').select('id,title').order('title'),
+      supabase.from('content').select('category').eq('kind', 'video').not('category', 'is', null),
+    ]);
+    setConcepts(cs || []);
+    setVideoCats(Array.from(new Set((vids || []).map((v) => v.category).filter(Boolean))).sort());
+  }
+
   async function loadMine() {
     if (!isSupabaseConfigured || !user) return;
-    const { data } = await supabase
-      .from('content')
-      .select('*')
-      .eq('author_id', user.id)
-      .order('created_at', { ascending: false });
-    setMine(data || []);
+    const [c, k, f] = await Promise.all([
+      supabase.from('content').select('*').eq('author_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('concepts').select('*').eq('author_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('frameworks').select('*').eq('author_id', user.id).order('created_at', { ascending: false }),
+    ]);
+    const rows = [
+      ...(c.data || []).map((r) => ({ ...r, _table: 'content' })),
+      ...(k.data || []).map((r) => ({ ...r, _table: 'concepts', kind: 'concept' })),
+      ...(f.data || []).map((r) => ({ ...r, _table: 'frameworks', kind: 'framework' })),
+    ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    setMine(rows);
   }
-  useEffect(() => { loadMine(); }, [user]);
+  useEffect(() => { loadMine(); loadAux(); }, [user]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  function reset() { setForm(empty); setEditingId(null); }
+  function reset() { setForm(empty); setEditing(null); }
 
-  async function handleFile(e) {
-    const file = e.target.files?.[0];
-    if (!file || !isSupabaseConfigured || !user) return;
-    setUploading(true);
-    setError('');
+  // ---- file uploads ----
+  async function uploadFile(file) {
     const path = `${user.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
     const { error: upErr } = await supabase.storage.from('uploads').upload(path, file, { upsert: false });
-    if (upErr) { setError(upErr.message); setUploading(false); return; }
-    const { data } = supabase.storage.from('uploads').getPublicUrl(path);
-    set('cover_url', data.publicUrl);
-    setUploading(false);
+    if (upErr) throw upErr;
+    return { url: supabase.storage.from('uploads').getPublicUrl(path).data.publicUrl, name: file.name };
   }
+  async function onSingleFile(e, field, tag) {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploading(tag); setError('');
+    try {
+      const { url, name } = await uploadFile(file);
+      setForm((f) => ({ ...f, [field]: url, ...(field === 'file_url' ? { file_name: name } : {}) }));
+    } catch (err) { setError(err.message); }
+    setUploading('');
+  }
+  async function onMultiImages(e) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length || !user) return;
+    setUploading('images'); setError('');
+    try {
+      const urls = [];
+      for (const file of files) { const { url } = await uploadFile(file); urls.push(url); }
+      setForm((f) => ({ ...f, images: [...f.images, ...urls] }));
+    } catch (err) { setError(err.message); }
+    setUploading('');
+  }
+  const removeImage = (i) => setForm((f) => ({ ...f, images: f.images.filter((_, idx) => idx !== i) }));
+  const tagsArr = (s) => s.split(',').map((t) => t.trim()).filter(Boolean);
 
+  // ---- submit ----
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     if (!isSupabaseConfigured || !user) { setError('Cần đăng nhập và cấu hình Supabase.'); return; }
     if (!form.title.trim()) return;
     setBusy(true);
-    const payload = {
-      kind: form.kind,
+    const table = tableOf(form.kind);
+    const base = {
       title: form.title.trim(),
       summary: form.summary.trim() || null,
       body: form.body.trim() || null,
       category: form.category.trim() || null,
-      tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
-      media_url: form.media_url.trim() || null,
-      cover_url: form.cover_url.trim() || null,
+      tags: tagsArr(form.tags),
       author_id: user.id,
     };
-    let res;
-    if (editingId) res = await supabase.from('content').update(payload).eq('id', editingId);
-    else res = await supabase.from('content').insert(payload);
-    if (res.error) setError(res.error.message);
-    else { reset(); loadMine(); }
+    let payload;
+    if (table === 'content') {
+      payload = {
+        ...base, kind: form.kind, cover_url: form.cover_url || null,
+        media_url: form.media_url.trim() || null,
+        paper_url: form.paper_url || null,
+        is_foundation: form.kind === 'research' ? !!form.is_foundation : false,
+        context: form.context.trim() || null,
+        insight: form.insight.trim() || null,
+        creative_approach: form.creative_approach.trim() || null,
+        execution: form.execution.trim() || null,
+        images: form.images || [],
+        concept_id: form.kind === 'video' && form.concept_id ? form.concept_id : null,
+      };
+    } else if (table === 'concepts') {
+      payload = { ...base };
+    } else {
+      payload = { ...base, file_url: form.file_url || null, file_name: form.file_name || null, cover_url: form.cover_url || null };
+    }
+
+    let res, savedId;
+    if (editing) {
+      res = await supabase.from(table).update(payload).eq('id', editing.id).select('id').single();
+      savedId = editing.id;
+    } else {
+      res = await supabase.from(table).insert(payload).select('id').single();
+      savedId = res.data?.id;
+    }
+    if (res.error) { setError(res.error.message); setBusy(false); return; }
+
+    // sync concept links
+    if (table === 'concepts' && savedId) {
+      await supabase.from('concept_links').delete().eq('source_id', savedId).eq('author_id', user.id);
+      const rows = form.links
+        .filter((tid) => tid && tid !== savedId)
+        .map((tid) => ({ source_id: savedId, target_id: tid, author_id: user.id }));
+      if (rows.length) await supabase.from('concept_links').insert(rows);
+    }
+
+    reset(); loadMine(); loadAux();
     setBusy(false);
   }
 
-  function startEdit(c) {
-    setEditingId(c.id);
+  async function startEdit(c) {
+    const table = c._table;
+    let links = [];
+    if (table === 'concepts') {
+      const { data } = await supabase.from('concept_links').select('target_id').eq('source_id', c.id).eq('author_id', user.id);
+      links = (data || []).map((l) => l.target_id);
+    }
+    setEditing({ table, id: c.id });
     setForm({
+      ...empty,
       kind: c.kind, title: c.title || '', summary: c.summary || '', body: c.body || '',
       category: c.category || '', tags: (c.tags || []).join(', '),
-      media_url: c.media_url || '', cover_url: c.cover_url || '',
+      media_url: c.media_url || '', cover_url: c.cover_url || '', paper_url: c.paper_url || '',
+      is_foundation: !!c.is_foundation,
+      context: c.context || '', insight: c.insight || '', creative_approach: c.creative_approach || '',
+      execution: c.execution || '', images: c.images || [],
+      concept_id: c.concept_id || '', file_url: c.file_url || '', file_name: c.file_name || '',
+      links,
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  async function remove(id) {
+  async function remove(c) {
     if (!confirm('Delete this entry?')) return;
-    const { error } = await supabase.from('content').delete().eq('id', id);
+    const { error } = await supabase.from(c._table).delete().eq('id', c.id);
     if (error) setError(error.message);
     else loadMine();
   }
 
   if (authLoading) return <div className="pt-32 px-5 max-w-container mx-auto text-on-surface-variant">Loading…</div>;
+
+  const k = form.kind;
+  const isContent = tableOf(k) === 'content';
 
   return (
     <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
@@ -99,7 +198,7 @@ export default function UploadPage() {
           <span className="h-px w-12 bg-primary" />
           <span className="label-sm text-secondary tracking-widest">Contributor Dashboard</span>
         </div>
-        <h1 className="h-lg">{editingId ? 'Edit entry' : 'Publish to Knoworld'}</h1>
+        <h1 className="h-lg">{editing ? 'Edit entry' : 'Publish to Knoworld'}</h1>
         {user && <p className="text-sm text-on-surface-variant mt-2">Signed in as {user.email}</p>}
         {!configured && (
           <div className="mt-4 glass-card rounded-card p-4 text-sm text-secondary">
@@ -109,62 +208,154 @@ export default function UploadPage() {
       </header>
 
       <div className="grid lg:grid-cols-5 gap-10">
-        {/* Form */}
         <form onSubmit={handleSubmit} className="lg:col-span-3 glass-card rounded-card p-6 md:p-8 flex flex-col gap-5">
           <div className="grid grid-cols-2 gap-4">
             <Field label="Type">
-              <select value={form.kind} onChange={(e) => set('kind', e.target.value)} className={inputCls}>
-                <option value="research">Research</option>
-                <option value="student">Student Case Study</option>
-                <option value="video">Video Case Study</option>
-                <option value="note">Note</option>
+              <select value={form.kind} onChange={(e) => set('kind', e.target.value)} className={inputCls} disabled={!!editing}>
+                {Object.entries(kindLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </Field>
             <Field label="Category">
-              <input value={form.category} onChange={(e) => set('category', e.target.value)} className={inputCls} placeholder="Cognitive Science" />
+              <input value={form.category} onChange={(e) => set('category', e.target.value)} className={inputCls}
+                list={k === 'video' ? 'video-cats' : undefined}
+                placeholder={k === 'video' ? 'e.g. Strategy Breakdowns' : 'Category'} />
+              {k === 'video' && (
+                <datalist id="video-cats">{videoCats.map((c) => <option key={c} value={c} />)}</datalist>
+              )}
             </Field>
           </div>
+
           <Field label="Title *">
-            <input required value={form.title} onChange={(e) => set('title', e.target.value)} className={inputCls} placeholder="Neural Resonances…" />
+            <input required value={form.title} onChange={(e) => set('title', e.target.value)} className={inputCls} placeholder="Title…" />
           </Field>
           <Field label="Summary">
             <textarea value={form.summary} onChange={(e) => set('summary', e.target.value)} rows={2} className={inputCls} placeholder="Short description…" />
           </Field>
-          <Field label="Body">
-            <textarea value={form.body} onChange={(e) => set('body', e.target.value)} rows={5} className={inputCls} placeholder="Full content…" />
+
+          {/* research */}
+          {k === 'research' && (
+            <>
+              <Field label="Body / abstract">
+                <textarea value={form.body} onChange={(e) => set('body', e.target.value)} rows={5} className={inputCls} placeholder="Full text…" />
+              </Field>
+              <label className="flex items-center gap-3 text-sm">
+                <input type="checkbox" checked={form.is_foundation} onChange={(e) => set('is_foundation', e.target.checked)} className="w-4 h-4 accent-[color:var(--color-primary,#c6bfff)]" />
+                <span className="text-on-surface-variant">Mark as a <strong className="text-on-surface">Theoretical Foundation</strong></span>
+              </label>
+              <FileField label="Research paper (PDF, optional)" accept=".pdf,.doc,.docx" busy={uploading === 'paper'}
+                onChange={(e) => onSingleFile(e, 'paper_url', 'paper')} done={form.paper_url} />
+            </>
+          )}
+
+          {/* student case study */}
+          {k === 'student' && (
+            <>
+              <Field label="Context"><textarea value={form.context} onChange={(e) => set('context', e.target.value)} rows={3} className={inputCls} placeholder="Background & brief…" /></Field>
+              <Field label="Insight"><textarea value={form.insight} onChange={(e) => set('insight', e.target.value)} rows={3} className={inputCls} placeholder="The key human truth…" /></Field>
+              <Field label="Creative Approach"><textarea value={form.creative_approach} onChange={(e) => set('creative_approach', e.target.value)} rows={3} className={inputCls} placeholder="Big idea & concept…" /></Field>
+              <Field label="Execution"><textarea value={form.execution} onChange={(e) => set('execution', e.target.value)} rows={3} className={inputCls} placeholder="How it was brought to life…" /></Field>
+              <Field label="Project images (multiple)">
+                <input type="file" accept="image/*" multiple onChange={onMultiImages} disabled={!user || uploading === 'images'} className={fileCls} />
+                {uploading === 'images' && <span className="text-xs text-on-surface-variant">Uploading…</span>}
+              </Field>
+              {form.images.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {form.images.map((src, i) => (
+                    <div key={i} className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt="" className="w-20 h-20 object-cover rounded-lg border border-white/10" />
+                      <button type="button" onClick={() => removeImage(i)} className="absolute -top-2 -right-2 bg-error text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* video */}
+          {k === 'video' && (
+            <>
+              <Field label="YouTube / Vimeo link (or upload a file below)">
+                <input value={form.media_url} onChange={(e) => set('media_url', e.target.value)} className={inputCls} placeholder="https://youtube.com/watch?v=…" />
+              </Field>
+              <FileField label="…or upload a video file" accept="video/*" busy={uploading === 'video'}
+                onChange={(e) => onSingleFile(e, 'media_url', 'video')} done={form.media_url} />
+              <Field label="Link to a Knowledge Hub concept (optional)">
+                <select value={form.concept_id} onChange={(e) => set('concept_id', e.target.value)} className={inputCls}>
+                  <option value="">— none —</option>
+                  {concepts.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+                </select>
+              </Field>
+            </>
+          )}
+
+          {/* concept */}
+          {k === 'concept' && (
+            <>
+              <Field label="Content / explanation">
+                <textarea value={form.body} onChange={(e) => set('body', e.target.value)} rows={5} className={inputCls} placeholder="Explain the concept…" />
+              </Field>
+              <Field label="Connect to other concepts (the node bridges)">
+                {concepts.filter((c) => !editing || c.id !== editing.id).length === 0 ? (
+                  <p className="text-xs text-on-surface-variant">No other concepts yet — add more, then link them.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {concepts.filter((c) => !editing || c.id !== editing.id).map((c) => {
+                      const on = form.links.includes(c.id);
+                      return (
+                        <button type="button" key={c.id}
+                          onClick={() => set('links', on ? form.links.filter((x) => x !== c.id) : [...form.links, c.id])}
+                          className={on
+                            ? 'px-3 py-1.5 rounded-full text-xs bg-primary text-on-primary font-bold'
+                            : 'px-3 py-1.5 rounded-full text-xs border border-white/10 text-on-surface-variant hover:border-primary/50'}>
+                          {c.title}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </Field>
+            </>
+          )}
+
+          {/* framework */}
+          {k === 'framework' && (
+            <>
+              <Field label="Guide / description page">
+                <textarea value={form.body} onChange={(e) => set('body', e.target.value)} rows={5} className={inputCls} placeholder="How to use this framework…" />
+              </Field>
+              <FileField label="Downloadable file (PDF / DOCX / PPTX / XLSX)" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+                busy={uploading === 'file'} onChange={(e) => onSingleFile(e, 'file_url', 'file')} done={form.file_url} doneLabel={form.file_name} />
+            </>
+          )}
+
+          <Field label="Tags (comma separated)">
+            <input value={form.tags} onChange={(e) => set('tags', e.target.value)} className={inputCls} placeholder="imc, branding" />
           </Field>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Tags (comma separated)">
-              <input value={form.tags} onChange={(e) => set('tags', e.target.value)} className={inputCls} placeholder="ai, ethics" />
-            </Field>
-            <Field label="Video / Media URL">
-              <input value={form.media_url} onChange={(e) => set('media_url', e.target.value)} className={inputCls} placeholder="https://youtube.com/embed/…" />
-            </Field>
-          </div>
-          <Field label="Cover image">
-            <div className="flex items-center gap-3">
-              <input type="file" accept="image/*" onChange={handleFile} disabled={!user || uploading}
-                className="text-sm text-on-surface-variant file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-primary file:text-on-primary file:text-sm file:font-bold" />
-              {uploading && <span className="text-xs text-on-surface-variant">Uploading…</span>}
-            </div>
-          </Field>
-          {form.cover_url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={form.cover_url} alt="cover preview" className="rounded-lg max-h-40 object-cover border border-white/10" />
+
+          {/* cover image — for content + framework */}
+          {(isContent || k === 'framework') && (
+            <>
+              <Field label="Cover image">
+                <input type="file" accept="image/*" onChange={(e) => onSingleFile(e, 'cover_url', 'cover')} disabled={!user || uploading === 'cover'} className={fileCls} />
+                {uploading === 'cover' && <span className="text-xs text-on-surface-variant">Uploading…</span>}
+              </Field>
+              {form.cover_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={form.cover_url} alt="cover preview" className="rounded-lg max-h-40 object-cover border border-white/10" />
+              )}
+            </>
           )}
 
           {error && <p className="text-sm text-error">{error}</p>}
 
           <div className="flex gap-3">
-            <button type="submit" disabled={busy || !user}
+            <button type="submit" disabled={busy || !user || !!uploading}
               className="bg-primary text-on-primary px-6 py-2.5 rounded-lg text-sm font-bold hover:scale-[0.98] transition-transform disabled:opacity-50">
-              {busy ? '…' : editingId ? 'Update' : 'Publish'}
+              {busy ? '…' : editing ? 'Update' : 'Publish'}
             </button>
-            {editingId && (
-              <button type="button" onClick={reset}
-                className="px-6 py-2.5 rounded-lg text-sm border border-white/10 text-on-surface-variant hover:border-primary/50">
-                Cancel
-              </button>
+            {editing && (
+              <button type="button" onClick={reset} className="px-6 py-2.5 rounded-lg text-sm border border-white/10 text-on-surface-variant hover:border-primary/50">Cancel</button>
             )}
           </div>
         </form>
@@ -177,16 +368,12 @@ export default function UploadPage() {
           ) : (
             <div className="flex flex-col gap-3">
               {mine.map((c) => (
-                <div key={c.id} className="glass-card rounded-card p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <span className="label-sm text-secondary">{c.kind}</span>
-                      <h3 className="font-display text-base font-medium mt-1">{c.title}</h3>
-                    </div>
-                  </div>
+                <div key={`${c._table}-${c.id}`} className="glass-card rounded-card p-4">
+                  <span className="label-sm text-secondary">{kindLabel[c.kind] || c.kind}</span>
+                  <h3 className="font-display text-base font-medium mt-1">{c.title}</h3>
                   <div className="flex gap-3 mt-3 text-sm">
                     <button onClick={() => startEdit(c)} className="text-primary hover:underline">Edit</button>
-                    <button onClick={() => remove(c.id)} className="text-error hover:underline">Delete</button>
+                    <button onClick={() => remove(c)} className="text-error hover:underline">Delete</button>
                   </div>
                 </div>
               ))}
@@ -200,6 +387,8 @@ export default function UploadPage() {
 
 const inputCls =
   'w-full bg-surface-container-lowest border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40';
+const fileCls =
+  'text-sm text-on-surface-variant file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-primary file:text-on-primary file:text-sm file:font-bold';
 
 function Field({ label, children }) {
   return (
@@ -207,5 +396,17 @@ function Field({ label, children }) {
       <span className="label-sm text-on-surface-variant">{label}</span>
       {children}
     </label>
+  );
+}
+
+function FileField({ label, accept, onChange, busy, done, doneLabel }) {
+  return (
+    <Field label={label}>
+      <div className="flex items-center gap-3 flex-wrap">
+        <input type="file" accept={accept} onChange={onChange} disabled={busy} className={fileCls} />
+        {busy && <span className="text-xs text-on-surface-variant">Uploading…</span>}
+        {done && !busy && <span className="text-xs text-secondary">✓ {doneLabel || 'uploaded'}</span>}
+      </div>
+    </Field>
   );
 }

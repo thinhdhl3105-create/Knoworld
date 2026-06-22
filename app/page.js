@@ -2,24 +2,24 @@ import Link from 'next/link';
 
 const pathways = [
   {
-    href: '/research', tag: 'Repository', icon: 'database',
+    href: '/research', tag: 'Research', icon: 'science',
+    title: 'Research Archive',
+    desc: 'Ongoing research papers and editable theoretical foundations — the conceptual bedrock behind every strategy.',
+  },
+  {
+    href: '/knowledge-hub', tag: 'Repository', icon: 'hub',
     title: 'Knowledge Hub',
-    desc: 'Deep dive into our core research archives. A structured database of validated scientific findings and multi-disciplinary theories.',
+    desc: 'A connected map of key concepts and the bridges between them, plus downloadable frameworks like IMC planning and branding strategy.',
   },
   {
     href: '/videos', tag: 'Visual Learning', icon: 'play_circle',
     title: 'Video Case Studies',
-    desc: 'Immersive visual explorations of real-world applications. High-definition precision detailing scientific breakthroughs in action.',
+    desc: 'Curated video breakdowns — uploaded or linked from YouTube — organised by category and tied to the concepts they illustrate.',
   },
   {
     href: '/students', tag: 'Academic Excellence', icon: 'school',
     title: 'Student Case Studies',
-    desc: 'Peer-reviewed projects and experimental analyses from our leading student community. Discover tomorrow’s research today.',
-  },
-  {
-    href: '/research', tag: 'Research', icon: 'science',
-    title: 'Research',
-    desc: 'Updates on ongoing research and theoretical backgrounds with relevant key concepts.',
+    desc: 'Real student work unpacked into context, insight, creative approach, and execution — with the visuals that brought it to life.',
   },
 ];
 

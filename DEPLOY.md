@@ -1,42 +1,82 @@
-# Hướng dẫn deploy Knoworld (Supabase + Vercel)
+# Knoworld — Deploy & Update Guide (Supabase + Vercel)
 
-Project đã build sạch (Next.js 14.2.35, 9 route, không lỗi). Làm theo 3 phần sau.
+This version adds: **Research Archive** (papers + editable Theoretical Foundations),
+a separate **Knowledge Hub** (key concepts + node graph + downloadable frameworks),
+upgraded **Video Case Studies** (file/YouTube upload, saved categories, concept links),
+and **Student Case Studies** with detail pages (context / insight / creative approach /
+execution / images). All placeholder sample content is removed so you start fresh.
 
-## Phần 1 — Supabase (backend)
-1. Vào https://supabase.com → **New project** (chọn region gần VN, đặt mật khẩu DB).
-2. Mở **SQL Editor → New query**, dán toàn bộ nội dung file `supabase/schema.sql`, bấm **Run**.
-   → Tạo bảng `profiles`, `content`, enum `content_kind`, RLS, bucket Storage `uploads`,
-   trigger tự tạo profile, và vài dòng nội dung mẫu.
-3. Vào **Project Settings → API**, copy 2 giá trị:
-   - **Project URL**  → biến `NEXT_PUBLIC_SUPABASE_URL`
-   - **anon public**  → biến `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-4. (Tuỳ chọn) **Authentication → Providers → Email**: tắt "Confirm email" nếu muốn đăng nhập ngay không cần xác nhận.
+---
 
-## Phần 2 — Vercel (frontend + backend)
-1. Đẩy thư mục `knoworld/` lên một repo GitHub (hoặc dùng nút Import của Vercel).
-2. Vào https://vercel.com → **Add New → Project** → chọn repo.
-   - Framework: **Next.js** (tự nhận), Root Directory: thư mục chứa `package.json`.
-3. Mục **Environment Variables**, thêm 2 biến từ Phần 1:
-   ```
-   NEXT_PUBLIC_SUPABASE_URL = https://<project-ref>.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY = <anon public key>
-   ```
-4. Bấm **Deploy**. Xong sẽ có domain dạng `https://knoworld-xxxx.vercel.app`.
+## STEP 1 — Update the database (Supabase)
 
-## Phần 3 — Nối Auth với domain
-Quay lại Supabase → **Authentication → URL Configuration**:
-- **Site URL**: dán domain Vercel.
-- **Redirect URLs**: thêm domain Vercel (và `http://localhost:3000` để test cục bộ).
+Your database already exists, so run the **migration**, not the full schema.
 
-## Chạy thử cục bộ (tuỳ chọn)
+1. Open https://supabase.com → your project → **SQL Editor → New query**.
+2. Open the file `supabase/migration_v2.sql`, copy **everything**, paste it in, click **Run**.
+   - Adds new columns to `content` (paper_url, is_foundation, context, insight,
+     creative_approach, execution, images, concept_id).
+   - Creates new tables: `concepts`, `concept_links`, `frameworks` (with RLS policies).
+   - **Deletes all existing rows in `content`** (clears the old placeholder case studies
+     and videos) and seeds 5 real Theoretical Foundations you can edit later.
+3. Confirm under **Table Editor** that you now see: `content`, `concepts`,
+   `concept_links`, `frameworks`.
+
+> Starting a brand-new project instead? Use `supabase/schema.sql` (the full script).
+
+The `uploads` storage bucket and its policies already exist from the first install and
+are reused for images, video files, papers and framework files.
+
+---
+
+## STEP 2 — Push the code (GitHub → Vercel auto-deploy)
+
+The repo is already linked to Vercel, so a push to GitHub triggers a new deployment.
+From the `knoworld/` folder on your computer:
+
+```bash
+git add -A
+git commit -m "Add Knowledge Hub, frameworks, research archive, student case detail"
+git push origin main      # (use your branch name if different)
+```
+
+Vercel will rebuild automatically. Watch progress at https://vercel.com → your project →
+**Deployments**. When it finishes, the changes are live at https://knoworld.vercel.app.
+
+> No change to environment variables is needed — the existing
+> `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` on Vercel still apply.
+
+---
+
+## STEP 3 — Add your content (no code needed)
+
+Sign in, then go to **/upload**. The form adapts to the **Type** you pick:
+
+- **Research / Foundation** — title, summary, body, optional PDF upload; tick
+  *“Mark as a Theoretical Foundation”* to make it appear in the Research Archive’s
+  Theoretical Foundations list (editable anytime).
+- **Student Case Study** — fill **Context, Insight, Creative Approach, Execution** and
+  upload multiple project images. Each case opens its own detail page.
+- **Video Case Study** — paste a YouTube/Vimeo link **or** upload a video file. Type a
+  **Category** (previously used categories autocomplete, so videos group together) and
+  optionally **link it to a Knowledge Hub concept**.
+- **Key Concept (Knowledge Hub)** — title + explanation, then tap other concepts to
+  create the **node bridges** between them (shown on the concept map).
+- **Framework** — write a guide and/or upload a downloadable file (PDF/DOCX/PPTX/XLSX).
+
+Everything you publish is editable/deletable from the **Your entries** panel.
+
+---
+
+## Local test (optional)
+
 ```bash
 cd knoworld
 npm install
-cp .env.local.example .env.local   # điền 2 biến
-npm run dev    # http://localhost:3000
+# .env.local already contains your Supabase keys
+npm run dev        # http://localhost:3000
 ```
 
-## Ghi chú
-- Khi **chưa** cấu hình Supabase, các trang nội dung vẫn hiển thị dữ liệu mẫu (sample) nên web không bao giờ trống.
-- Khi **đã** cấu hình: đăng ký tại `/login`, rồi đăng/sửa/xoá nội dung và upload ảnh tại `/upload`.
-- RLS đã bật: ai cũng đọc nội dung đã publish; chỉ tác giả mới sửa/xoá bài của mình.
+## Notes
+- RLS is on: anyone reads published content; only the author can edit/delete their own.
+- If Supabase keys are missing, pages render empty states instead of erroring.

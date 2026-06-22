@@ -6,7 +6,8 @@ import { useState } from 'react';
 import { useAuth } from './AuthProvider';
 
 const links = [
-  { href: '/research', label: 'Knowledge' },
+  { href: '/research', label: 'Research Archive' },
+  { href: '/knowledge-hub', label: 'Knowledge Hub' },
   { href: '/videos', label: 'Video Case Studies' },
   { href: '/students', label: 'Student Case Studies' },
 ];

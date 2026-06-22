@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { fetchContent } from '@/lib/content';
 import ContentCard from '../components/ContentCard';
 
@@ -48,16 +49,22 @@ export default function StudentsPage() {
       ) : (
         <>
           {featured && (
-            <section className="mb-12 glass-card rounded-card overflow-hidden grid md:grid-cols-2">
+            <Link href={`/students/${featured.id}`} className="mb-12 glass-card pulse-hover rounded-card overflow-hidden grid md:grid-cols-2">
               <div className="relative min-h-[240px] bg-gradient-to-br from-[#2a1f3a] to-[#0e0d16] flex items-center justify-center">
-                <span className="material-symbols-outlined text-6xl text-primary opacity-40">workspace_premium</span>
+                {featured.cover_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={featured.cover_url} alt={featured.title} className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <span className="material-symbols-outlined text-6xl text-primary opacity-40">workspace_premium</span>
+                )}
               </div>
               <div className="p-8 md:p-10 flex flex-col justify-center gap-4">
                 <span className="label-sm text-secondary">Spotlight · {featured.category}</span>
                 <h2 className="h-lg">{featured.title}</h2>
                 <p className="text-on-surface-variant leading-relaxed">{featured.summary}</p>
+                <span className="text-sm text-primary font-bold flex items-center gap-1">View case study <span className="material-symbols-outlined text-base">arrow_forward</span></span>
               </div>
-            </section>
+            </Link>
           )}
 
           {/* Filters */}
@@ -90,12 +97,18 @@ export default function StudentsPage() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map((item, i) => (
-              <ContentCard key={item.id} item={item} index={i} />
+              <Link key={item.id} href={`/students/${item.id}`}>
+                <ContentCard item={item} index={i} />
+              </Link>
             ))}
           </div>
-          {filtered.length === 0 && (
+          {items.length === 0 ? (
+            <p className="text-on-surface-variant glass-card rounded-card p-8 text-center">
+              No student case studies yet. Submit the first one from the dashboard.
+            </p>
+          ) : filtered.length === 0 ? (
             <p className="text-on-surface-variant py-12 text-center">No projects match your search.</p>
-          )}
+          ) : null}
 
           <section className="mt-24 glass-card rounded-card p-10 text-center">
             <h2 className="h-md mb-3">Inspired by these projects?</h2>
