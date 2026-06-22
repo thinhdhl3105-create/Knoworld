@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useAuth } from './AuthProvider';
 
 const links = [
+  { href: '/dashboard', label: 'Dashboard', auth: true },
   { href: '/research', label: 'Research Archive', auth: true },
   { href: '/knowledge-hub', label: 'Knowledge Hub', auth: true },
   { href: '/videos', label: 'Video Case Studies' },
@@ -52,7 +53,7 @@ export default function Nav() {
           {user ? (
             <>
               <Link href="/upload" className="hidden sm:inline text-sm text-on-surface-variant hover:text-primary transition-colors">
-                Dashboard
+                Manage
               </Link>
               <button onClick={signOut} className="text-sm text-on-surface-variant hover:text-primary transition-colors">
                 Sign Out

@@ -130,19 +130,28 @@ export default function ConceptGraph({ nodes, links, selectedId, onSelect }) {
         const p = pos[n.id];
         if (!p) return null;
         const sel = n.id === selectedId;
-        const r = Math.max(18, Math.min(34, 16 + (n.title?.length || 0) * 0.6));
+        const isFoundation = n.type === 'foundation';
+        const isResearch = n.type === 'research';
+        // Foundations render bigger; research nodes smaller.
+        const base = isFoundation ? 22 : isResearch ? 14 : 16;
+        const r = Math.max(isResearch ? 13 : 18, Math.min(isFoundation ? 38 : 34, base + (n.title?.length || 0) * 0.5));
+        // Foundations = primary (violet); research = secondary (teal); default = violet.
+        const accent = isResearch ? 'var(--color-secondary, #7fd4c4)' : 'var(--color-primary, #c6bfff)';
+        const fillIdle = isResearch ? 'rgba(127,212,196,0.12)' : 'rgba(198,191,255,0.14)';
+        const strokeIdle = isResearch ? 'rgba(127,212,196,0.5)' : 'rgba(198,191,255,0.5)';
+        const max = isFoundation ? 16 : isResearch ? 12 : 14;
         return (
           <g key={n.id} transform={`translate(${p.x},${p.y})`} style={{ cursor: 'pointer' }}
             onMouseDown={(e) => onDown(n.id, e)}
             onTouchStart={(e) => onDown(n.id, e)}
             onClick={() => onSelect?.(n.id)}>
             <circle r={r}
-              fill={sel ? 'var(--color-primary, #c6bfff)' : 'rgba(198,191,255,0.14)'}
-              stroke={sel ? 'var(--color-primary, #c6bfff)' : 'rgba(198,191,255,0.5)'}
-              strokeWidth={sel ? 2.5 : 1.5} />
-            <text textAnchor="middle" dy="0.32em" fontSize="10"
-              fill={sel ? '#1a1830' : '#e8e6f5'} style={{ pointerEvents: 'none', fontWeight: 600 }}>
-              {(n.title || '').length > 14 ? n.title.slice(0, 13) + '…' : n.title}
+              fill={sel ? accent : fillIdle}
+              stroke={sel ? accent : strokeIdle}
+              strokeWidth={sel ? 2.5 : isFoundation ? 1.8 : 1.5} />
+            <text textAnchor="middle" dy="0.32em" fontSize={isResearch ? 8.5 : 10}
+              fill={sel ? '#1a1830' : '#e8e6f5'} style={{ pointerEvents: 'none', fontWeight: isFoundation ? 700 : 600 }}>
+              {(n.title || '').length > max ? n.title.slice(0, max - 1) + '…' : n.title}
             </text>
           </g>
         );

@@ -4,6 +4,41 @@ Làm theo đúng thứ tự dưới đây. Mỗi phần chỉ mất vài phút.
 
 ---
 
+## ⭐ BẢN CẬP NHẬT v3 (Theoretical Map + Dashboard) — làm 3 bước này
+
+Lần này thêm: **link ngoài (URL)** cho Research/Foundation, **Theoretical Map**
+(nối Foundation ↔ Research, là tab mới trong Research Archive), và **Dashboard**
+phân tích mới (menu trên cùng).
+
+**Bước 1 — Supabase:** vào **SQL Editor → New query**, dán toàn bộ file
+**`supabase/migration_v3.sql`** rồi bấm **Run**. (An toàn, chạy lại nhiều lần được.
+Nó chỉ THÊM: cột `content.source_url` và bảng `foundation_links` — không xóa dữ liệu.)
+
+**Bước 2 — Đẩy code lên GitHub (chạy trên MÁY BẠN, terminal Windows):**
+
+```powershell
+cd "D:\Hồ Sơ\Knowledge App\Knowledge management\knoworld"
+git add .
+git commit -m "v3: Theoretical Map (foundation<->research) + analytics Dashboard + external links"
+git push origin main
+```
+
+> Quan trọng: hãy commit/push **từ máy bạn**, không commit từ phiên trợ lý — file
+> trên máy bạn mới là bản đầy đủ, đúng nhất.
+> Nếu gặp lỗi `index file corrupt`: chạy `del .git\index` rồi `git reset` trước khi `git add .`
+> (xem mục 2 bên dưới). Nhớ tắt `npm run dev` trước khi push.
+
+**Bước 3 — Vercel:** repo đã nối sẵn nên `git push` xong là **tự build & deploy**.
+Không cần đổi gì nếu 2 biến môi trường Supabase đã có (xem mục 3). Mở link Vercel để kiểm tra.
+
+**Kiểm thử nhanh sau deploy:**
+- [ ] Đăng nhập → menu có **Dashboard**. Mở thử: thấy thẻ số liệu, vòng tròn "Foundation coverage", biểu đồ cột.
+- [ ] Vào **Upload**: tạo 1 Research và tick "Theoretical Foundation". Tạo thêm 1 Research thường, ở phần "supports which Foundation(s)" tick foundation vừa tạo → **Publish**.
+- [ ] Vào **Research Archive → tab Theoretical Map**: thấy 2 node nối nhau (tím = Foundation, xanh = Research). Bấm node để xem chi tiết.
+- [ ] Mở 1 Research có nhập "Related link" → trong cửa sổ chi tiết có nút **Open related link**.
+
+---
+
 ## 0. Trước khi bắt đầu — tắt dev server & dọn rác
 
 1. **Dừng `npm run dev`** đang chạy (nhấn `Ctrl + C` trong terminal đang chạy nó).

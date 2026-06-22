@@ -1,18 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { fetchContent } from '@/lib/content';
+import { useEffect, useMemo, useState } from 'react';
+import { fetchContent, fetchFoundationLinks } from '@/lib/content';
 import ContentCard from '../components/ContentCard';
+import ConceptGraph from '../components/ConceptGraph';
 import RequireAuth from '../components/RequireAuth';
 
 function ResearchPageInner() {
   const [items, setItems] = useState([]);
+  const [flinks, setFlinks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState(null);
+  const [tab, setTab] = useState('archive'); // archive | map
+  const [mapSelId, setMapSelId] = useState(null);
 
   useEffect(() => {
-    fetchContent('research').then(({ data }) => {
-      setItems(data);
+    Promise.all([fetchContent('research'), fetchFoundationLinks()]).then(([c, fl]) => {
+      setItems(c.data);
+      setFlinks(fl.data);
       setLoading(false);
     });
   }, []);
@@ -22,6 +27,32 @@ function ResearchPageInner() {
   const featured = papers.find((i) => i.tags?.includes('featured')) || papers[0];
   const rest = papers.filter((i) => i.id !== featured?.id);
   const open = items.find((i) => i.id === openId);
+
+  // ---- Theoretical Map data ----
+  const mapNodes = useMemo(
+    () => [
+      ...foundations.map((f) => ({ id: f.id, title: f.title, type: 'foundation' })),
+      ...papers.map((p) => ({ id: p.id, title: p.title, type: 'research' })),
+    ],
+    [foundations, papers]
+  );
+  const mapEdges = useMemo(
+    () => flinks.map((l) => ({ source_id: l.foundation_id, target_id: l.research_id, label: l.label })),
+    [flinks]
+  );
+  const mapSel = items.find((i) => i.id === mapSelId);
+  // Items connected to the selected map node.
+  const mapConnected = useMemo(() => {
+    if (!mapSelId) return [];
+    const ids = new Set();
+    flinks.forEach((l) => {
+      if (l.foundation_id === mapSelId) ids.add(l.research_id);
+      if (l.research_id === mapSelId) ids.add(l.foundation_id);
+    });
+    return items.filter((i) => ids.has(i.id));
+  }, [mapSelId, flinks, items]);
+  const linkedPaperIds = useMemo(() => new Set(flinks.map((l) => l.research_id)), [flinks]);
+  const unlinkedPapers = papers.filter((p) => !linkedPaperIds.has(p.id));
 
   return (
     <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
@@ -42,8 +73,94 @@ function ResearchPageInner() {
         </a>
       </header>
 
+      {/* Tabs */}
+      <div className="flex items-center gap-2 mb-10 border-b border-white/10">
+        {[
+          { id: 'archive', label: 'Archive' },
+          { id: 'map', label: 'Theoretical Map' },
+        ].map((t) => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className={tab === t.id
+              ? 'px-4 py-2.5 text-sm font-bold text-primary border-b-2 border-primary -mb-px'
+              : 'px-4 py-2.5 text-sm text-on-surface-variant hover:text-on-surface'}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <p className="text-on-surface-variant">Loading constellations…</p>
+      ) : tab === 'map' ? (
+        <section>
+          <div className="flex flex-wrap items-center gap-4 mb-6">
+            <span className="flex items-center gap-2 text-sm text-on-surface-variant">
+              <span className="inline-block w-3 h-3 rounded-full" style={{ background: 'var(--color-primary, #c6bfff)' }} /> Foundation ({foundations.length})
+            </span>
+            <span className="flex items-center gap-2 text-sm text-on-surface-variant">
+              <span className="inline-block w-3 h-3 rounded-full" style={{ background: 'var(--color-secondary, #7fd4c4)' }} /> Research ({papers.length})
+            </span>
+            <span className="label-sm text-on-surface-variant ml-auto">{flinks.length} connections</span>
+          </div>
+
+          {mapNodes.length === 0 ? (
+            <p className="text-on-surface-variant glass-card rounded-card p-8 text-center">
+              Nothing to map yet. Add Foundations and Research, then link them in the dashboard.
+            </p>
+          ) : (
+            <div className="grid lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <ConceptGraph nodes={mapNodes} links={mapEdges} selectedId={mapSelId} onSelect={setMapSelId} />
+                <p className="text-xs text-on-surface-variant mt-3">Drag nodes to rearrange · click a node for details.</p>
+              </div>
+              <aside className="glass-card rounded-card p-6 h-fit">
+                {mapSel ? (
+                  <>
+                    <span className="label-sm text-secondary">
+                      {mapSel.is_foundation ? 'Theoretical Foundation' : 'Research'}
+                    </span>
+                    <h3 className="font-display text-lg font-medium mt-1 mb-2">{mapSel.title}</h3>
+                    {mapSel.summary && <p className="text-sm text-on-surface-variant mb-4">{mapSel.summary}</p>}
+                    <button onClick={() => setOpenId(mapSel.id)} className="text-sm text-primary font-bold mb-5 inline-flex items-center gap-1 hover:gap-2 transition-all">
+                      Open details <span className="material-symbols-outlined text-base">arrow_forward</span>
+                    </button>
+                    <p className="label-sm text-on-surface-variant mb-2">
+                      {mapSel.is_foundation ? 'Linked research' : 'Supports foundations'} ({mapConnected.length})
+                    </p>
+                    {mapConnected.length === 0 ? (
+                      <p className="text-xs text-on-surface-variant">No connections yet.</p>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        {mapConnected.map((c) => (
+                          <button key={c.id} onClick={() => setMapSelId(c.id)}
+                            className="text-left text-sm px-3 py-2 rounded-lg border border-white/10 hover:border-primary/50 transition-colors">
+                            {c.title}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-on-surface-variant">Click a node to inspect a Foundation or Research paper and trace its connections.</p>
+                )}
+              </aside>
+            </div>
+          )}
+
+          {unlinkedPapers.length > 0 && (
+            <div className="mt-8 glass-card rounded-card p-5">
+              <p className="label-sm text-secondary mb-2">Unlinked research ({unlinkedPapers.length})</p>
+              <p className="text-xs text-on-surface-variant mb-3">These papers aren’t connected to any Foundation yet — link them from the dashboard.</p>
+              <div className="flex flex-wrap gap-2">
+                {unlinkedPapers.map((p) => (
+                  <button key={p.id} onClick={() => setOpenId(p.id)}
+                    className="px-3 py-1.5 rounded-full text-xs border border-white/10 text-on-surface-variant hover:border-secondary/50">
+                    {p.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
       ) : (
         <>
           {featured && (
@@ -149,11 +266,44 @@ function ResearchPageInner() {
             </div>
             {open.summary && <p className="text-on-surface-variant leading-relaxed mb-4">{open.summary}</p>}
             {open.body && <p className="text-sm text-on-surface leading-relaxed whitespace-pre-wrap">{open.body}</p>}
-            {open.paper_url && (
-              <a href={open.paper_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 mt-6 bg-primary text-on-primary px-5 py-2.5 rounded-lg text-sm font-bold">
-                <span className="material-symbols-outlined text-base">download</span> Download paper
-              </a>
-            )}
+            <div className="flex flex-wrap gap-3 mt-6">
+              {open.paper_url && (
+                <a href={open.paper_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 bg-primary text-on-primary px-5 py-2.5 rounded-lg text-sm font-bold">
+                  <span className="material-symbols-outlined text-base">download</span> Download paper
+                </a>
+              )}
+              {open.source_url && (
+                <a href={open.source_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 border border-secondary/50 text-secondary px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-secondary/10">
+                  <span className="material-symbols-outlined text-base">link</span> Open related link
+                </a>
+              )}
+            </div>
+            {(() => {
+              const conn = (() => {
+                const ids = new Set();
+                flinks.forEach((l) => {
+                  if (l.foundation_id === open.id) ids.add(l.research_id);
+                  if (l.research_id === open.id) ids.add(l.foundation_id);
+                });
+                return items.filter((i) => ids.has(i.id));
+              })();
+              if (!conn.length) return null;
+              return (
+                <div className="mt-6">
+                  <p className="label-sm text-on-surface-variant mb-2">
+                    {open.is_foundation ? 'Linked research' : 'Part of foundations'} ({conn.length})
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {conn.map((c) => (
+                      <button key={c.id} onClick={() => setOpenId(c.id)}
+                        className="px-3 py-1.5 rounded-full text-xs border border-white/10 text-on-surface-variant hover:border-primary/50">
+                        {c.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
             {open.tags?.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-6">
                 {open.tags.map((t) => (

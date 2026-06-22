@@ -7,9 +7,13 @@ import { useAuth } from '../components/AuthProvider';
 
 const empty = {
   kind: 'research', title: '', summary: '', body: '', category: '', tags: '',
-  media_url: '', cover_url: '', paper_url: '', is_foundation: false,
+  media_url: '', cover_url: '', paper_url: '', source_url: '', is_foundation: false,
   context: '', insight: '', creative_approach: '', execution: '', images: [],
   concept_id: '', file_url: '', file_name: '', links: [],
+  // Theoretical Map: ids of the OTHER end of foundation_links.
+  // Editing a Foundation → research ids it links to.
+  // Editing a Research  → foundation ids it belongs to.
+  flinks: [],
 };
 
 // Which table a kind lives in.
@@ -29,6 +33,7 @@ export default function UploadPage() {
   const [editing, setEditing] = useState(null); // {table, id}
   const [mine, setMine] = useState([]);
   const [concepts, setConcepts] = useState([]);
+  const [researchItems, setResearchItems] = useState([]); // all research-kind rows (for map linking)
   const [videoCats, setVideoCats] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -40,11 +45,13 @@ export default function UploadPage() {
 
   async function loadAux() {
     if (!isSupabaseConfigured) return;
-    const [{ data: cs }, { data: vids }] = await Promise.all([
+    const [{ data: cs }, { data: vids }, { data: rs }] = await Promise.all([
       supabase.from('concepts').select('id,title').order('title'),
       supabase.from('content').select('category').eq('kind', 'video').not('category', 'is', null),
+      supabase.from('content').select('id,title,is_foundation').eq('kind', 'research').order('title'),
     ]);
     setConcepts(cs || []);
+    setResearchItems(rs || []);
     setVideoCats(Array.from(new Set((vids || []).map((v) => v.category).filter(Boolean))).sort());
   }
 
@@ -120,6 +127,7 @@ export default function UploadPage() {
         ...base, kind: form.kind, cover_url: form.cover_url || null,
         media_url: form.media_url.trim() || null,
         paper_url: form.paper_url || null,
+        source_url: form.source_url.trim() || null,
         is_foundation: form.kind === 'research' ? !!form.is_foundation : false,
         context: form.context.trim() || null,
         insight: form.insight.trim() || null,
@@ -156,6 +164,21 @@ export default function UploadPage() {
       if (rows.length) await supabase.from('concept_links').insert(rows);
     }
 
+    // sync Theoretical Map edges (foundation ↔ research)
+    if (table === 'content' && form.kind === 'research' && savedId) {
+      const isFoundation = !!form.is_foundation;
+      const sideCol = isFoundation ? 'foundation_id' : 'research_id';
+      await supabase.from('foundation_links').delete().eq(sideCol, savedId).eq('author_id', user.id);
+      const rows = form.flinks
+        .filter((tid) => tid && tid !== savedId)
+        .map((tid) =>
+          isFoundation
+            ? { foundation_id: savedId, research_id: tid, author_id: user.id }
+            : { foundation_id: tid, research_id: savedId, author_id: user.id }
+        );
+      if (rows.length) await supabase.from('foundation_links').insert(rows);
+    }
+
     reset(); loadMine(); loadAux();
     setBusy(false);
   }
@@ -163,9 +186,19 @@ export default function UploadPage() {
   async function startEdit(c) {
     const table = c._table;
     let links = [];
+    let flinks = [];
     if (table === 'concepts') {
       const { data } = await supabase.from('concept_links').select('target_id').eq('source_id', c.id).eq('author_id', user.id);
       links = (data || []).map((l) => l.target_id);
+    }
+    if (table === 'content' && c.kind === 'research') {
+      if (c.is_foundation) {
+        const { data } = await supabase.from('foundation_links').select('research_id').eq('foundation_id', c.id).eq('author_id', user.id);
+        flinks = (data || []).map((l) => l.research_id);
+      } else {
+        const { data } = await supabase.from('foundation_links').select('foundation_id').eq('research_id', c.id).eq('author_id', user.id);
+        flinks = (data || []).map((l) => l.foundation_id);
+      }
     }
     setEditing({ table, id: c.id });
     setForm({
@@ -173,11 +206,12 @@ export default function UploadPage() {
       kind: c.kind, title: c.title || '', summary: c.summary || '', body: c.body || '',
       category: c.category || '', tags: (c.tags || []).join(', '),
       media_url: c.media_url || '', cover_url: c.cover_url || '', paper_url: c.paper_url || '',
+      source_url: c.source_url || '',
       is_foundation: !!c.is_foundation,
       context: c.context || '', insight: c.insight || '', creative_approach: c.creative_approach || '',
       execution: c.execution || '', images: c.images || [],
       concept_id: c.concept_id || '', file_url: c.file_url || '', file_name: c.file_name || '',
-      links,
+      links, flinks,
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -247,6 +281,35 @@ export default function UploadPage() {
               </label>
               <FileField label="Research paper (PDF, optional)" accept=".pdf,.doc,.docx" busy={uploading === 'paper'}
                 onChange={(e) => onSingleFile(e, 'paper_url', 'paper')} done={form.paper_url} />
+              <Field label="Related link (URL, optional)">
+                <input value={form.source_url} onChange={(e) => set('source_url', e.target.value)} className={inputCls}
+                  placeholder="https://doi.org/…  ·  Google Drive  ·  article URL" />
+              </Field>
+
+              {/* Theoretical Map linking */}
+              {form.is_foundation ? (
+                <Field label="Link Research papers to this Foundation (Theoretical Map)">
+                  <MapPicker
+                    options={researchItems.filter((r) => !r.is_foundation && (!editing || r.id !== editing.id))}
+                    selected={form.flinks}
+                    onToggle={(id) =>
+                      set('flinks', form.flinks.includes(id) ? form.flinks.filter((x) => x !== id) : [...form.flinks, id])
+                    }
+                    emptyText="No research papers yet — add some, then link them."
+                  />
+                </Field>
+              ) : (
+                <Field label="This paper supports which Foundation(s)? (Theoretical Map)">
+                  <MapPicker
+                    options={researchItems.filter((r) => r.is_foundation && (!editing || r.id !== editing.id))}
+                    selected={form.flinks}
+                    onToggle={(id) =>
+                      set('flinks', form.flinks.includes(id) ? form.flinks.filter((x) => x !== id) : [...form.flinks, id])
+                    }
+                    emptyText="No foundations yet — mark a research entry as a Theoretical Foundation first."
+                  />
+                </Field>
+              )}
             </>
           )}
 
@@ -417,5 +480,25 @@ function FileField({ label, accept, onChange, busy, done, doneLabel }) {
         {done && !busy && <span className="text-xs text-secondary">✓ {doneLabel || 'uploaded'}</span>}
       </div>
     </Field>
+  );
+}
+
+// Pill multi-select used to draw the Foundation↔Research edges of the map.
+function MapPicker({ options, selected, onToggle, emptyText }) {
+  if (!options.length) return <p className="text-xs text-on-surface-variant">{emptyText}</p>;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((o) => {
+        const on = selected.includes(o.id);
+        return (
+          <button type="button" key={o.id} onClick={() => onToggle(o.id)}
+            className={on
+              ? 'px-3 py-1.5 rounded-full text-xs bg-primary text-on-primary font-bold'
+              : 'px-3 py-1.5 rounded-full text-xs border border-white/10 text-on-surface-variant hover:border-primary/50'}>
+            {o.title}
+          </button>
+        );
+      })}
+    </div>
   );
 }
