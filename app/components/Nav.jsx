@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useAuth } from './AuthProvider';
 
@@ -15,11 +15,20 @@ const links = [
 
 export default function Nav() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, signOut } = useAuth();
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
 
   // Research Archive & Knowledge Hub are members-only.
   const visibleLinks = links.filter((l) => !l.auth || user);
+
+  const submitSearch = (e) => {
+    e.preventDefault();
+    const term = q.trim();
+    setOpen(false);
+    router.push(term ? `/search?q=${encodeURIComponent(term)}` : '/search');
+  };
 
   return (
     <nav className="fixed top-0 w-full z-50 bg-background/80 nav-blur border-b border-white/10">
@@ -49,11 +58,24 @@ export default function Nav() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 md:gap-6">
+        <div className="flex items-center gap-3 md:gap-5">
+          <form onSubmit={submitSearch} className="hidden lg:flex items-center gap-2 glass-card rounded-full px-3 py-1.5 focus-within:border-primary/50 transition-colors">
+            <span className="material-symbols-outlined text-on-surface-variant text-xl">search</span>
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search…"
+              className="w-32 xl:w-44 bg-transparent outline-none text-sm text-on-surface placeholder:text-on-surface-variant/60"
+            />
+          </form>
+          <Link href="/search" className="lg:hidden material-symbols-outlined text-on-surface-variant hover:text-primary" aria-label="Search">
+            search
+          </Link>
+
           {user ? (
             <>
-              <Link href="/upload" className="hidden sm:inline text-sm text-on-surface-variant hover:text-primary transition-colors">
-                Manage
+              <Link href="/profile" className="hidden sm:inline text-sm text-on-surface-variant hover:text-primary transition-colors">
+                Profile
               </Link>
               <button onClick={signOut} className="text-sm text-on-surface-variant hover:text-primary transition-colors">
                 Sign Out
@@ -64,6 +86,9 @@ export default function Nav() {
             </>
           ) : (
             <>
+              <Link href="/profile" className="hidden sm:inline text-sm text-on-surface-variant hover:text-primary transition-colors">
+                Profile
+              </Link>
               <Link href="/login" className="text-sm text-on-surface-variant hover:text-primary transition-colors">
                 Sign In
               </Link>
@@ -80,11 +105,23 @@ export default function Nav() {
 
       {open && (
         <div className="md:hidden border-t border-white/10 bg-background/95 px-5 py-4 flex flex-col gap-4">
+          <form onSubmit={submitSearch} className="flex items-center gap-2 glass-card rounded-full px-3 py-2 mb-1">
+            <span className="material-symbols-outlined text-on-surface-variant text-xl">search</span>
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search everything…"
+              className="flex-1 bg-transparent outline-none text-sm text-on-surface placeholder:text-on-surface-variant/60"
+            />
+          </form>
           {visibleLinks.map((l) => (
             <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="text-on-surface-variant hover:text-on-surface">
               {l.label}
             </Link>
           ))}
+          <Link href="/profile" onClick={() => setOpen(false)} className="text-on-surface-variant hover:text-on-surface">
+            Profile
+          </Link>
         </div>
       )}
     </nav>
