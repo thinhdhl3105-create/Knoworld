@@ -43,6 +43,7 @@ export default function StudentCaseDetail() {
   const galleryImages = images.slice(pairedCount);
 
   const meta = [
+    item.brand && { icon: 'sell', value: item.brand },
     item.student_name && { icon: 'person', value: item.student_name },
     item.school && { icon: 'school', value: item.school },
     item.year && { icon: 'calendar_today', value: item.year },

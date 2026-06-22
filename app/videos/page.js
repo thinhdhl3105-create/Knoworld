@@ -91,6 +91,11 @@ export default function VideosPage() {
                     </div>
                     <div className="p-6 flex flex-col gap-3 flex-1">
                       <h3 className="font-display text-lg font-medium leading-snug group-hover:text-primary transition-colors">{item.title}</h3>
+                      {item.brand && (
+                        <span className="inline-flex items-center gap-1 text-xs text-secondary">
+                          <span className="material-symbols-outlined text-sm">sell</span> {item.brand}
+                        </span>
+                      )}
                       {item.summary && <p className="text-sm text-on-surface-variant leading-relaxed line-clamp-2">{item.summary}</p>}
                       {concept && (
                         <span className="mt-auto inline-flex items-center gap-1 text-xs text-secondary">
@@ -111,7 +116,10 @@ export default function VideosPage() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setActive(null)}>
           <div className="w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="font-display text-lg font-medium">{active.title}</h2>
+              <div>
+                <h2 className="font-display text-lg font-medium">{active.title}</h2>
+                {active.brand && <span className="text-xs text-secondary">{active.brand}</span>}
+              </div>
               <button onClick={() => setActive(null)} className="material-symbols-outlined text-on-surface-variant hover:text-primary">close</button>
             </div>
             <div className="aspect-video rounded-card overflow-hidden bg-black">

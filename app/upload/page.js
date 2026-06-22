@@ -9,7 +9,7 @@ const empty = {
   kind: 'research', title: '', summary: '', body: '', category: '', tags: '',
   media_url: '', cover_url: '', paper_url: '', source_url: '', is_foundation: false,
   context: '', insight: '', creative_approach: '', execution: '', images: [],
-  student_name: '', school: '', year: '',
+  student_name: '', school: '', year: '', brand: '',
   concept_id: '', file_url: '', file_name: '', links: [],
   // Theoretical Map: ids of the OTHER end of foundation_links.
   // Editing a Foundation → research ids it links to.
@@ -138,6 +138,7 @@ export default function UploadPage() {
         student_name: form.kind === 'student' ? (form.student_name.trim() || null) : null,
         school: form.kind === 'student' ? (form.school.trim() || null) : null,
         year: form.kind === 'student' ? (form.year.trim() || null) : null,
+        brand: (form.kind === 'video' || form.kind === 'student') ? (form.brand.trim() || null) : null,
         concept_id:
           (form.kind === 'video' || form.kind === 'student') && form.concept_id
             ? form.concept_id
@@ -214,7 +215,7 @@ export default function UploadPage() {
       is_foundation: !!c.is_foundation,
       context: c.context || '', insight: c.insight || '', creative_approach: c.creative_approach || '',
       execution: c.execution || '', images: c.images || [],
-      student_name: c.student_name || '', school: c.school || '', year: c.year || '',
+      student_name: c.student_name || '', school: c.school || '', year: c.year || '', brand: c.brand || '',
       concept_id: c.concept_id || '', file_url: c.file_url || '', file_name: c.file_name || '',
       links, flinks,
     });
@@ -321,7 +322,10 @@ export default function UploadPage() {
           {/* student case study */}
           {k === 'student' && (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Brand name">
+                  <input value={form.brand} onChange={(e) => set('brand', e.target.value)} className={inputCls} placeholder="e.g. Nike, Coca-Cola" />
+                </Field>
                 <Field label="Student(s)">
                   <input value={form.student_name} onChange={(e) => set('student_name', e.target.value)} className={inputCls} placeholder="Name (comma-separated for teams)" />
                 </Field>
@@ -363,6 +367,9 @@ export default function UploadPage() {
           {/* video */}
           {k === 'video' && (
             <>
+              <Field label="Brand name">
+                <input value={form.brand} onChange={(e) => set('brand', e.target.value)} className={inputCls} placeholder="e.g. Nike, Coca-Cola" />
+              </Field>
               <Field label="YouTube / Vimeo link (or upload a file below)">
                 <input value={form.media_url} onChange={(e) => set('media_url', e.target.value)} className={inputCls} placeholder="https://youtube.com/watch?v=…" />
               </Field>

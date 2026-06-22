@@ -142,6 +142,8 @@ create table if not exists public.content (
   creative_approach text,
   execution         text,
   images            text[] default '{}',
+  -- brand (video + student case studies)
+  brand             text,
   -- video → knowledge hub concept
   concept_id        uuid references public.concepts(id) on delete set null,
   author_id         uuid references auth.users(id) on delete set null,
