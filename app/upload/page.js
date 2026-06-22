@@ -11,6 +11,7 @@ const empty = {
   context: '', insight: '', creative_approach: '', execution: '', images: [],
   student_name: '', school: '', year: '', brand: '',
   concept_id: '', file_url: '', file_name: '', links: [],
+  published: true,
   // Theoretical Map: ids of the OTHER end of foundation_links.
   // Editing a Foundation → research ids it links to.
   // Editing a Research  → foundation ids it belongs to.
@@ -121,6 +122,7 @@ export default function UploadPage() {
       category: form.category.trim() || null,
       tags: tagsArr(form.tags),
       author_id: user.id,
+      published: !!form.published,
     };
     let payload;
     if (table === 'content') {
@@ -217,6 +219,7 @@ export default function UploadPage() {
       execution: c.execution || '', images: c.images || [],
       student_name: c.student_name || '', school: c.school || '', year: c.year || '', brand: c.brand || '',
       concept_id: c.concept_id || '', file_url: c.file_url || '', file_name: c.file_name || '',
+      published: c.published !== false,
       links, flinks,
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -225,6 +228,13 @@ export default function UploadPage() {
   async function remove(c) {
     if (!confirm('Delete this entry?')) return;
     const { error } = await supabase.from(c._table).delete().eq('id', c.id);
+    if (error) setError(error.message);
+    else loadMine();
+  }
+
+  async function togglePublish(c) {
+    const next = !(c.published !== false);
+    const { error } = await supabase.from(c._table).update({ published: next }).eq('id', c.id);
     if (error) setError(error.message);
     else loadMine();
   }
@@ -442,6 +452,25 @@ export default function UploadPage() {
             </>
           )}
 
+          {/* publish / visibility control */}
+          <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-surface-container-lowest p-4">
+            <input
+              id="published"
+              type="checkbox"
+              checked={form.published}
+              onChange={(e) => set('published', e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-[color:var(--color-primary,#c6bfff)]"
+            />
+            <label htmlFor="published" className="text-sm cursor-pointer">
+              <span className="font-medium text-on-surface">
+                {form.published ? 'Công khai (Published)' : 'Ẩn (Draft / chỉ mình bạn thấy)'}
+              </span>
+              <span className="block text-xs text-on-surface-variant mt-0.5">
+                Bật = mọi người xem được. Tắt = ẩn khỏi các trang công khai, chỉ bạn thấy trong khu quản lý. Bạn đổi lại bất cứ lúc nào.
+              </span>
+            </label>
+          </div>
+
           {error && <p className="text-sm text-error">{error}</p>}
 
           <div className="flex gap-3">
@@ -464,9 +493,19 @@ export default function UploadPage() {
             <div className="flex flex-col gap-3">
               {mine.map((c) => (
                 <div key={`${c._table}-${c.id}`} className="glass-card rounded-card p-4">
-                  <span className="label-sm text-secondary">{kindLabel[c.kind] || c.kind}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="label-sm text-secondary">{kindLabel[c.kind] || c.kind}</span>
+                    {c.published !== false ? (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary/15 text-secondary border border-secondary/30 whitespace-nowrap">● Công khai</span>
+                    ) : (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/5 text-on-surface-variant border border-white/15 whitespace-nowrap">○ Ẩn</span>
+                    )}
+                  </div>
                   <h3 className="font-display text-base font-medium mt-1">{c.title}</h3>
                   <div className="flex gap-3 mt-3 text-sm">
+                    <button onClick={() => togglePublish(c)} className="text-on-surface-variant hover:text-on-surface hover:underline">
+                      {c.published !== false ? 'Ẩn' : 'Công khai'}
+                    </button>
                     <button onClick={() => startEdit(c)} className="text-primary hover:underline">Edit</button>
                     <button onClick={() => remove(c)} className="text-error hover:underline">Delete</button>
                   </div>
