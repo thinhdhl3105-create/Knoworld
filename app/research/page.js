@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { fetchContent } from '@/lib/content';
 import ContentCard from '../components/ContentCard';
+import RequireAuth from '../components/RequireAuth';
 
-export default function ResearchPage() {
+function ResearchPageInner() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState(null);
@@ -164,5 +165,13 @@ export default function ResearchPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ResearchPage() {
+  return (
+    <RequireAuth>
+      <ResearchPageInner />
+    </RequireAuth>
   );
 }

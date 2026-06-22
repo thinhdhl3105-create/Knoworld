@@ -141,47 +141,25 @@ create policy "Authors delete own frameworks"
   on public.frameworks for delete using (auth.uid() = author_id);
 
 -- ============================================================
--- 4. CLEAN OUT THE OLD PLACEHOLDER / SAMPLE CONTENT
---    Removes the fictional seed rows so you can start fresh.
---    (Deletes ALL existing content rows — run only if that's intended.)
+-- 4. REMOVE THE SAMPLE "Theoretical Foundations"
+--    Deletes ONLY the 5 starter foundation rows (by title) so your
+--    real content/case studies are left untouched. Add your own
+--    foundations later from the dashboard.
 -- ============================================================
-delete from public.content;
+delete from public.content
+where is_foundation = true
+  and title in (
+    'Integrated Marketing Communications (IMC)',
+    'Brand Equity (Keller''s CBBE Pyramid)',
+    'STP — Segmentation, Targeting, Positioning',
+    'The Marketing Mix (4Ps / 7Ps)',
+    'Consumer Decision Journey'
+  );
 
 -- ============================================================
--- 5. SEED — real Theoretical Foundations (editable later in the dashboard)
---    These are starter entries for the Research Archive > Theoretical
---    Foundations section. Edit / add / delete them freely after deploy.
+-- 5. SEED — (intentionally empty)
+--    No starter foundations are inserted.
 -- ============================================================
-insert into public.content (kind, title, summary, body, category, tags, is_foundation, published) values
-  ('research',
-   'Integrated Marketing Communications (IMC)',
-   'A planning approach that aligns every brand message — advertising, PR, digital, promotion — into one consistent voice across all touchpoints.',
-   'IMC argues that the audience experiences a brand as a single entity, so all communication disciplines must be coordinated around shared objectives, a unified positioning, and a consistent message architecture. Core ideas: start from the customer and work back (outside-in planning), measure on outcomes (behaviour, not just awareness), and orchestrate paid, owned and earned channels around one big idea.',
-   'Theoretical Foundation', array['imc','planning','foundation'], true, true),
+-- (no seed rows)
 
-  ('research',
-   'Brand Equity (Keller''s CBBE Pyramid)',
-   'Customer-Based Brand Equity model: brand value is built bottom-up through Salience, Performance & Imagery, Judgements & Feelings, and finally Resonance.',
-   'Keller''s pyramid frames brand building as four ascending stages answering four customer questions: Who are you? (salience), What are you? (performance + imagery), What about you? (judgements + feelings), and What about you and me? (resonance / loyalty). Strong brands move customers up the pyramid toward active, self-expressive loyalty.',
-   'Theoretical Foundation', array['branding','equity','foundation'], true, true),
-
-  ('research',
-   'STP — Segmentation, Targeting, Positioning',
-   'The strategic backbone of marketing: divide the market, choose where to compete, and own a distinct position in the customer''s mind.',
-   'Segmentation groups the market by needs, behaviour or demographics; targeting selects the most attractive and winnable segments; positioning defines the differentiated value and frame of reference you want to own. STP turns a broad market into a focused strategy and is the bridge between insight and the marketing mix.',
-   'Theoretical Foundation', array['strategy','positioning','foundation'], true, true),
-
-  ('research',
-   'The Marketing Mix (4Ps / 7Ps)',
-   'The controllable levers — Product, Price, Place, Promotion (plus People, Process, Physical evidence for services) — used to execute a positioning.',
-   'The mix translates strategy into action. The classic 4Ps cover the core offer and how it reaches the market; the extended 7Ps add the service dimensions that shape experience. A coherent mix is internally consistent and reinforces the chosen positioning at every point.',
-   'Theoretical Foundation', array['mix','4ps','foundation'], true, true),
-
-  ('research',
-   'Consumer Decision Journey',
-   'A non-linear model of how people move from trigger and consideration to purchase, experience, and an ongoing loyalty loop.',
-   'Unlike the old linear funnel, the modern journey is a loop: an initial trigger opens a consideration set, active evaluation can add or remove brands, and the post-purchase experience feeds a loyalty loop that can shortcut future decisions. Mapping the journey reveals the moments that matter and where communication should intervene.',
-   'Theoretical Foundation', array['consumer','journey','foundation'], true, true)
-on conflict do nothing;
-
--- Done. Review the new tables under Table Editor: content, concepts, concept_links, frameworks.
+-- Done. Review the tables under Table Editor: content, concepts, concept_links, frameworks.

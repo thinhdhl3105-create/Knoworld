@@ -6,8 +6,8 @@ import { useState } from 'react';
 import { useAuth } from './AuthProvider';
 
 const links = [
-  { href: '/research', label: 'Research Archive' },
-  { href: '/knowledge-hub', label: 'Knowledge Hub' },
+  { href: '/research', label: 'Research Archive', auth: true },
+  { href: '/knowledge-hub', label: 'Knowledge Hub', auth: true },
   { href: '/videos', label: 'Video Case Studies' },
   { href: '/students', label: 'Student Case Studies' },
 ];
@@ -16,6 +16,9 @@ export default function Nav() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const [open, setOpen] = useState(false);
+
+  // Research Archive & Knowledge Hub are members-only.
+  const visibleLinks = links.filter((l) => !l.auth || user);
 
   return (
     <nav className="fixed top-0 w-full z-50 bg-background/80 nav-blur border-b border-white/10">
@@ -26,7 +29,7 @@ export default function Nav() {
             <span className="font-display text-xl font-semibold tracking-tight">Knoworld</span>
           </Link>
           <div className="hidden md:flex items-center gap-8">
-            {links.map((l) => {
+            {visibleLinks.map((l) => {
               const active = pathname === l.href;
               return (
                 <Link
@@ -76,7 +79,7 @@ export default function Nav() {
 
       {open && (
         <div className="md:hidden border-t border-white/10 bg-background/95 px-5 py-4 flex flex-col gap-4">
-          {links.map((l) => (
+          {visibleLinks.map((l) => (
             <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="text-on-surface-variant hover:text-on-surface">
               {l.label}
             </Link>

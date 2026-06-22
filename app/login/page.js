@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 import { useAuth } from '../components/AuthProvider';
@@ -15,6 +15,12 @@ export default function LoginPage() {
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [next, setNext] = useState('/upload');
+
+  useEffect(() => {
+    const n = new URLSearchParams(window.location.search).get('next');
+    if (n) setNext(n);
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -36,7 +42,7 @@ export default function LoginPage() {
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setError(error.message);
-      else router.push('/upload');
+      else router.push(next);
     }
     setBusy(false);
   }

@@ -1,27 +1,39 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { fetchConcepts, fetchConceptLinks, fetchFrameworks } from '@/lib/content';
+import Link from 'next/link';
+import {
+  fetchConcepts,
+  fetchConceptLinks,
+  fetchFrameworks,
+  fetchConceptLinkedContent,
+} from '@/lib/content';
 import ConceptGraph from '../components/ConceptGraph';
+import RequireAuth from '../components/RequireAuth';
 
-export default function KnowledgeHubPage() {
+function KnowledgeHubInner() {
   const [concepts, setConcepts] = useState([]);
   const [links, setLinks] = useState([]);
   const [frameworks, setFrameworks] = useState([]);
+  const [linkedContent, setLinkedContent] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
   const [tab, setTab] = useState('map'); // map | frameworks
   const [openFw, setOpenFw] = useState(null);
 
   useEffect(() => {
-    Promise.all([fetchConcepts(), fetchConceptLinks(), fetchFrameworks()]).then(
-      ([c, l, f]) => {
-        setConcepts(c.data);
-        setLinks(l.data);
-        setFrameworks(f.data);
-        setLoading(false);
-      }
-    );
+    Promise.all([
+      fetchConcepts(),
+      fetchConceptLinks(),
+      fetchFrameworks(),
+      fetchConceptLinkedContent(),
+    ]).then(([c, l, f, lc]) => {
+      setConcepts(c.data);
+      setLinks(l.data);
+      setFrameworks(f.data);
+      setLinkedContent(lc.data);
+      setLoading(false);
+    });
   }, []);
 
   const selected = concepts.find((c) => c.id === selectedId);
@@ -34,6 +46,16 @@ export default function KnowledgeHubPage() {
     });
     return concepts.filter((c) => ids.has(c.id));
   }, [selectedId, links, concepts]);
+
+  // Case studies (video + student) tied to the selected concept.
+  const relatedVideos = useMemo(
+    () => linkedContent.filter((x) => x.kind === 'video' && x.concept_id === selectedId),
+    [linkedContent, selectedId]
+  );
+  const relatedStudents = useMemo(
+    () => linkedContent.filter((x) => x.kind === 'student' && x.concept_id === selectedId),
+    [linkedContent, selectedId]
+  );
 
   return (
     <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
@@ -99,7 +121,7 @@ export default function KnowledgeHubPage() {
                   </div>
                 )}
                 {related.length > 0 && (
-                  <div className="mt-auto pt-4 border-t border-white/10">
+                  <div className="pt-4 mt-4 border-t border-white/10">
                     <span className="label-sm text-on-surface-variant">Connected concepts</span>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {related.map((r) => (
@@ -109,6 +131,45 @@ export default function KnowledgeHubPage() {
                         </button>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {(relatedVideos.length > 0 || relatedStudents.length > 0) && (
+                  <div className="pt-4 mt-4 border-t border-white/10 flex flex-col gap-4">
+                    {relatedVideos.length > 0 && (
+                      <div>
+                        <span className="label-sm text-on-surface-variant flex items-center gap-1">
+                          <span className="material-symbols-outlined text-sm">play_circle</span>
+                          Related video case studies
+                        </span>
+                        <div className="flex flex-col gap-2 mt-2">
+                          {relatedVideos.map((v) => (
+                            <Link key={v.id} href="/videos"
+                              className="text-sm text-on-surface hover:text-primary transition-colors flex items-start gap-2">
+                              <span className="material-symbols-outlined text-base text-secondary mt-0.5">arrow_outward</span>
+                              {v.title}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {relatedStudents.length > 0 && (
+                      <div>
+                        <span className="label-sm text-on-surface-variant flex items-center gap-1">
+                          <span className="material-symbols-outlined text-sm">school</span>
+                          Related student case studies
+                        </span>
+                        <div className="flex flex-col gap-2 mt-2">
+                          {relatedStudents.map((s) => (
+                            <Link key={s.id} href={`/students/${s.id}`}
+                              className="text-sm text-on-surface hover:text-primary transition-colors flex items-start gap-2">
+                              <span className="material-symbols-outlined text-base text-secondary mt-0.5">arrow_outward</span>
+                              {s.title}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -195,5 +256,13 @@ export default function KnowledgeHubPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function KnowledgeHubPage() {
+  return (
+    <RequireAuth>
+      <KnowledgeHubInner />
+    </RequireAuth>
   );
 }

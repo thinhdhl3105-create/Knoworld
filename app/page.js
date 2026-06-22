@@ -1,14 +1,17 @@
+'use client';
+
 import Link from 'next/link';
+import { useAuth } from './components/AuthProvider';
 
 const pathways = [
   {
     href: '/research', tag: 'Research', icon: 'science',
-    title: 'Research Archive',
+    title: 'Research Archive', auth: true,
     desc: 'Ongoing research papers and editable theoretical foundations — the conceptual bedrock behind every strategy.',
   },
   {
     href: '/knowledge-hub', tag: 'Repository', icon: 'hub',
-    title: 'Knowledge Hub',
+    title: 'Knowledge Hub', auth: true,
     desc: 'A connected map of key concepts and the bridges between them, plus downloadable frameworks like IMC planning and branding strategy.',
   },
   {
@@ -24,6 +27,8 @@ const pathways = [
 ];
 
 export default function Home() {
+  const { user } = useAuth();
+  const visiblePathways = pathways.filter((p) => !p.auth || user);
   return (
     <div className="pt-20">
       {/* Hero */}
@@ -57,7 +62,7 @@ export default function Home() {
         </div>
         <h2 className="h-lg mb-10">Curated Pathways</h2>
         <div className="flex flex-col gap-5">
-          {pathways.map((p, i) => (
+          {visiblePathways.map((p, i) => (
             <Link
               key={i}
               href={p.href}

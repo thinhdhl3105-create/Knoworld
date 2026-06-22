@@ -243,27 +243,9 @@ create policy "Owner delete uploads"
   using (bucket_id = 'uploads' and owner = auth.uid());
 
 -- ============================================================
--- 6. SEED — real Theoretical Foundations (starter, editable)
+-- 6. SEED — (intentionally empty)
+--    No starter Theoretical Foundations are inserted. The platform
+--    starts empty; add your own from the dashboard
+--    (Upload > Research / Foundation > tick "Theoretical Foundation").
 -- ============================================================
-insert into public.content (kind, title, summary, body, category, tags, is_foundation, published) values
-  ('research', 'Integrated Marketing Communications (IMC)',
-   'A planning approach that aligns every brand message — advertising, PR, digital, promotion — into one consistent voice across all touchpoints.',
-   'IMC argues that the audience experiences a brand as a single entity, so all communication disciplines must be coordinated around shared objectives, a unified positioning, and a consistent message architecture. Core ideas: start from the customer and work back (outside-in planning), measure on outcomes (behaviour, not just awareness), and orchestrate paid, owned and earned channels around one big idea.',
-   'Theoretical Foundation', array['imc','planning','foundation'], true, true),
-  ('research', 'Brand Equity (Keller''s CBBE Pyramid)',
-   'Customer-Based Brand Equity model: brand value is built bottom-up through Salience, Performance & Imagery, Judgements & Feelings, and finally Resonance.',
-   'Keller''s pyramid frames brand building as four ascending stages answering four customer questions: Who are you? (salience), What are you? (performance + imagery), What about you? (judgements + feelings), and What about you and me? (resonance / loyalty). Strong brands move customers up the pyramid toward active, self-expressive loyalty.',
-   'Theoretical Foundation', array['branding','equity','foundation'], true, true),
-  ('research', 'STP — Segmentation, Targeting, Positioning',
-   'The strategic backbone of marketing: divide the market, choose where to compete, and own a distinct position in the customer''s mind.',
-   'Segmentation groups the market by needs, behaviour or demographics; targeting selects the most attractive and winnable segments; positioning defines the differentiated value and frame of reference you want to own. STP turns a broad market into a focused strategy and is the bridge between insight and the marketing mix.',
-   'Theoretical Foundation', array['strategy','positioning','foundation'], true, true),
-  ('research', 'The Marketing Mix (4Ps / 7Ps)',
-   'The controllable levers — Product, Price, Place, Promotion (plus People, Process, Physical evidence) — used to execute a positioning.',
-   'The mix translates strategy into action. The classic 4Ps cover the core offer and how it reaches the market; the extended 7Ps add the service dimensions that shape experience. A coherent mix is internally consistent and reinforces the chosen positioning at every point.',
-   'Theoretical Foundation', array['mix','4ps','foundation'], true, true),
-  ('research', 'Consumer Decision Journey',
-   'A non-linear model of how people move from trigger and consideration to purchase, experience, and an ongoing loyalty loop.',
-   'Unlike the old linear funnel, the modern journey is a loop: an initial trigger opens a consideration set, active evaluation can add or remove brands, and the post-purchase experience feeds a loyalty loop that can shortcut future decisions. Mapping the journey reveals the moments that matter and where communication should intervene.',
-   'Theoretical Foundation', array['consumer','journey','foundation'], true, true)
-on conflict do nothing;
+-- (no seed rows)

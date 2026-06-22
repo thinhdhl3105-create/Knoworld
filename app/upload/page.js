@@ -126,7 +126,10 @@ export default function UploadPage() {
         creative_approach: form.creative_approach.trim() || null,
         execution: form.execution.trim() || null,
         images: form.images || [],
-        concept_id: form.kind === 'video' && form.concept_id ? form.concept_id : null,
+        concept_id:
+          (form.kind === 'video' || form.kind === 'student') && form.concept_id
+            ? form.concept_id
+            : null,
       };
     } else if (table === 'concepts') {
       payload = { ...base };
@@ -254,6 +257,12 @@ export default function UploadPage() {
               <Field label="Insight"><textarea value={form.insight} onChange={(e) => set('insight', e.target.value)} rows={3} className={inputCls} placeholder="The key human truth…" /></Field>
               <Field label="Creative Approach"><textarea value={form.creative_approach} onChange={(e) => set('creative_approach', e.target.value)} rows={3} className={inputCls} placeholder="Big idea & concept…" /></Field>
               <Field label="Execution"><textarea value={form.execution} onChange={(e) => set('execution', e.target.value)} rows={3} className={inputCls} placeholder="How it was brought to life…" /></Field>
+              <Field label="Link to a Knowledge Hub concept (optional)">
+                <select value={form.concept_id} onChange={(e) => set('concept_id', e.target.value)} className={inputCls}>
+                  <option value="">— none —</option>
+                  {concepts.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+                </select>
+              </Field>
               <Field label="Project images (multiple)">
                 <input type="file" accept="image/*" multiple onChange={onMultiImages} disabled={!user || uploading === 'images'} className={fileCls} />
                 {uploading === 'images' && <span className="text-xs text-on-surface-variant">Uploading…</span>}
