@@ -575,23 +575,35 @@ export default function UploadPage() {
 
         {/* My entries */}
         <div className="lg:col-span-2">
-          <h2 className="h-md mb-4">Your entries</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="h-md">Your entries</h2>
+            {mine.length > 0 && (
+              <span className="text-xs text-on-surface-variant">{mine.length} entries</span>
+            )}
+          </div>
           {mine.length === 0 ? (
             <p className="text-sm text-on-surface-variant">No entries yet.</p>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="glass-card rounded-card divide-y divide-white/10 overflow-hidden">
               {mine.map((c) => (
-                <div key={`${c._table}-${c.id}`} className="glass-card rounded-card p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="label-sm text-secondary">{kindLabel[c.kind] || c.kind}</span>
-                    {c.published !== false ? (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary/15 text-secondary border border-secondary/30 whitespace-nowrap">● Công khai</span>
-                    ) : (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/5 text-on-surface-variant border border-white/15 whitespace-nowrap">○ Ẩn</span>
-                    )}
-                  </div>
-                  <h3 className="font-display text-base font-medium mt-1">{c.title}</h3>
-                  <div className="flex gap-3 mt-3 text-sm">
+                <div
+                  key={`${c._table}-${c.id}`}
+                  className="group flex items-center gap-3 px-3.5 py-2.5 hover:bg-white/[0.03] transition-colors"
+                >
+                  <span
+                    className={
+                      (c.published !== false ? 'bg-secondary' : 'bg-on-surface-variant/40') +
+                      ' h-2 w-2 rounded-full shrink-0'
+                    }
+                    title={c.published !== false ? 'Công khai' : 'Ẩn'}
+                  />
+                  <span className="text-[10px] uppercase tracking-wide text-secondary w-24 shrink-0 truncate hidden sm:block">
+                    {kindLabel[c.kind] || c.kind}
+                  </span>
+                  <h3 className="font-display text-sm font-medium truncate flex-1 min-w-0" title={c.title}>
+                    {c.title}
+                  </h3>
+                  <div className="flex items-center gap-3 text-xs shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <button onClick={() => togglePublish(c)} className="text-on-surface-variant hover:text-on-surface hover:underline">
                       {c.published !== false ? 'Ẩn' : 'Công khai'}
                     </button>

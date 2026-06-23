@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchContent, fetchConcepts } from '@/lib/content';
 
 // Normalise a YouTube/Vimeo/file URL into something embeddable.
@@ -67,47 +67,7 @@ export default function VideosPage() {
         </p>
       ) : (
         Object.entries(groups).map(([cat, vids]) => (
-          <section key={cat} className="mb-16">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="h-md">{cat}</h2>
-              <span className="label-sm text-on-surface-variant">{vids.length} videos</span>
-            </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {vids.map((item, i) => {
-                const concept = item.concept_id && conceptById[item.concept_id];
-                const grad = ['from-[#1b2a4a]', 'from-[#3a2a4a]', 'from-[#2a3a3a]'][i % 3];
-                return (
-                  <div key={item.id} role="button" tabIndex={0} onClick={() => setActive(item)}
-                    onKeyDown={(e) => e.key === 'Enter' && setActive(item)}
-                    className="group glass-card pulse-hover rounded-card overflow-hidden flex flex-col text-left cursor-pointer">
-                    <div className={`relative aspect-[16/10] bg-gradient-to-br ${grad} to-[#0e0d16]`}>
-                      {item.cover_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={item.cover_url} alt={item.title} className="absolute inset-0 w-full h-full object-cover" />
-                      ) : null}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="material-symbols-outlined text-5xl text-white/90 group-hover:scale-110 transition-transform">play_circle</span>
-                      </div>
-                    </div>
-                    <div className="p-6 flex flex-col gap-3 flex-1">
-                      <h3 className="font-display text-lg font-medium leading-snug group-hover:text-primary transition-colors">{item.title}</h3>
-                      {item.brand && (
-                        <span className="inline-flex items-center gap-1 text-xs text-secondary">
-                          <span className="material-symbols-outlined text-sm">sell</span> {item.brand}
-                        </span>
-                      )}
-                      {item.summary && <p className="text-sm text-on-surface-variant leading-relaxed line-clamp-2">{item.summary}</p>}
-                      {concept && (
-                        <span className="mt-auto inline-flex items-center gap-1 text-xs text-secondary">
-                          <span className="material-symbols-outlined text-sm">hub</span> {concept.title}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          <CategoryRow key={cat} cat={cat} vids={vids} conceptById={conceptById} onPick={setActive} />
         ))
       )}
 
@@ -142,6 +102,110 @@ export default function VideosPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// A horizontal, drag-to-scroll slider of video cards for one category.
+function CategoryRow({ cat, vids, conceptById, onPick }) {
+  const scroller = useRef(null);
+  const drag = useRef({ active: false, startX: 0, startScroll: 0, moved: false });
+
+  const by = (dir) => {
+    const el = scroller.current;
+    if (el) el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.85), behavior: 'smooth' });
+  };
+
+  const onDown = (e) => {
+    const el = scroller.current;
+    if (!el) return;
+    drag.current = { active: true, startX: e.clientX, startScroll: el.scrollLeft, moved: false };
+  };
+  const onMove = (e) => {
+    const el = scroller.current;
+    if (!el || !drag.current.active) return;
+    const dx = e.clientX - drag.current.startX;
+    if (Math.abs(dx) > 4) drag.current.moved = true;
+    el.scrollLeft = drag.current.startScroll - dx;
+  };
+  const endDrag = () => {
+    drag.current.active = false;
+    setTimeout(() => (drag.current.moved = false), 0);
+  };
+
+  return (
+    <section className="mb-14">
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-baseline gap-3">
+          <h2 className="h-md">{cat}</h2>
+          <span className="label-sm text-on-surface-variant">{vids.length} videos</span>
+        </div>
+        <div className="hidden sm:flex items-center gap-2">
+          <button onClick={() => by(-1)} aria-label="Scroll left"
+            className="glass-card h-9 w-9 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:border-primary/50 transition-colors">
+            <span className="material-symbols-outlined text-lg">chevron_left</span>
+          </button>
+          <button onClick={() => by(1)} aria-label="Scroll right"
+            className="glass-card h-9 w-9 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:border-primary/50 transition-colors">
+            <span className="material-symbols-outlined text-lg">chevron_right</span>
+          </button>
+        </div>
+      </div>
+      <div
+        ref={scroller}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={endDrag}
+        onPointerLeave={endDrag}
+        className="flex gap-4 overflow-x-auto pb-3 -mx-1 px-1 snap-x snap-mandatory cursor-grab active:cursor-grabbing select-none"
+        style={{ scrollbarWidth: 'thin' }}
+      >
+        {vids.map((item, i) => (
+          <VideoCard
+            key={item.id}
+            item={item}
+            grad={['from-[#1b2a4a]', 'from-[#3a2a4a]', 'from-[#2a3a3a]'][i % 3]}
+            concept={item.concept_id && conceptById[item.concept_id]}
+            onPick={() => { if (!drag.current.moved) onPick(item); }}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function VideoCard({ item, grad, concept, onPick }) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onPick}
+      onKeyDown={(e) => e.key === 'Enter' && onPick()}
+      className="group glass-card pulse-hover rounded-card overflow-hidden flex flex-col text-left cursor-pointer shrink-0 snap-start w-[280px] sm:w-[300px]"
+    >
+      <div className={`relative aspect-[16/10] bg-gradient-to-br ${grad} to-[#0e0d16]`}>
+        {item.cover_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={item.cover_url} alt={item.title} draggable={false} className="absolute inset-0 w-full h-full object-cover" />
+        ) : null}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="material-symbols-outlined text-5xl text-white/90 group-hover:scale-110 transition-transform">play_circle</span>
+        </div>
+      </div>
+      <div className="p-5 flex flex-col gap-2.5 flex-1">
+        <h3 className="font-display text-base font-medium leading-snug group-hover:text-primary transition-colors line-clamp-1">{item.title}</h3>
+        {item.brand && (
+          <span className="inline-flex items-center gap-1 text-xs text-secondary">
+            <span className="material-symbols-outlined text-sm">sell</span> {item.brand}
+          </span>
+        )}
+        {item.summary && <p className="text-sm text-on-surface-variant leading-relaxed line-clamp-2">{item.summary}</p>}
+        {concept && (
+          <span className="mt-auto inline-flex items-center gap-1 text-xs text-secondary">
+            <span className="material-symbols-outlined text-sm">hub</span> {concept.title}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

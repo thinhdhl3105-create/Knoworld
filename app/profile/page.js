@@ -1,5 +1,10 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../components/AuthProvider';
+
+const CV_URL = 'https://lamthinh.vercel.app/cv.html';
+
 const STATS = [
   { value: '6+', label: 'Years in Industry' },
   { value: '3+', label: 'Universities' },
@@ -160,6 +165,19 @@ function Timeline({ rows }) {
 }
 
 export default function ProfilePage() {
+  const router = useRouter();
+  const { user, loading } = useAuth();
+
+  function handleDownloadCV(e) {
+    e.preventDefault();
+    if (loading) return;
+    if (user) {
+      window.open(CV_URL, '_blank', 'noopener,noreferrer');
+    } else {
+      router.push(`/login?next=${encodeURIComponent('/profile')}`);
+    }
+  }
+
   return (
     <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
       {/* Hero */}
@@ -185,9 +203,10 @@ export default function ProfilePage() {
           <a href="https://lamthinh.vercel.app/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-full text-sm font-bold hover:scale-95 transition-transform">
             <span className="material-symbols-outlined text-base">open_in_new</span> Full Portfolio
           </a>
-          <a href="https://lamthinh.vercel.app/cv.html" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 glass-card px-6 py-3 rounded-full text-sm font-bold hover:border-primary/50 transition-colors">
-            <span className="material-symbols-outlined text-base">download</span> Download CV
-          </a>
+          <button onClick={handleDownloadCV} className="inline-flex items-center gap-2 glass-card px-6 py-3 rounded-full text-sm font-bold hover:border-primary/50 transition-colors">
+            <span className="material-symbols-outlined text-base">{user ? 'download' : 'lock'}</span>
+            {user ? 'Download CV' : 'Đăng nhập để tải CV'}
+          </button>
         </div>
       </header>
 
