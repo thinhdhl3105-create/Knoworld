@@ -79,7 +79,7 @@ export default function UploadPage() {
   const [mine, setMine] = useState([]);
   const [concepts, setConcepts] = useState([]);
   const [researchItems, setResearchItems] = useState([]); // all research-kind rows (for map linking)
-  const [videoCats, setVideoCats] = useState([]);
+  const [allCats, setAllCats] = useState([]); // every category used anywhere, for suggestions
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState('');
@@ -132,14 +132,21 @@ export default function UploadPage() {
 
   async function loadAux() {
     if (!isSupabaseConfigured) return;
-    const [{ data: cs }, { data: vids }, { data: rs }] = await Promise.all([
-      supabase.from('concepts').select('id,title').order('title'),
-      supabase.from('content').select('category').eq('kind', 'video').not('category', 'is', null),
+    const [{ data: cs }, { data: contentRows }, { data: rs }, { data: fwRows }] = await Promise.all([
+      supabase.from('concepts').select('id,title,category').order('title'),
+      supabase.from('content').select('category,kind').not('category', 'is', null),
       supabase.from('content').select('id,title,is_foundation').eq('kind', 'research').order('title'),
+      supabase.from('frameworks').select('category').not('category', 'is', null),
     ]);
     setConcepts(cs || []);
     setResearchItems(rs || []);
-    setVideoCats(Array.from(new Set((vids || []).map((v) => v.category).filter(Boolean))).sort());
+    // Merge categories from concepts, all content kinds, and frameworks into one list.
+    const merged = [
+      ...(cs || []).map((r) => r.category),
+      ...(contentRows || []).map((r) => r.category),
+      ...(fwRows || []).map((r) => r.category),
+    ].filter(Boolean).map((c) => c.trim());
+    setAllCats(Array.from(new Set(merged)).sort((a, b) => a.localeCompare(b)));
   }
 
   async function loadMine() {
@@ -356,11 +363,10 @@ export default function UploadPage() {
             </Field>
             <Field label="Category">
               <input value={form.category} onChange={(e) => set('category', e.target.value)} className={inputCls}
-                list={k === 'video' ? 'video-cats' : undefined}
-                placeholder={k === 'video' ? 'e.g. Strategy Breakdowns' : 'Category'} />
-              {k === 'video' && (
-                <datalist id="video-cats">{videoCats.map((c) => <option key={c} value={c} />)}</datalist>
-              )}
+                list="all-cats"
+                placeholder={k === 'video' ? 'e.g. Strategy Breakdowns' : 'Chọn hoặc nhập category…'} />
+              {/* Suggestions = every category already used anywhere (pick or type new). */}
+              <datalist id="all-cats">{allCats.map((c) => <option key={c} value={c} />)}</datalist>
             </Field>
           </div>
 

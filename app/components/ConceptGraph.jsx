@@ -65,8 +65,9 @@ export default function ConceptGraph({ nodes, links, selectedId, onSelect }) {
         a.vy += (H / 2 - a.y) * 0.01;
         a.x += a.vx * 0.18; a.y += a.vy * 0.18;
         a.vx *= 0.85; a.vy *= 0.85;
-        a.x = Math.max(40, Math.min(W - 40, a.x));
-        a.y = Math.max(36, Math.min(H - 36, a.y));
+        // Leave extra room at the bottom so the label under a node never clips.
+        a.x = Math.max(48, Math.min(W - 48, a.x));
+        a.y = Math.max(40, Math.min(H - 56, a.y));
       });
     }
     setPos({ ...p });
@@ -132,14 +133,15 @@ export default function ConceptGraph({ nodes, links, selectedId, onSelect }) {
         const sel = n.id === selectedId;
         const isFoundation = n.type === 'foundation';
         const isResearch = n.type === 'research';
-        // Foundations render bigger; research nodes smaller.
-        const base = isFoundation ? 22 : isResearch ? 14 : 16;
-        const r = Math.max(isResearch ? 13 : 18, Math.min(isFoundation ? 38 : 34, base + (n.title?.length || 0) * 0.5));
+        // Fixed-size circles — the label now sits *below* the node, so the
+        // circle no longer needs to stretch to fit the text.
+        const r = isFoundation ? 22 : isResearch ? 14 : 18;
         // Foundations = primary (violet); research = secondary (teal); default = violet.
         const accent = isResearch ? 'var(--color-secondary, #7fd4c4)' : 'var(--color-primary, #c6bfff)';
         const fillIdle = isResearch ? 'rgba(127,212,196,0.12)' : 'rgba(198,191,255,0.14)';
         const strokeIdle = isResearch ? 'rgba(127,212,196,0.5)' : 'rgba(198,191,255,0.5)';
-        const max = isFoundation ? 16 : isResearch ? 12 : 14;
+        const title = n.title || '';
+        const label = title.length > 26 ? title.slice(0, 25) + '…' : title;
         return (
           <g key={n.id} transform={`translate(${p.x},${p.y})`} style={{ cursor: 'pointer' }}
             onMouseDown={(e) => onDown(n.id, e)}
@@ -149,9 +151,19 @@ export default function ConceptGraph({ nodes, links, selectedId, onSelect }) {
               fill={sel ? accent : fillIdle}
               stroke={sel ? accent : strokeIdle}
               strokeWidth={sel ? 2.5 : isFoundation ? 1.8 : 1.5} />
-            <text textAnchor="middle" dy="0.32em" fontSize={isResearch ? 8.5 : 10}
-              fill={sel ? '#1a1830' : '#e8e6f5'} style={{ pointerEvents: 'none', fontWeight: isFoundation ? 700 : 600 }}>
-              {(n.title || '').length > max ? n.title.slice(0, max - 1) + '…' : n.title}
+            {/* Label under the node. A dark stroke behind the glyphs keeps it
+                readable over edges and other nodes. */}
+            <text textAnchor="middle" y={r + 13} fontSize={isResearch ? 9.5 : 10.5}
+              fill={sel ? '#ffffff' : '#dcd9f0'}
+              style={{
+                pointerEvents: 'none',
+                fontWeight: isFoundation ? 700 : 600,
+                paintOrder: 'stroke',
+                stroke: 'rgba(12,11,24,0.9)',
+                strokeWidth: 3,
+                strokeLinejoin: 'round',
+              }}>
+              {label}
             </text>
           </g>
         );

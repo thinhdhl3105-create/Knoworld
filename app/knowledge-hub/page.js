@@ -57,6 +57,21 @@ function KnowledgeHubInner() {
     [linkedContent, selectedId]
   );
 
+  // Group the "All concepts" list by category (Marketing, Communication, …).
+  // Concepts without a category fall into a "Khác" bucket shown last.
+  const groupedConcepts = useMemo(() => {
+    const groups = {};
+    concepts.forEach((c) => {
+      const key = (c.category && c.category.trim()) || 'Khác';
+      (groups[key] ||= []).push(c);
+    });
+    return Object.entries(groups).sort((a, b) => {
+      if (a[0] === 'Khác') return 1;
+      if (b[0] === 'Khác') return -1;
+      return a[0].localeCompare(b[0]);
+    });
+  }, [concepts]);
+
   return (
     <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
       <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -181,20 +196,31 @@ function KnowledgeHubInner() {
             )}
           </aside>
 
-          {/* concept list under the map */}
+          {/* concept list under the map — grouped by category */}
           {concepts.length > 0 && (
             <div className="lg:col-span-3 mt-4">
-              <h3 className="h-md mb-4">All concepts</h3>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {concepts.map((c) => (
-                  <div key={c.id} role="button" tabIndex={0}
-                    onClick={() => { setSelectedId(c.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                    onKeyDown={(e) => e.key === 'Enter' && setSelectedId(c.id)}
-                    className={`cursor-pointer text-left glass-card pulse-hover rounded-card p-5 ${selectedId === c.id ? 'ring-1 ring-primary' : ''}`}>
-                    {c.category && <span className="label-sm text-secondary">{c.category}</span>}
-                    <h4 className="font-display text-base font-medium mt-1 mb-1">{c.title}</h4>
-                    {c.summary && <p className="text-sm text-on-surface-variant line-clamp-2">{c.summary}</p>}
-                  </div>
+              <h3 className="h-md mb-6">All concepts</h3>
+              <div className="flex flex-col gap-8">
+                {groupedConcepts.map(([cat, items]) => (
+                  <section key={cat}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="label-sm text-secondary tracking-widest uppercase">{cat}</span>
+                      <span className="text-xs text-on-surface-variant">{items.length}</span>
+                      <span className="h-px flex-1 bg-white/10" />
+                    </div>
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {items.map((c) => (
+                        <div key={c.id} role="button" tabIndex={0}
+                          onClick={() => { setSelectedId(c.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                          onKeyDown={(e) => e.key === 'Enter' && setSelectedId(c.id)}
+                          className={`cursor-pointer text-left glass-card pulse-hover rounded-card p-5 ${selectedId === c.id ? 'ring-1 ring-primary' : ''}`}>
+                          {c.category && <span className="label-sm text-secondary">{c.category}</span>}
+                          <h4 className="font-display text-base font-medium mt-1 mb-1">{c.title}</h4>
+                          {c.summary && <p className="text-sm text-on-surface-variant line-clamp-2">{c.summary}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                 ))}
               </div>
             </div>
