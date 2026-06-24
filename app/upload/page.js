@@ -7,6 +7,8 @@ import { useAuth } from '../components/AuthProvider';
 
 const empty = {
   kind: 'research', title: '', summary: '', body: '', category: '', tags: '',
+  // Research papers: journal/venue name + publication type.
+  publication: '', paper_type: 'article',
   media_url: '', cover_url: '', paper_url: '', source_url: '', is_foundation: false,
   context: '', insight: '', creative_approach: '', execution: '', images: [],
   student_name: '', school: '', year: '', brand: '',
@@ -34,6 +36,13 @@ const AUTHOR_ROLES = [
   { value: 'first', label: 'First author' },
   { value: 'co', label: 'Co-author' },
   { value: 'corresponding', label: 'Corresponding author' },
+];
+
+// Publication type for research papers.
+const PAPER_TYPES = [
+  { value: 'article', label: 'Research Article' },
+  { value: 'conference', label: 'Conference' },
+  { value: 'book_chapter', label: 'Book Chapter' },
 ];
 
 // ---- auto cover helpers (video case studies) ----
@@ -247,6 +256,8 @@ export default function UploadPage() {
           ? form.authors.filter((a) => a && a.name && a.name.trim())
               .map((a) => ({ name: a.name.trim(), role: a.role || 'co' }))
           : [],
+        publication: form.kind === 'research' ? (form.publication.trim() || null) : null,
+        paper_type: form.kind === 'research' ? (form.paper_type || 'article') : null,
         context: form.context.trim() || null,
         insight: form.insight.trim() || null,
         creative_approach: form.creative_approach.trim() || null,
@@ -333,6 +344,7 @@ export default function UploadPage() {
       source_url: c.source_url || '',
       is_foundation: !!c.is_foundation,
       authors: Array.isArray(c.authors) ? c.authors : [],
+      publication: c.publication || '', paper_type: c.paper_type || 'article',
       context: c.context || '', insight: c.insight || '', creative_approach: c.creative_approach || '',
       execution: c.execution || '', images: c.images || [],
       student_name: c.student_name || '', school: c.school || '', year: c.year || '', brand: c.brand || '',
@@ -405,6 +417,18 @@ export default function UploadPage() {
           {/* research paper */}
           {k === 'research' && (
             <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Journal / publication name">
+                  <input value={form.publication} onChange={(e) => set('publication', e.target.value)} className={inputCls}
+                    placeholder="e.g. Journal of Marketing…" />
+                </Field>
+                <Field label="Type">
+                  <select value={form.paper_type} onChange={(e) => set('paper_type', e.target.value)} className={inputCls}>
+                    {PAPER_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                </Field>
+              </div>
+
               <Field label="Body / abstract">
                 <textarea value={form.body} onChange={(e) => set('body', e.target.value)} rows={5} className={inputCls} placeholder="Full text…" />
               </Field>
