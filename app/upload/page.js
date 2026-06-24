@@ -1,5 +1,5 @@
 'use client';
-
+// entries list: grouped + searchable
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
@@ -581,45 +581,13 @@ export default function UploadPage() {
 
         {/* My entries */}
         <div className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="h-md">Your entries</h2>
-            {mine.length > 0 && (
-              <span className="text-xs text-on-surface-variant">{mine.length} entries</span>
-            )}
-          </div>
-          {mine.length === 0 ? (
-            <p className="text-sm text-on-surface-variant">No entries yet.</p>
-          ) : (
-            <div className="glass-card rounded-card divide-y divide-white/10 overflow-hidden">
-              {mine.map((c) => (
-                <div
-                  key={`${c._table}-${c.id}`}
-                  className="group flex items-center gap-3 px-3.5 py-2.5 hover:bg-white/[0.03] transition-colors"
-                >
-                  <span
-                    className={
-                      (c.published !== false ? 'bg-secondary' : 'bg-on-surface-variant/40') +
-                      ' h-2 w-2 rounded-full shrink-0'
-                    }
-                    title={c.published !== false ? 'Công khai' : 'Ẩn'}
-                  />
-                  <span className="text-[10px] uppercase tracking-wide text-secondary w-24 shrink-0 truncate hidden sm:block">
-                    {kindLabel[c.kind] || c.kind}
-                  </span>
-                  <h3 className="font-display text-sm font-medium truncate flex-1 min-w-0" title={c.title}>
-                    {c.title}
-                  </h3>
-                  <div className="flex items-center gap-3 text-xs shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => togglePublish(c)} className="text-on-surface-variant hover:text-on-surface hover:underline">
-                      {c.published !== false ? 'Ẩn' : 'Công khai'}
-                    </button>
-                    <button onClick={() => startEdit(c)} className="text-primary hover:underline">Edit</button>
-                    <button onClick={() => remove(c)} className="text-error hover:underline">Delete</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <MyEntries
+            items={mine}
+            kindLabel={kindLabel}
+            onToggle={togglePublish}
+            onEdit={startEdit}
+            onRemove={remove}
+          />
         </div>
       </div>
     </div>
@@ -630,6 +598,124 @@ const inputCls =
   'w-full bg-surface-container-lowest border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40';
 const fileCls =
   'text-sm text-on-surface-variant file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-primary file:text-on-primary file:text-sm file:font-bold';
+
+// Compact, searchable entries list grouped by type with collapsible sections.
+function MyEntries({ items, kindLabel, onToggle, onEdit, onRemove }) {
+  const [q, setQ] = useState('');
+  const [kindFilter, setKindFilter] = useState('all');
+  const [collapsed, setCollapsed] = useState({}); // { [kind]: true }
+
+  // Filter by search text + kind.
+  const filtered = items.filter((c) => {
+    if (kindFilter !== 'all' && c.kind !== kindFilter) return false;
+    if (q.trim() && !(c.title || '').toLowerCase().includes(q.trim().toLowerCase())) return false;
+    return true;
+  });
+
+  // Group the filtered rows by kind, preserving the kindLabel order.
+  const order = Object.keys(kindLabel);
+  const groups = order
+    .map((k) => ({ kind: k, label: kindLabel[k], rows: filtered.filter((c) => c.kind === k) }))
+    .filter((g) => g.rows.length > 0);
+
+  // Kinds that actually exist in the data (for the filter chips).
+  const presentKinds = order.filter((k) => items.some((c) => c.kind === k));
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
+        <h2 className="h-md">Your entries</h2>
+        {items.length > 0 && (
+          <span className="text-xs text-on-surface-variant">
+            {filtered.length === items.length ? `${items.length} entries` : `${filtered.length} / ${items.length}`}
+          </span>
+        )}
+      </div>
+
+      {items.length === 0 ? (
+        <p className="text-sm text-on-surface-variant">No entries yet.</p>
+      ) : (
+        <>
+          {/* Search + type filter */}
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <div className="relative flex-1 min-w-[160px]">
+              <span className="material-symbols-outlined text-base text-on-surface-variant absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">search</span>
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search entries…"
+                className="w-full bg-surface-container-lowest border border-white/10 rounded-lg pl-9 pr-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            <button onClick={() => setKindFilter('all')}
+              className={kindFilter === 'all'
+                ? 'px-3 py-1 rounded-full text-xs bg-primary text-on-primary font-bold'
+                : 'px-3 py-1 rounded-full text-xs border border-white/10 text-on-surface-variant hover:border-primary/50 transition-colors'}>
+              All
+            </button>
+            {presentKinds.map((k) => (
+              <button key={k} onClick={() => setKindFilter(k)}
+                className={kindFilter === k
+                  ? 'px-3 py-1 rounded-full text-xs bg-primary text-on-primary font-bold'
+                  : 'px-3 py-1 rounded-full text-xs border border-white/10 text-on-surface-variant hover:border-primary/50 transition-colors'}>
+                {kindLabel[k]} <span className="opacity-70">{items.filter((c) => c.kind === k).length}</span>
+              </button>
+            ))}
+          </div>
+
+          {groups.length === 0 ? (
+            <p className="text-sm text-on-surface-variant">No entries match.</p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {groups.map((g) => {
+                const isOpen = !collapsed[g.kind];
+                return (
+                  <div key={g.kind} className="glass-card rounded-card overflow-hidden">
+                    <button
+                      onClick={() => setCollapsed((s) => ({ ...s, [g.kind]: isOpen }))}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-white/[0.03] transition-colors"
+                    >
+                      <span className={`material-symbols-outlined text-base text-on-surface-variant transition-transform ${isOpen ? '' : '-rotate-90'}`}>expand_more</span>
+                      <span className="text-xs uppercase tracking-wide text-secondary font-bold">{g.label}</span>
+                      <span className="text-xs text-on-surface-variant">{g.rows.length}</span>
+                    </button>
+                    {isOpen && (
+                      <div className="divide-y divide-white/10 border-t border-white/10">
+                        {g.rows.map((c) => (
+                          <div
+                            key={`${c._table}-${c.id}`}
+                            className="group flex items-center gap-3 px-4 py-2 hover:bg-white/[0.03] transition-colors"
+                          >
+                            <span
+                              className={(c.published !== false ? 'bg-secondary' : 'bg-on-surface-variant/40') + ' h-2 w-2 rounded-full shrink-0'}
+                              title={c.published !== false ? 'Công khai' : 'Ẩn'}
+                            />
+                            <h3 className="font-display text-sm font-medium truncate flex-1 min-w-0" title={c.title}>
+                              {c.title}
+                            </h3>
+                            <div className="flex items-center gap-3 text-xs shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => onToggle(c)} className="text-on-surface-variant hover:text-on-surface hover:underline">
+                                {c.published !== false ? 'Ẩn' : 'Công khai'}
+                              </button>
+                              <button onClick={() => onEdit(c)} className="text-primary hover:underline">Edit</button>
+                              <button onClick={() => onRemove(c)} className="text-error hover:underline">Delete</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 function Field({ label, children }) {
   return (

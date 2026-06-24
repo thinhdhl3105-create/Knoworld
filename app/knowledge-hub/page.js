@@ -20,6 +20,7 @@ function KnowledgeHubInner() {
   const [selectedId, setSelectedId] = useState(null);
   const [tab, setTab] = useState('map'); // map | frameworks
   const [openFw, setOpenFw] = useState(null);
+  const [mapCat, setMapCat] = useState('all'); // which category the map shows
 
   useEffect(() => {
     Promise.all([
@@ -72,6 +73,18 @@ function KnowledgeHubInner() {
     });
   }, [concepts]);
 
+  // Categories available as separate maps (derived from the grouped list).
+  const mapCategories = useMemo(
+    () => groupedConcepts.map(([cat, items]) => ({ cat, count: items.length })),
+    [groupedConcepts]
+  );
+
+  // The concepts shown in the map for the active category filter.
+  const mapNodes = useMemo(() => {
+    if (mapCat === 'all') return concepts;
+    return concepts.filter((c) => ((c.category && c.category.trim()) || 'Khác') === mapCat);
+  }, [concepts, mapCat]);
+
   return (
     <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
       <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -112,11 +125,34 @@ function KnowledgeHubInner() {
         <p className="text-on-surface-variant">Loading the constellation…</p>
       ) : tab === 'map' ? (
         <div className="grid lg:grid-cols-3 gap-6">
+          {/* Category filter — each category is its own focused map */}
+          {mapCategories.length > 1 && (
+            <div className="lg:col-span-3 flex flex-wrap items-center gap-2 -mt-2">
+              <span className="material-symbols-outlined text-base text-on-surface-variant">filter_alt</span>
+              <button onClick={() => setMapCat('all')}
+                className={mapCat === 'all'
+                  ? 'px-3.5 py-1.5 rounded-full text-xs bg-primary text-on-primary font-bold'
+                  : 'px-3.5 py-1.5 rounded-full text-xs border border-white/10 text-on-surface-variant hover:border-primary/50 transition-colors'}>
+                All <span className="opacity-70">{concepts.length}</span>
+              </button>
+              {mapCategories.map(({ cat, count }) => (
+                <button key={cat} onClick={() => setMapCat(cat)}
+                  className={mapCat === cat
+                    ? 'px-3.5 py-1.5 rounded-full text-xs bg-primary text-on-primary font-bold'
+                    : 'px-3.5 py-1.5 rounded-full text-xs border border-white/10 text-on-surface-variant hover:border-primary/50 transition-colors'}>
+                  {cat} <span className="opacity-70">{count}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="lg:col-span-2">
-            <ConceptGraph nodes={concepts} links={links} selectedId={selectedId} onSelect={setSelectedId} />
+            <ConceptGraph nodes={mapNodes} links={links} selectedId={selectedId} onSelect={setSelectedId} />
             {concepts.length > 0 && (
               <p className="text-xs text-on-surface-variant mt-3">
-                Tip: click a node to read it, drag nodes to rearrange the map.
+                {mapCat === 'all'
+                  ? 'Tip: click a node to read it, drag nodes to rearrange the map.'
+                  : `Showing the “${mapCat}” map — ${mapNodes.length} concept${mapNodes.length === 1 ? '' : 's'}. Click a node to read it.`}
               </p>
             )}
           </div>
