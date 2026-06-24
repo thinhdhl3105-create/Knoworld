@@ -12,15 +12,29 @@ const empty = {
   student_name: '', school: '', year: '', brand: '',
   concept_id: '', file_url: '', file_name: '', links: [],
   published: true,
+  // Research papers: structured authors [{ name, role }], role ∈ first|co|corresponding.
+  authors: [],
   // Theoretical Map: ids of the OTHER end of foundation_links.
   // Editing a Foundation → research ids it links to.
   // Editing a Research  → foundation ids it belongs to.
   flinks: [],
 };
 
+// The "foundation" form-type is stored as a research-kind content row with
+// is_foundation = true. Map the UI kind onto the real content_kind enum.
+const isFoundationKind = (kind) => kind === 'foundation';
+const isResearchSide = (kind) => kind === 'research' || kind === 'foundation';
+const storedKind = (kind) => (isFoundationKind(kind) ? 'research' : kind);
+
 // Which table a kind lives in.
 const tableOf = (kind) =>
   kind === 'concept' ? 'concepts' : kind === 'framework' ? 'frameworks' : 'content';
+
+const AUTHOR_ROLES = [
+  { value: 'first', label: 'First author' },
+  { value: 'co', label: 'Co-author' },
+  { value: 'corresponding', label: 'Corresponding author' },
+];
 
 // ---- auto cover helpers (video case studies) ----
 // Derive a cover thumbnail directly from a YouTube link (no upload needed).
@@ -66,7 +80,8 @@ function captureVideoFrame(file) {
 }
 
 const kindLabel = {
-  research: 'Research / Foundation', student: 'Student Case Study',
+  research: 'Research Paper', foundation: 'Theoretical Foundation',
+  student: 'Student Case Study',
   video: 'Video Case Study', concept: 'Key Concept (Knowledge Hub)',
   framework: 'Framework (downloadable)',
 };
@@ -157,7 +172,11 @@ export default function UploadPage() {
       supabase.from('frameworks').select('*').eq('author_id', user.id).order('created_at', { ascending: false }),
     ]);
     const rows = [
-      ...(c.data || []).map((r) => ({ ...r, _table: 'content' })),
+      // Foundations are research-kind rows; surface them under their own UI kind.
+      ...(c.data || []).map((r) => ({
+        ...r, _table: 'content',
+        kind: r.kind === 'research' && r.is_foundation ? 'foundation' : r.kind,
+      })),
       ...(k.data || []).map((r) => ({ ...r, _table: 'concepts', kind: 'concept' })),
       ...(f.data || []).map((r) => ({ ...r, _table: 'frameworks', kind: 'framework' })),
     ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -219,11 +238,15 @@ export default function UploadPage() {
     let payload;
     if (table === 'content') {
       payload = {
-        ...base, kind: form.kind, cover_url: form.cover_url || null,
+        ...base, kind: storedKind(form.kind), cover_url: form.cover_url || null,
         media_url: form.media_url.trim() || null,
         paper_url: form.paper_url || null,
         source_url: form.source_url.trim() || null,
-        is_foundation: form.kind === 'research' ? !!form.is_foundation : false,
+        is_foundation: isFoundationKind(form.kind),
+        authors: form.kind === 'research'
+          ? form.authors.filter((a) => a && a.name && a.name.trim())
+              .map((a) => ({ name: a.name.trim(), role: a.role || 'co' }))
+          : [],
         context: form.context.trim() || null,
         insight: form.insight.trim() || null,
         creative_approach: form.creative_approach.trim() || null,
@@ -264,8 +287,8 @@ export default function UploadPage() {
     }
 
     // sync Theoretical Map edges (foundation ↔ research)
-    if (table === 'content' && form.kind === 'research' && savedId) {
-      const isFoundation = !!form.is_foundation;
+    if (table === 'content' && isResearchSide(form.kind) && savedId) {
+      const isFoundation = isFoundationKind(form.kind);
       const sideCol = isFoundation ? 'foundation_id' : 'research_id';
       await supabase.from('foundation_links').delete().eq(sideCol, savedId).eq('author_id', user.id);
       const rows = form.flinks
@@ -290,7 +313,7 @@ export default function UploadPage() {
       const { data } = await supabase.from('concept_links').select('target_id').eq('source_id', c.id).eq('author_id', user.id);
       links = (data || []).map((l) => l.target_id);
     }
-    if (table === 'content' && c.kind === 'research') {
+    if (table === 'content' && isResearchSide(c.kind)) {
       if (c.is_foundation) {
         const { data } = await supabase.from('foundation_links').select('research_id').eq('foundation_id', c.id).eq('author_id', user.id);
         flinks = (data || []).map((l) => l.research_id);
@@ -303,11 +326,13 @@ export default function UploadPage() {
     coverAuto.current = false; // keep the saved cover unless the user re-picks a video
     setForm({
       ...empty,
-      kind: c.kind, title: c.title || '', summary: c.summary || '', body: c.body || '',
+      kind: c.is_foundation ? 'foundation' : c.kind,
+      title: c.title || '', summary: c.summary || '', body: c.body || '',
       category: c.category || '', tags: (c.tags || []).join(', '),
       media_url: c.media_url || '', cover_url: c.cover_url || '', paper_url: c.paper_url || '',
       source_url: c.source_url || '',
       is_foundation: !!c.is_foundation,
+      authors: Array.isArray(c.authors) ? c.authors : [],
       context: c.context || '', insight: c.insight || '', creative_approach: c.creative_approach || '',
       execution: c.execution || '', images: c.images || [],
       student_name: c.student_name || '', school: c.school || '', year: c.year || '', brand: c.brand || '',
@@ -377,16 +402,18 @@ export default function UploadPage() {
             <textarea value={form.summary} onChange={(e) => set('summary', e.target.value)} rows={2} className={inputCls} placeholder="Short description…" />
           </Field>
 
-          {/* research */}
+          {/* research paper */}
           {k === 'research' && (
             <>
               <Field label="Body / abstract">
                 <textarea value={form.body} onChange={(e) => set('body', e.target.value)} rows={5} className={inputCls} placeholder="Full text…" />
               </Field>
-              <label className="flex items-center gap-3 text-sm">
-                <input type="checkbox" checked={form.is_foundation} onChange={(e) => set('is_foundation', e.target.checked)} className="w-4 h-4 accent-[color:var(--color-primary,#c6bfff)]" />
-                <span className="text-on-surface-variant">Mark as a <strong className="text-on-surface">Theoretical Foundation</strong></span>
-              </label>
+
+              {/* Authors with roles */}
+              <Field label="Authors">
+                <AuthorsEditor authors={form.authors} onChange={(next) => set('authors', next)} />
+              </Field>
+
               <FileField label="Research paper (PDF, optional)" accept=".pdf,.doc,.docx" busy={uploading === 'paper'}
                 onChange={(e) => onSingleFile(e, 'paper_url', 'paper')} done={form.paper_url} />
               <Field label="Related link (URL, optional)">
@@ -394,30 +421,44 @@ export default function UploadPage() {
                   placeholder="https://doi.org/…  ·  Google Drive  ·  article URL" />
               </Field>
 
-              {/* Theoretical Map linking */}
-              {form.is_foundation ? (
-                <Field label="Link Research papers to this Foundation (Theoretical Map)">
-                  <MapPicker
-                    options={researchItems.filter((r) => !r.is_foundation && (!editing || r.id !== editing.id))}
-                    selected={form.flinks}
-                    onToggle={(id) =>
-                      set('flinks', form.flinks.includes(id) ? form.flinks.filter((x) => x !== id) : [...form.flinks, id])
-                    }
-                    emptyText="No research papers yet — add some, then link them."
-                  />
-                </Field>
-              ) : (
-                <Field label="This paper supports which Foundation(s)? (Theoretical Map)">
-                  <MapPicker
-                    options={researchItems.filter((r) => r.is_foundation && (!editing || r.id !== editing.id))}
-                    selected={form.flinks}
-                    onToggle={(id) =>
-                      set('flinks', form.flinks.includes(id) ? form.flinks.filter((x) => x !== id) : [...form.flinks, id])
-                    }
-                    emptyText="No foundations yet — mark a research entry as a Theoretical Foundation first."
-                  />
-                </Field>
-              )}
+              <Field label="This paper supports which Foundation(s)? (Theoretical Map)">
+                <MapPicker
+                  options={researchItems.filter((r) => r.is_foundation && (!editing || r.id !== editing.id))}
+                  selected={form.flinks}
+                  onToggle={(id) =>
+                    set('flinks', form.flinks.includes(id) ? form.flinks.filter((x) => x !== id) : [...form.flinks, id])
+                  }
+                  emptyText="No foundations yet — add a Theoretical Foundation first."
+                />
+              </Field>
+            </>
+          )}
+
+          {/* theoretical foundation */}
+          {k === 'foundation' && (
+            <>
+              <p className="text-xs text-on-surface-variant -mt-1">
+                A core theory (e.g. <strong className="text-on-surface">RBV</strong>) with its definition and the
+                research papers that build on it — kept separate from individual papers for easy lookup.
+              </p>
+              <Field label="Definition">
+                <textarea value={form.body} onChange={(e) => set('body', e.target.value)} rows={5} className={inputCls}
+                  placeholder="Define the theory — what it claims, where it comes from…" />
+              </Field>
+              <Field label="Related link (URL, optional)">
+                <input value={form.source_url} onChange={(e) => set('source_url', e.target.value)} className={inputCls}
+                  placeholder="https://doi.org/…  ·  reference URL" />
+              </Field>
+              <Field label="Link related research papers (Theoretical Map)">
+                <MapPicker
+                  options={researchItems.filter((r) => !r.is_foundation && (!editing || r.id !== editing.id))}
+                  selected={form.flinks}
+                  onToggle={(id) =>
+                    set('flinks', form.flinks.includes(id) ? form.flinks.filter((x) => x !== id) : [...form.flinks, id])
+                  }
+                  emptyText="No research papers yet — add some, then link them here."
+                />
+              </Field>
             </>
           )}
 
@@ -735,6 +776,45 @@ function FileField({ label, accept, onChange, busy, done, doneLabel }) {
         {done && !busy && <span className="text-xs text-secondary">✓ {doneLabel || 'uploaded'}</span>}
       </div>
     </Field>
+  );
+}
+
+// Editable list of paper authors, each with a name and a role
+// (first / co / corresponding author).
+function AuthorsEditor({ authors, onChange }) {
+  const rows = authors || [];
+  const update = (i, patch) => onChange(rows.map((a, idx) => (idx === i ? { ...a, ...patch } : a)));
+  const add = () => onChange([...rows, { name: '', role: rows.length === 0 ? 'first' : 'co' }]);
+  const remove = (i) => onChange(rows.filter((_, idx) => idx !== i));
+  return (
+    <div className="flex flex-col gap-2">
+      {rows.length === 0 && (
+        <p className="text-xs text-on-surface-variant">No authors yet — add the first author below.</p>
+      )}
+      {rows.map((a, i) => (
+        <div key={i} className="flex items-center gap-2 flex-wrap">
+          <input
+            value={a.name || ''}
+            onChange={(e) => update(i, { name: e.target.value })}
+            placeholder="Author name"
+            className="flex-1 min-w-[140px] bg-surface-container-lowest border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
+          />
+          <select
+            value={a.role || 'co'}
+            onChange={(e) => update(i, { role: e.target.value })}
+            className="bg-surface-container-lowest border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
+          >
+            {AUTHOR_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+          </select>
+          <button type="button" onClick={() => remove(i)}
+            className="material-symbols-outlined text-base text-on-surface-variant hover:text-error" title="Remove author">close</button>
+        </div>
+      ))}
+      <button type="button" onClick={add}
+        className="self-start inline-flex items-center gap-1 text-xs text-primary font-bold hover:gap-2 transition-all">
+        <span className="material-symbols-outlined text-base">add</span> Add author
+      </button>
+    </div>
   );
 }
 

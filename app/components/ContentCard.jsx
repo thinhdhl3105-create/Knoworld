@@ -35,6 +35,15 @@ export default function ContentCard({ item, index = 0, video = false }) {
         <h3 className="font-display text-lg font-medium leading-snug group-hover:text-primary transition-colors">
           {item.title}
         </h3>
+        {Array.isArray(item.authors) && item.authors.filter((a) => a && a.name).length > 0 && (
+          <p className="text-xs text-on-surface-variant inline-flex items-center gap-1 line-clamp-1">
+            <span className="material-symbols-outlined text-sm">group</span>
+            {item.authors
+              .filter((a) => a && a.name)
+              .map((a) => a.name + (a.role === 'first' ? ' (1st)' : a.role === 'corresponding' ? ' (corresp.)' : ''))
+              .join(', ')}
+          </p>
+        )}
         {item.summary && (
           <p className="text-sm text-on-surface-variant leading-relaxed line-clamp-3">{item.summary}</p>
         )}

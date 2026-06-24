@@ -106,10 +106,20 @@ export default function VideosPage() {
   );
 }
 
+// Show this many in the row before the "View all" affordance; clicking the
+// category title expands the whole category into a grid.
+const ROW_LIMIT = 8;
+const GRADS = ['from-[#1b2a4a]', 'from-[#3a2a4a]', 'from-[#2a3a3a]'];
+
 // A horizontal, drag-to-scroll slider of video cards for one category.
+// Capped at ROW_LIMIT; expandable into a full grid via the title / "View all".
 function CategoryRow({ cat, vids, conceptById, onPick }) {
   const scroller = useRef(null);
   const drag = useRef({ active: false, startX: 0, startScroll: 0, moved: false });
+  const [expanded, setExpanded] = useState(false);
+
+  const hasMore = vids.length > ROW_LIMIT;
+  const shown = expanded ? vids : vids.slice(0, ROW_LIMIT);
 
   const by = (dir) => {
     const el = scroller.current;
@@ -135,53 +145,104 @@ function CategoryRow({ cat, vids, conceptById, onPick }) {
 
   return (
     <section className="mb-14">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-5 gap-3">
         <div className="flex items-baseline gap-3">
-          <h2 className="h-md">{cat}</h2>
+          <button
+            type="button"
+            onClick={() => hasMore && setExpanded((v) => !v)}
+            className={`group text-left ${hasMore ? 'cursor-pointer' : 'cursor-default'}`}
+            title={hasMore ? (expanded ? 'Collapse' : 'Show all videos') : undefined}
+          >
+            <h2 className="h-md inline-flex items-center gap-1 group-hover:text-primary transition-colors">
+              {cat}
+              {hasMore && (
+                <span className="material-symbols-outlined text-xl text-on-surface-variant group-hover:text-primary transition-colors">
+                  {expanded ? 'expand_less' : 'chevron_right'}
+                </span>
+              )}
+            </h2>
+          </button>
           <span className="label-sm text-on-surface-variant">{vids.length} videos</span>
         </div>
-        <div className="hidden sm:flex items-center gap-2">
-          <button onClick={() => by(-1)} aria-label="Scroll left"
-            className="glass-card h-9 w-9 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:border-primary/50 transition-colors">
-            <span className="material-symbols-outlined text-lg">chevron_left</span>
+        {expanded ? (
+          <button onClick={() => setExpanded(false)} className="text-xs font-bold text-primary whitespace-nowrap">
+            Show less
           </button>
-          <button onClick={() => by(1)} aria-label="Scroll right"
-            className="glass-card h-9 w-9 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:border-primary/50 transition-colors">
-            <span className="material-symbols-outlined text-lg">chevron_right</span>
-          </button>
+        ) : (
+          <div className="hidden sm:flex items-center gap-2">
+            {hasMore && (
+              <button onClick={() => setExpanded(true)} className="text-xs font-bold text-primary mr-1 whitespace-nowrap">
+                View all
+              </button>
+            )}
+            <button onClick={() => by(-1)} aria-label="Scroll left"
+              className="glass-card h-9 w-9 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:border-primary/50 transition-colors">
+              <span className="material-symbols-outlined text-lg">chevron_left</span>
+            </button>
+            <button onClick={() => by(1)} aria-label="Scroll right"
+              className="glass-card h-9 w-9 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:border-primary/50 transition-colors">
+              <span className="material-symbols-outlined text-lg">chevron_right</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {expanded ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {vids.map((item, i) => (
+            <VideoCard
+              key={item.id}
+              item={item}
+              grad={GRADS[i % 3]}
+              concept={item.concept_id && conceptById[item.concept_id]}
+              onPick={() => onPick(item)}
+              grid
+            />
+          ))}
         </div>
-      </div>
-      <div
-        ref={scroller}
-        onPointerDown={onDown}
-        onPointerMove={onMove}
-        onPointerUp={endDrag}
-        onPointerLeave={endDrag}
-        className="flex gap-4 overflow-x-auto pb-3 -mx-1 px-1 snap-x snap-mandatory cursor-grab active:cursor-grabbing select-none"
-        style={{ scrollbarWidth: 'thin' }}
-      >
-        {vids.map((item, i) => (
-          <VideoCard
-            key={item.id}
-            item={item}
-            grad={['from-[#1b2a4a]', 'from-[#3a2a4a]', 'from-[#2a3a3a]'][i % 3]}
-            concept={item.concept_id && conceptById[item.concept_id]}
-            onPick={() => { if (!drag.current.moved) onPick(item); }}
-          />
-        ))}
-      </div>
+      ) : (
+        <div
+          ref={scroller}
+          onPointerDown={onDown}
+          onPointerMove={onMove}
+          onPointerUp={endDrag}
+          onPointerLeave={endDrag}
+          className="flex gap-4 overflow-x-auto pb-3 -mx-1 px-1 snap-x snap-mandatory cursor-grab active:cursor-grabbing select-none"
+          style={{ scrollbarWidth: 'thin' }}
+        >
+          {shown.map((item, i) => (
+            <VideoCard
+              key={item.id}
+              item={item}
+              grad={GRADS[i % 3]}
+              concept={item.concept_id && conceptById[item.concept_id]}
+              onPick={() => { if (!drag.current.moved) onPick(item); }}
+            />
+          ))}
+          {hasMore && (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="group glass-card rounded-card shrink-0 snap-start w-[160px] flex flex-col items-center justify-center gap-2 text-on-surface-variant hover:text-primary hover:border-primary/50 transition-colors"
+            >
+              <span className="material-symbols-outlined text-3xl group-hover:translate-x-1 transition-transform">arrow_forward</span>
+              <span className="text-sm font-bold">View all {vids.length}</span>
+            </button>
+          )}
+        </div>
+      )}
     </section>
   );
 }
 
-function VideoCard({ item, grad, concept, onPick }) {
+function VideoCard({ item, grad, concept, onPick, grid = false }) {
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={onPick}
       onKeyDown={(e) => e.key === 'Enter' && onPick()}
-      className="group glass-card pulse-hover rounded-card overflow-hidden flex flex-col text-left cursor-pointer shrink-0 snap-start w-[280px] sm:w-[300px]"
+      className={`group glass-card pulse-hover rounded-card overflow-hidden flex flex-col text-left cursor-pointer ${grid ? 'w-full' : 'shrink-0 snap-start w-[280px] sm:w-[300px]'}`}
     >
       <div className={`relative aspect-[16/10] bg-gradient-to-br ${grad} to-[#0e0d16]`}>
         {item.cover_url ? (

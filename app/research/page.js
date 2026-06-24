@@ -179,6 +179,7 @@ function ResearchPageInner() {
                 <div className="p-8 md:p-10 flex flex-col justify-center gap-4">
                   <span className="label-sm text-secondary">Featured · {featured.category || 'Research'}</span>
                   <h2 className="h-lg">{featured.title}</h2>
+                  <AuthorsLine authors={featured.authors} />
                   <p className="text-on-surface-variant leading-relaxed">{featured.summary}</p>
                   <div className="flex flex-wrap gap-3 mt-2">
                     <button onClick={() => setOpenId(featured.id)} className="text-sm text-primary font-bold flex items-center gap-1 hover:gap-2 transition-all">
@@ -261,6 +262,7 @@ function ResearchPageInner() {
                   {open.is_foundation ? 'Theoretical Foundation' : 'Research'}{open.category ? ` · ${open.category}` : ''}
                 </span>
                 <h2 className="h-lg mt-1">{open.title}</h2>
+                <AuthorsLine authors={open.authors} className="mt-2" />
               </div>
               <button onClick={() => setOpenId(null)} className="material-symbols-outlined text-on-surface-variant hover:text-primary">close</button>
             </div>
@@ -315,6 +317,28 @@ function ResearchPageInner() {
         </div>
       )}
     </div>
+  );
+}
+
+// Role label/abbreviation for paper authors.
+const ROLE_LABEL = { first: 'First author', co: 'Co-author', corresponding: 'Corresponding author' };
+const ROLE_ABBR = { first: '1st', co: 'co', corresponding: 'corresp.' };
+
+// Renders "Jane Doe (First author), John Smith (Co-author)" for a paper.
+function AuthorsLine({ authors, className = '' }) {
+  const list = Array.isArray(authors) ? authors.filter((a) => a && a.name) : [];
+  if (list.length === 0) return null;
+  return (
+    <p className={`text-sm text-on-surface-variant ${className}`}>
+      <span className="material-symbols-outlined text-sm align-middle mr-1">group</span>
+      {list.map((a, i) => (
+        <span key={i}>
+          {i > 0 && ', '}
+          <span className="text-on-surface">{a.name}</span>
+          {a.role && <span className="text-secondary"> ({ROLE_LABEL[a.role] || a.role})</span>}
+        </span>
+      ))}
+    </p>
   );
 }
 
