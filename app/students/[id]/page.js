@@ -102,10 +102,10 @@ export default function StudentCaseDetail() {
               {img ? (
                 <button
                   onClick={() => setLightbox(img)}
-                  className={`${imageRight ? 'md:order-2' : 'md:order-1'} rounded-card overflow-hidden border border-white/10 aspect-[4/3] group`}
+                  className={`${imageRight ? 'md:order-2' : 'md:order-1'} rounded-card overflow-hidden border border-white/10 group block w-full`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={img} alt={`${item.title} — ${s.label}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                  <img src={img} alt={`${item.title} — ${s.label}`} className="w-full h-auto object-contain group-hover:scale-[1.02] transition-transform" />
                 </button>
               ) : (
                 <div className="hidden md:block" />
@@ -128,9 +128,9 @@ export default function StudentCaseDetail() {
           <h2 className="h-md mb-6">More visuals from the project</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {galleryImages.map((src, i) => (
-              <button key={i} onClick={() => setLightbox(src)} className="rounded-card overflow-hidden border border-white/10 aspect-[4/3] group">
+              <button key={i} onClick={() => setLightbox(src)} className="rounded-card overflow-hidden border border-white/10 group block w-full self-start">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt={`${item.title} visual ${i + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                <img src={src} alt={`${item.title} visual ${i + 1}`} className="w-full h-auto object-contain group-hover:scale-[1.02] transition-transform" />
               </button>
             ))}
           </div>
