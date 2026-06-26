@@ -95,7 +95,7 @@ function KnowledgeHubInner() {
           </div>
           <h1 className="h-xl mb-6">Knowledge Hub</h1>
           <p className="text-lg text-on-surface-variant max-w-2xl leading-relaxed">
-            A living map of key concepts and the bridges between them — plus downloadable
+            A living map of key concepts and the bridges between them — plus step-by-step
             frameworks like IMC planning and branding strategy.
           </p>
         </div>
@@ -267,7 +267,7 @@ function KnowledgeHubInner() {
         <div>
           {frameworks.length === 0 ? (
             <p className="text-on-surface-variant glass-card rounded-card p-8 text-center">
-              No frameworks yet. Upload IMC planning, branding strategy and other templates from the dashboard.
+              No frameworks yet. Upload IMC planning, branding strategy and other step-by-step guides from the dashboard.
             </p>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -277,10 +277,16 @@ function KnowledgeHubInner() {
                   {f.category && <span className="label-sm text-secondary">{f.category}</span>}
                   <h3 className="font-display text-lg font-medium leading-snug">{f.title}</h3>
                   {f.summary && <p className="text-sm text-on-surface-variant line-clamp-3 flex-1">{f.summary}</p>}
+                  {Array.isArray(f.steps) && f.steps.length > 0 && (
+                    <span className="label-sm text-on-surface-variant flex items-center gap-1">
+                      <span className="material-symbols-outlined text-base">format_list_numbered</span>
+                      {f.steps.length} step{f.steps.length > 1 ? 's' : ''}
+                    </span>
+                  )}
                   <div className="flex flex-wrap gap-3 mt-2">
-                    {f.body && (
+                    {(f.body || (Array.isArray(f.steps) && f.steps.length > 0)) && (
                       <button onClick={() => setOpenFw(f)} className="text-sm text-primary font-bold flex items-center gap-1 hover:gap-2 transition-all">
-                        View guide <span className="material-symbols-outlined text-base">arrow_forward</span>
+                        {Array.isArray(f.steps) && f.steps.length > 0 ? 'View steps' : 'View guide'} <span className="material-symbols-outlined text-base">arrow_forward</span>
                       </button>
                     )}
                     {f.file_url && (
@@ -308,7 +314,22 @@ function KnowledgeHubInner() {
               <button onClick={() => setOpenFw(null)} className="material-symbols-outlined text-on-surface-variant hover:text-primary">close</button>
             </div>
             {openFw.summary && <p className="text-on-surface-variant leading-relaxed mb-4">{openFw.summary}</p>}
-            {openFw.body && <p className="text-sm text-on-surface leading-relaxed whitespace-pre-wrap">{openFw.body}</p>}
+            {openFw.body && <p className="text-sm text-on-surface leading-relaxed whitespace-pre-wrap mb-6">{openFw.body}</p>}
+
+            {Array.isArray(openFw.steps) && openFw.steps.length > 0 && (
+              <ol className="flex flex-col gap-4 mb-2">
+                {openFw.steps.map((s, i) => (
+                  <li key={i} className="flex gap-3">
+                    <span className="shrink-0 w-7 h-7 rounded-full bg-primary text-on-primary text-sm font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
+                    <div className="min-w-0">
+                      {s.title && <h3 className="font-display text-base font-medium leading-snug">{s.title}</h3>}
+                      {s.body && <p className="text-sm text-on-surface-variant leading-relaxed whitespace-pre-wrap mt-1">{s.body}</p>}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+
             {openFw.file_url && (
               <a href={openFw.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 mt-6 bg-primary text-on-primary px-5 py-2.5 rounded-lg text-sm font-bold">
                 <span className="material-symbols-outlined text-base">download</span> Download {openFw.file_name || 'file'}

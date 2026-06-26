@@ -225,6 +225,7 @@ create table if not exists public.frameworks (
   file_url    text,
   file_name   text,
   cover_url   text,
+  steps       jsonb not null default '[]'::jsonb, -- ordered [{title, body}] step-by-step guide
   author_id   uuid references auth.users(id) on delete set null,
   published   boolean not null default true,
   created_at  timestamptz not null default now(),

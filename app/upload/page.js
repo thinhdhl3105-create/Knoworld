@@ -7,10 +7,14 @@ import { useAuth } from '../components/AuthProvider';
 
 const empty = {
   kind: 'research', title: '', summary: '', body: '', category: '', tags: '',
+  // Research papers: journal/venue name + publication type.
+  publication: '', paper_type: 'article',
   media_url: '', cover_url: '', paper_url: '', source_url: '', is_foundation: false,
   context: '', insight: '', creative_approach: '', execution: '', images: [],
   student_name: '', school: '', year: '', brand: '',
   concept_id: '', file_url: '', file_name: '', links: [],
+  // Framework: ordered step-by-step guide [{ title, body }].
+  steps: [],
   published: true,
   // Research papers: structured authors [{ name, role }], role ∈ first|co|corresponding.
   authors: [],
@@ -34,6 +38,13 @@ const AUTHOR_ROLES = [
   { value: 'first', label: 'First author' },
   { value: 'co', label: 'Co-author' },
   { value: 'corresponding', label: 'Corresponding author' },
+];
+
+// Publication type for research papers.
+const PAPER_TYPES = [
+  { value: 'article', label: 'Research Article' },
+  { value: 'conference', label: 'Conference' },
+  { value: 'book_chapter', label: 'Book Chapter' },
 ];
 
 // ---- auto cover helpers (video case studies) ----
@@ -247,6 +258,8 @@ export default function UploadPage() {
           ? form.authors.filter((a) => a && a.name && a.name.trim())
               .map((a) => ({ name: a.name.trim(), role: a.role || 'co' }))
           : [],
+        publication: form.kind === 'research' ? (form.publication.trim() || null) : null,
+        paper_type: form.kind === 'research' ? (form.paper_type || 'article') : null,
         context: form.context.trim() || null,
         insight: form.insight.trim() || null,
         creative_approach: form.creative_approach.trim() || null,
@@ -264,7 +277,16 @@ export default function UploadPage() {
     } else if (table === 'concepts') {
       payload = { ...base };
     } else {
-      payload = { ...base, file_url: form.file_url || null, file_name: form.file_name || null, cover_url: form.cover_url || null };
+      payload = {
+        ...base,
+        file_url: form.file_url || null,
+        file_name: form.file_name || null,
+        cover_url: form.cover_url || null,
+        // Keep only steps that have at least a title or body; trim text.
+        steps: (form.steps || [])
+          .map((s) => ({ title: (s.title || '').trim(), body: (s.body || '').trim() }))
+          .filter((s) => s.title || s.body),
+      };
     }
 
     let res, savedId;
@@ -333,10 +355,12 @@ export default function UploadPage() {
       source_url: c.source_url || '',
       is_foundation: !!c.is_foundation,
       authors: Array.isArray(c.authors) ? c.authors : [],
+      publication: c.publication || '', paper_type: c.paper_type || 'article',
       context: c.context || '', insight: c.insight || '', creative_approach: c.creative_approach || '',
       execution: c.execution || '', images: c.images || [],
       student_name: c.student_name || '', school: c.school || '', year: c.year || '', brand: c.brand || '',
       concept_id: c.concept_id || '', file_url: c.file_url || '', file_name: c.file_name || '',
+      steps: Array.isArray(c.steps) ? c.steps : [],
       published: c.published !== false,
       links, flinks,
     });
@@ -405,6 +429,18 @@ export default function UploadPage() {
           {/* research paper */}
           {k === 'research' && (
             <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Journal / publication name">
+                  <input value={form.publication} onChange={(e) => set('publication', e.target.value)} className={inputCls}
+                    placeholder="e.g. Journal of Marketing…" />
+                </Field>
+                <Field label="Type">
+                  <select value={form.paper_type} onChange={(e) => set('paper_type', e.target.value)} className={inputCls}>
+                    {PAPER_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                </Field>
+              </div>
+
               <Field label="Body / abstract">
                 <textarea value={form.body} onChange={(e) => set('body', e.target.value)} rows={5} className={inputCls} placeholder="Full text…" />
               </Field>
@@ -562,10 +598,21 @@ export default function UploadPage() {
           {/* framework */}
           {k === 'framework' && (
             <>
-              <Field label="Guide / description page">
-                <textarea value={form.body} onChange={(e) => set('body', e.target.value)} rows={5} className={inputCls} placeholder="How to use this framework…" />
+              <p className="text-xs text-on-surface-variant -mt-1">
+                Define the <strong className="text-on-surface">steps</strong> to do something for this category
+                (e.g. an <strong className="text-on-surface">IMC Campaign</strong>, <strong className="text-on-surface">Branding</strong>,
+                or <strong className="text-on-surface">Marketing Strategy</strong>). Each step gets a title and a guide so
+                students can follow along. You can also add an optional guide text and a downloadable file below.
+              </p>
+
+              <Field label="Steps (students follow these in order)">
+                <StepsEditor steps={form.steps} onChange={(next) => set('steps', next)} />
               </Field>
-              <FileField label="Downloadable file (PDF / DOCX / PPTX / XLSX)" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+
+              <Field label="Guide / overview (optional)">
+                <textarea value={form.body} onChange={(e) => set('body', e.target.value)} rows={4} className={inputCls} placeholder="Overview / how to use this framework…" />
+              </Field>
+              <FileField label="Downloadable file (optional — PDF / DOCX / PPTX / XLSX)" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
                 busy={uploading === 'file'} onChange={(e) => onSingleFile(e, 'file_url', 'file')} done={form.file_url} doneLabel={form.file_name} />
             </>
           )}
@@ -813,6 +860,60 @@ function AuthorsEditor({ authors, onChange }) {
       <button type="button" onClick={add}
         className="self-start inline-flex items-center gap-1 text-xs text-primary font-bold hover:gap-2 transition-all">
         <span className="material-symbols-outlined text-base">add</span> Add author
+      </button>
+    </div>
+  );
+}
+
+// Editable, ordered list of framework steps. Each step has a title and a
+// guide/explanation. Steps can be added, removed and reordered — students
+// follow them in order on the Knowledge Hub.
+function StepsEditor({ steps, onChange }) {
+  const rows = steps || [];
+  const update = (i, patch) => onChange(rows.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
+  const add = () => onChange([...rows, { title: '', body: '' }]);
+  const remove = (i) => onChange(rows.filter((_, idx) => idx !== i));
+  const move = (i, dir) => {
+    const j = i + dir;
+    if (j < 0 || j >= rows.length) return;
+    const next = rows.slice();
+    [next[i], next[j]] = [next[j], next[i]];
+    onChange(next);
+  };
+  return (
+    <div className="flex flex-col gap-3">
+      {rows.length === 0 && (
+        <p className="text-xs text-on-surface-variant">No steps yet — add the first step below.</p>
+      )}
+      {rows.map((s, i) => (
+        <div key={i} className="rounded-lg border border-white/10 bg-surface-container-lowest p-3 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 w-6 h-6 rounded-full bg-primary text-on-primary text-xs font-bold flex items-center justify-center">{i + 1}</span>
+            <input
+              value={s.title || ''}
+              onChange={(e) => update(i, { title: e.target.value })}
+              placeholder={`Step ${i + 1} title — e.g. Situation analysis`}
+              className="flex-1 min-w-0 bg-surface-container-lowest border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
+            />
+            <button type="button" onClick={() => move(i, -1)} disabled={i === 0}
+              className="material-symbols-outlined text-base text-on-surface-variant hover:text-primary disabled:opacity-30" title="Move up">arrow_upward</button>
+            <button type="button" onClick={() => move(i, 1)} disabled={i === rows.length - 1}
+              className="material-symbols-outlined text-base text-on-surface-variant hover:text-primary disabled:opacity-30" title="Move down">arrow_downward</button>
+            <button type="button" onClick={() => remove(i)}
+              className="material-symbols-outlined text-base text-on-surface-variant hover:text-error" title="Remove step">close</button>
+          </div>
+          <textarea
+            value={s.body || ''}
+            onChange={(e) => update(i, { body: e.target.value })}
+            rows={3}
+            placeholder="Explain this step — what to do and how…"
+            className="w-full bg-surface-container-lowest border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
+          />
+        </div>
+      ))}
+      <button type="button" onClick={add}
+        className="self-start inline-flex items-center gap-1 text-xs text-primary font-bold hover:gap-2 transition-all">
+        <span className="material-symbols-outlined text-base">add</span> Add step
       </button>
     </div>
   );

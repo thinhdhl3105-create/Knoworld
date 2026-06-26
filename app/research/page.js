@@ -263,6 +263,11 @@ function ResearchPageInner() {
                 </span>
                 <h2 className="h-lg mt-1">{open.title}</h2>
                 <AuthorsLine authors={open.authors} className="mt-2" />
+                {!open.is_foundation && (open.publication || open.paper_type) && (
+                  <p className="text-sm text-on-surface-variant mt-1 italic">
+                    {[open.publication, paperTypeLabel(open.paper_type)].filter(Boolean).join(' · ')}
+                  </p>
+                )}
               </div>
               <button onClick={() => setOpenId(null)} className="material-symbols-outlined text-on-surface-variant hover:text-primary">close</button>
             </div>
@@ -319,6 +324,10 @@ function ResearchPageInner() {
     </div>
   );
 }
+
+// Publication type label for research papers.
+const PAPER_TYPE_LABEL = { article: 'Research Article', conference: 'Conference', book_chapter: 'Book Chapter' };
+const paperTypeLabel = (t) => PAPER_TYPE_LABEL[t] || '';
 
 // Role label/abbreviation for paper authors.
 const ROLE_LABEL = { first: 'First author', co: 'Co-author', corresponding: 'Corresponding author' };
