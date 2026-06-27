@@ -283,9 +283,16 @@ export default function UploadPage() {
         file_name: form.file_name || null,
         cover_url: form.cover_url || null,
         // Keep only steps that have at least a title or body; trim text.
+        // Each step may also carry nested sub-steps [{ title, body }].
         steps: (form.steps || [])
-          .map((s) => ({ title: (s.title || '').trim(), body: (s.body || '').trim() }))
-          .filter((s) => s.title || s.body),
+          .map((s) => ({
+            title: (s.title || '').trim(),
+            body: (s.body || '').trim(),
+            substeps: (Array.isArray(s.substeps) ? s.substeps : [])
+              .map((ss) => ({ title: (ss.title || '').trim(), body: (ss.body || '').trim() }))
+              .filter((ss) => ss.title || ss.body),
+          }))
+          .filter((s) => s.title || s.body || (s.substeps && s.substeps.length)),
       };
     }
 
@@ -909,6 +916,14 @@ function StepsEditor({ steps, onChange }) {
             placeholder="Explain this step — what to do and how…"
             className="w-full bg-surface-container-lowest border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
           />
+          {/* Nested sub-steps for this step. */}
+          <div className="mt-1 pl-4 border-l-2 border-primary/30">
+            <SubStepsEditor
+              parentIndex={i}
+              substeps={s.substeps || []}
+              onChange={(next) => update(i, { substeps: next })}
+            />
+          </div>
         </div>
       ))}
       <button type="button" onClick={add}
@@ -919,22 +934,5 @@ function StepsEditor({ steps, onChange }) {
   );
 }
 
-// Pill multi-select used to draw the Foundation↔Research edges of the map.
-function MapPicker({ options, selected, onToggle, emptyText }) {
-  if (!options.length) return <p className="text-xs text-on-surface-variant">{emptyText}</p>;
-  return (
-    <div className="flex flex-wrap gap-2">
-      {options.map((o) => {
-        const on = selected.includes(o.id);
-        return (
-          <button type="button" key={o.id} onClick={() => onToggle(o.id)}
-            className={on
-              ? 'px-3 py-1.5 rounded-full text-xs bg-primary text-on-primary font-bold'
-              : 'px-3 py-1.5 rounded-full text-xs border border-white/10 text-on-surface-variant hover:border-primary/50'}>
-            {o.title}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+// Editable, ordered list of SUB-steps that live inside a single step.
+// Each sub-step has a title 

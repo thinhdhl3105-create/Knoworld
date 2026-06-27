@@ -9,6 +9,7 @@ import {
   fetchConceptLinkedContent,
 } from '@/lib/content';
 import ConceptGraph from '../components/ConceptGraph';
+import FrameworkSteps from '../components/FrameworkSteps';
 import RequireAuth from '../components/RequireAuth';
 
 function KnowledgeHubInner() {
@@ -305,7 +306,7 @@ function KnowledgeHubInner() {
       {/* Framework guide modal */}
       {openFw && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setOpenFw(null)}>
-          <div className="glass-card rounded-card max-w-2xl w-full max-h-[85vh] overflow-y-auto p-8 md:p-10" onClick={(e) => e.stopPropagation()}>
+          <div className="glass-card rounded-card max-w-4xl w-full max-h-[88vh] overflow-y-auto p-6 md:p-8" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
                 <span className="label-sm text-secondary">{openFw.category || 'Framework'}</span>
@@ -317,17 +318,7 @@ function KnowledgeHubInner() {
             {openFw.body && <p className="text-sm text-on-surface leading-relaxed whitespace-pre-wrap mb-6">{openFw.body}</p>}
 
             {Array.isArray(openFw.steps) && openFw.steps.length > 0 && (
-              <ol className="flex flex-col gap-4 mb-2">
-                {openFw.steps.map((s, i) => (
-                  <li key={i} className="flex gap-3">
-                    <span className="shrink-0 w-7 h-7 rounded-full bg-primary text-on-primary text-sm font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
-                    <div className="min-w-0">
-                      {s.title && <h3 className="font-display text-base font-medium leading-snug">{s.title}</h3>}
-                      {s.body && <p className="text-sm text-on-surface-variant leading-relaxed whitespace-pre-wrap mt-1">{s.body}</p>}
-                    </div>
-                  </li>
-                ))}
-              </ol>
+              <FrameworkSteps steps={openFw.steps} />
             )}
 
             {openFw.file_url && (
