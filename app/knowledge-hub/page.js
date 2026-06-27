@@ -305,24 +305,42 @@ function KnowledgeHubInner() {
 
       {/* Framework guide modal */}
       {openFw && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setOpenFw(null)}>
-          <div className="glass-card rounded-card max-w-4xl w-full max-h-[88vh] overflow-y-auto p-6 md:p-8" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 md:p-6 bg-black/75 backdrop-blur-md" onClick={() => setOpenFw(null)}>
+          <div
+            className="relative glass-card rounded-xl w-full max-w-6xl max-h-[92vh] overflow-y-auto p-6 md:p-8"
+            style={{
+              background:
+                'radial-gradient(900px 500px at 80% -10%, rgba(198,191,255,.10), transparent 60%), rgba(19,18,27,0.92)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 mb-5">
               <div>
-                <span className="label-sm text-secondary">{openFw.category || 'Framework'}</span>
-                <h2 className="h-lg mt-1">{openFw.title}</h2>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="h-px w-8 bg-secondary" />
+                  <span className="label-sm text-secondary tracking-widest">{openFw.category || 'Framework'}</span>
+                </div>
+                <h2 className="h-lg">{openFw.title}</h2>
+                {openFw.summary && (
+                  <p className="text-on-surface-variant leading-relaxed mt-3 max-w-2xl">{openFw.summary}</p>
+                )}
               </div>
-              <button onClick={() => setOpenFw(null)} className="material-symbols-outlined text-on-surface-variant hover:text-primary">close</button>
+              <button
+                onClick={() => setOpenFw(null)}
+                className="shrink-0 w-9 h-9 grid place-items-center rounded-full border border-white/10 text-on-surface-variant hover:text-primary hover:border-primary/50 transition-colors"
+                aria-label="Close"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
             </div>
-            {openFw.summary && <p className="text-on-surface-variant leading-relaxed mb-4">{openFw.summary}</p>}
             {openFw.body && <p className="text-sm text-on-surface leading-relaxed whitespace-pre-wrap mb-6">{openFw.body}</p>}
 
             {Array.isArray(openFw.steps) && openFw.steps.length > 0 && (
-              <FrameworkSteps steps={openFw.steps} />
+              <FrameworkSteps steps={openFw.steps} title={openFw.title} />
             )}
 
             {openFw.file_url && (
-              <a href={openFw.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 mt-6 bg-primary text-on-primary px-5 py-2.5 rounded-lg text-sm font-bold">
+              <a href={openFw.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 mt-6 bg-primary text-on-primary px-5 py-2.5 rounded-lg text-sm font-bold hover:scale-95 transition-transform">
                 <span className="material-symbols-outlined text-base">download</span> Download {openFw.file_name || 'file'}
               </a>
             )}
