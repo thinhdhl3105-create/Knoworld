@@ -935,4 +935,72 @@ function StepsEditor({ steps, onChange }) {
 }
 
 // Editable, ordered list of SUB-steps that live inside a single step.
-// Each sub-step has a title 
+// Each sub-step has a title and an explanation, and can be added,
+// removed and reordered. Numbered as "parent.child" (e.g. 1.1, 1.2).
+function SubStepsEditor({ parentIndex, substeps, onChange }) {
+  const rows = substeps || [];
+  const update = (i, patch) => onChange(rows.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
+  const add = () => onChange([...rows, { title: '', body: '' }]);
+  const remove = (i) => onChange(rows.filter((_, idx) => idx !== i));
+  const move = (i, dir) => {
+    const j = i + dir;
+    if (j < 0 || j >= rows.length) return;
+    const next = rows.slice();
+    [next[i], next[j]] = [next[j], next[i]];
+    onChange(next);
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      {rows.map((s, i) => (
+        <div key={i} className="rounded-lg border border-white/10 bg-surface-container-lowest p-2.5 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 px-1.5 h-5 min-w-[1.75rem] rounded-full bg-secondary/80 text-on-secondary text-[10px] font-bold flex items-center justify-center">{parentIndex + 1}.{i + 1}</span>
+            <input
+              value={s.title || ''}
+              onChange={(e) => update(i, { title: e.target.value })}
+              placeholder={`Sub-step ${parentIndex + 1}.${i + 1} title`}
+              className="flex-1 min-w-0 bg-surface-container-lowest border border-white/10 rounded-lg px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
+            />
+            <button type="button" onClick={() => move(i, -1)} disabled={i === 0}
+              className="material-symbols-outlined text-sm text-on-surface-variant hover:text-primary disabled:opacity-30" title="Move up">arrow_upward</button>
+            <button type="button" onClick={() => move(i, 1)} disabled={i === rows.length - 1}
+              className="material-symbols-outlined text-sm text-on-surface-variant hover:text-primary disabled:opacity-30" title="Move down">arrow_downward</button>
+            <button type="button" onClick={() => remove(i)}
+              className="material-symbols-outlined text-sm text-on-surface-variant hover:text-error" title="Remove sub-step">close</button>
+          </div>
+          <textarea
+            value={s.body || ''}
+            onChange={(e) => update(i, { body: e.target.value })}
+            rows={2}
+            placeholder="Explain this sub-step…"
+            className="w-full bg-surface-container-lowest border border-white/10 rounded-lg px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
+          />
+        </div>
+      ))}
+      <button type="button" onClick={add}
+        className="self-start inline-flex items-center gap-1 text-[11px] text-secondary font-bold hover:gap-2 transition-all">
+        <span className="material-symbols-outlined text-sm">add</span> Add sub-step
+      </button>
+    </div>
+  );
+}
+
+// Pill multi-select used to draw the Foundation↔Research edges of the map.
+function MapPicker({ options, selected, onToggle, emptyText }) {
+  if (!options.length) return <p className="text-xs text-on-surface-variant">{emptyText}</p>;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((o) => {
+        const on = selected.includes(o.id);
+        return (
+          <button type="button" key={o.id} onClick={() => onToggle(o.id)}
+            className={on
+              ? 'px-3 py-1.5 rounded-full text-xs bg-primary text-on-primary font-bold'
+              : 'px-3 py-1.5 rounded-full text-xs border border-white/10 text-on-surface-variant hover:border-primary/50'}>
+            {o.title}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
