@@ -83,6 +83,13 @@ export default function ReviewWidget() {
     return () => window.removeEventListener('kw-content-view', onView);
   }, []);
 
+  // Lời cảm ơn ngắn sau khi gửi (đặt trước mọi early-return để giữ thứ tự hook).
+  useEffect(() => {
+    if (!thankYou) return;
+    const t = setTimeout(() => setThankYou(false), 4000);
+    return () => clearTimeout(t);
+  }, [thankYou]);
+
   if (!mounted) return null;
 
   const setRating = (key, n) => setVals((v) => ({ ...v, [key]: n }));
@@ -113,13 +120,6 @@ export default function ReviewWidget() {
     setOpen(false);
     setThankYou(true);
   };
-
-  // Lời cảm ơn ngắn sau khi gửi.
-  useEffect(() => {
-    if (!thankYou) return;
-    const t = setTimeout(() => setThankYou(false), 4000);
-    return () => clearTimeout(t);
-  }, [thankYou]);
 
   return (
     <>
