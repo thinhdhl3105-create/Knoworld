@@ -13,7 +13,7 @@ const links = [
   { href: '/knowledge-hub', label: 'Knowledge Hub', auth: true },
   { href: '/videos', label: 'Video Case Studies' },
   { href: '/students', label: 'Student Case Studies' },
-  { href: '/admin/reviews', label: 'Đánh giá', admin: true },
+  { href: '/admin/reviews', label: 'Reviews', admin: true },
 ];
 
 export default function Nav() {

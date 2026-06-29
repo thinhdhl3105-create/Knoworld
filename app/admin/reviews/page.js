@@ -9,9 +9,9 @@ import { fetchReviews, reviewStats } from '@/lib/reviews';
 const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
 
 const CRITERIA = [
-  { key: 'convenience', label: 'Sự tiện lợi' },
-  { key: 'content', label: 'Nội dung' },
-  { key: 'overall', label: 'Tổng quan' },
+  { key: 'convenience', label: 'Convenience' },
+  { key: 'content', label: 'Content' },
+  { key: 'overall', label: 'Overall' },
 ];
 
 function Stars({ value }) {
@@ -71,12 +71,12 @@ function ReviewsInner() {
       <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16 text-center">
         <div className="glass-card rounded-card p-10 max-w-md mx-auto">
           <span className="material-symbols-outlined text-primary text-4xl mb-3">admin_panel_settings</span>
-          <h1 className="h-md mb-2">Chỉ dành cho admin</h1>
+          <h1 className="h-md mb-2">Admins only</h1>
           <p className="text-sm text-on-surface-variant mb-6">
-            Trang này chỉ tài khoản quản trị mới xem được.
+            Only the admin account can view this page.
           </p>
           <Link href="/" className="inline-block bg-primary text-on-primary px-6 py-2.5 rounded-lg text-sm font-bold">
-            Về trang chủ
+            Back to home
           </Link>
         </div>
       </div>
@@ -90,31 +90,31 @@ function ReviewsInner() {
           <span className="h-px w-12 bg-primary" />
           <span className="label-sm text-secondary tracking-widest">Admin</span>
         </div>
-        <h1 className="h-xl mb-3">Đánh giá từ người dùng</h1>
+        <h1 className="h-xl mb-3">User Reviews</h1>
         <p className="text-on-surface-variant">
-          {stats.count} lượt đánh giá đã thu thập.
+          {stats.count} reviews collected.
         </p>
       </header>
 
       {/* Điểm trung bình */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
         <div className="glass-card rounded-card p-5">
-          <p className="text-xs text-on-surface-variant mb-2">Tổng số đánh giá</p>
+          <p className="text-xs text-on-surface-variant mb-2">Total reviews</p>
           <span className="font-display text-3xl font-semibold text-primary">{stats.count}</span>
         </div>
-        <StatCard label="Sự tiện lợi" value={stats.convenience} />
-        <StatCard label="Nội dung" value={stats.content} />
-        <StatCard label="Tổng quan" value={stats.overall} />
+        <StatCard label="Convenience" value={stats.convenience} />
+        <StatCard label="Content" value={stats.content} />
+        <StatCard label="Overall" value={stats.overall} />
       </div>
 
       {/* Danh sách */}
       {loading ? (
-        <p className="text-on-surface-variant">Đang tải…</p>
+        <p className="text-on-surface-variant">Loading…</p>
       ) : err ? (
-        <p className="text-error glass-card rounded-card p-6">Lỗi tải dữ liệu: {err}</p>
+        <p className="text-error glass-card rounded-card p-6">Failed to load data: {err}</p>
       ) : rows.length === 0 ? (
         <p className="text-on-surface-variant glass-card rounded-card p-8 text-center">
-          Chưa có đánh giá nào.
+          No reviews yet.
         </p>
       ) : (
         <div className="space-y-4">
@@ -130,7 +130,7 @@ function ReviewsInner() {
                   ))}
                 </div>
                 <span className="text-xs text-on-surface-variant">
-                  {new Date(r.created_at).toLocaleString('vi-VN')}
+                  {new Date(r.created_at).toLocaleString('en-US')}
                 </span>
               </div>
               {r.comment && (
@@ -139,7 +139,7 @@ function ReviewsInner() {
                 </p>
               )}
               {r.page_path && (
-                <p className="text-xs text-on-surface-variant/70 mt-2">Trang: {r.page_path}</p>
+                <p className="text-xs text-on-surface-variant/70 mt-2">Page: {r.page_path}</p>
               )}
             </div>
           ))}
