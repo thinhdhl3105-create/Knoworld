@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { fetchContentById } from '@/lib/content';
+import { trackContentView } from '@/lib/reviews';
 
 const sections = [
   { key: 'context', label: 'Context', icon: 'public' },
@@ -23,6 +24,8 @@ export default function StudentCaseDetail() {
       setItem(data);
       setLoading(false);
     });
+    // Mở chi tiết 1 case study = xem 1 nội dung → tính cho lời mời đánh giá.
+    trackContentView();
   }, [id]);
 
   if (loading) return <div className="pt-32 px-5 max-w-container mx-auto text-on-surface-variant">Loading…</div>;

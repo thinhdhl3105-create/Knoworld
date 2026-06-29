@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchContent, fetchConcepts } from '@/lib/content';
+import { trackContentView } from '@/lib/reviews';
 
 // Normalise a YouTube/Vimeo/file URL into something embeddable.
 function toEmbed(url = '') {
@@ -40,6 +41,12 @@ export default function VideosPage() {
 
   const player = active ? toEmbed(active.media_url) : null;
 
+  // Mở 1 video = xem 1 nội dung → tính cho lời mời đánh giá.
+  const openVideo = (item) => {
+    trackContentView();
+    setActive(item);
+  };
+
   return (
     <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
       <header className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -67,7 +74,7 @@ export default function VideosPage() {
         </p>
       ) : (
         Object.entries(groups).map(([cat, vids]) => (
-          <CategoryRow key={cat} cat={cat} vids={vids} conceptById={conceptById} onPick={setActive} />
+          <CategoryRow key={cat} cat={cat} vids={vids} conceptById={conceptById} onPick={openVideo} />
         ))
       )}
 

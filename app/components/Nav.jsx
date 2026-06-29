@@ -5,12 +5,15 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useAuth } from './AuthProvider';
 
+const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
+
 const links = [
   { href: '/dashboard', label: 'Dashboard', auth: true },
   { href: '/research', label: 'Research Archive', auth: true },
   { href: '/knowledge-hub', label: 'Knowledge Hub', auth: true },
   { href: '/videos', label: 'Video Case Studies' },
   { href: '/students', label: 'Student Case Studies' },
+  { href: '/admin/reviews', label: 'Đánh giá', admin: true },
 ];
 
 export default function Nav() {
@@ -20,8 +23,13 @@ export default function Nav() {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
 
-  // Research Archive & Knowledge Hub are members-only.
-  const visibleLinks = links.filter((l) => !l.auth || user);
+  // Research Archive & Knowledge Hub are members-only; Đánh giá is admin-only.
+  const isAdmin = user?.email === ADMIN_EMAIL;
+  const visibleLinks = links.filter((l) => {
+    if (l.admin) return isAdmin;
+    if (l.auth) return !!user;
+    return true;
+  });
 
   const submitSearch = (e) => {
     e.preventDefault();
