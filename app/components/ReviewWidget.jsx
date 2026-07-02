@@ -7,6 +7,7 @@ import {
   snoozeReview,
   submitReview,
 } from '@/lib/reviews';
+import { getServerVisitCount, MANDATORY_REVIEW_VISIT } from '@/lib/visitor';
 
 const RATING_LABELS = ['', 'Poor', 'Fair', 'Average', 'Good', 'Excellent'];
 
@@ -59,6 +60,7 @@ export default function ReviewWidget() {
   const [vals, setVals] = useState({ convenience: 0, content: 0, overall: 0 });
   const [comment, setComment] = useState('');
   const [thankYou, setThankYou] = useState(false);
+  const [mandatory, setMandatory] = useState(false); // ép đánh giá (không tắt được)
 
   // Mở form (từ toast hoặc nút nổi).
   const openForm = useCallback(() => {
@@ -72,6 +74,16 @@ export default function ReviewWidget() {
       setDone(true);
       return;
     }
+
+    // Ép đánh giá khi đã truy cập đủ số lần quy định (chặn cứng).
+    const forceReview = () => {
+      setMandatory(true);
+      setToast(false);
+      setOpen(true);
+    };
+    if (getServerVisitCount() >= MANDATORY_REVIEW_VISIT) forceReview();
+    window.addEventListener('kw-force-review', forceReview);
+
     // Lần vào lại: nếu đã đủ điều kiện thì mời luôn.
     if (shouldPromptReview()) setToast(true);
 
@@ -80,7 +92,10 @@ export default function ReviewWidget() {
       if (!hasReviewed() && shouldPromptReview()) setToast(true);
     };
     window.addEventListener('kw-content-view', onView);
-    return () => window.removeEventListener('kw-content-view', onView);
+    return () => {
+      window.removeEventListener('kw-content-view', onView);
+      window.removeEventListener('kw-force-review', forceReview);
+    };
   }, []);
 
   // Lời cảm ơn ngắn sau khi gửi (đặt trước mọi early-return để giữ thứ tự hook).
@@ -117,6 +132,7 @@ export default function ReviewWidget() {
       return;
     }
     setDone(true);
+    setMandatory(false);
     setOpen(false);
     setThankYou(true);
   };
@@ -172,7 +188,7 @@ export default function ReviewWidget() {
       {open && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-          onClick={() => setOpen(false)}
+          onClick={() => { if (!mandatory) setOpen(false); }}
         >
           <div
             className="w-full max-w-md glass-card rounded-card p-6"
@@ -180,16 +196,20 @@ export default function ReviewWidget() {
           >
             <div className="flex items-start justify-between mb-1">
               <h2 className="font-display text-lg font-medium">Rate your experience</h2>
-              <button
-                onClick={() => setOpen(false)}
-                className="material-symbols-outlined text-on-surface-variant hover:text-primary"
-                aria-label="Close"
-              >
-                close
-              </button>
+              {!mandatory && (
+                <button
+                  onClick={() => setOpen(false)}
+                  className="material-symbols-outlined text-on-surface-variant hover:text-primary"
+                  aria-label="Close"
+                >
+                  close
+                </button>
+              )}
             </div>
             <p className="text-xs text-on-surface-variant mb-4">
-              Rate from 1 (Poor) to 5 (Excellent).
+              {mandatory
+                ? 'You have visited a few times — please rate us to keep exploring.'
+                : 'Rate from 1 (Poor) to 5 (Excellent).'}
             </p>
 
             <div className="divide-y divide-white/5 mb-4">
@@ -219,12 +239,14 @@ export default function ReviewWidget() {
             {error && <p className="text-error text-xs mt-2">{error}</p>}
 
             <div className="flex items-center gap-3 mt-4">
-              <button
-                onClick={() => setOpen(false)}
-                className="flex-1 py-2.5 rounded-lg text-sm font-bold border border-white/10 text-on-surface-variant hover:border-primary/40 transition-colors"
-              >
-                Later
-              </button>
+              {!mandatory && (
+                <button
+                  onClick={() => setOpen(false)}
+                  className="flex-1 py-2.5 rounded-lg text-sm font-bold border border-white/10 text-on-surface-variant hover:border-primary/40 transition-colors"
+                >
+                  Later
+                </button>
+              )}
               <button
                 onClick={handleSubmit}
                 disabled={!canSubmit}

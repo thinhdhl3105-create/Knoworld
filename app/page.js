@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { useAuth } from './components/AuthProvider';
+import { publicVisitorCount } from '@/lib/visitor';
 
 const pathways = [
   {
@@ -29,6 +31,17 @@ const pathways = [
 export default function Home() {
   const { user } = useAuth();
   const visiblePathways = pathways.filter((p) => !p.auth || user);
+
+  // Số người đã đăng ký (công khai).
+  const [visitorCount, setVisitorCount] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    publicVisitorCount().then((n) => {
+      if (alive && typeof n === 'number') setVisitorCount(n);
+    });
+    return () => { alive = false; };
+  }, []);
+
   return (
     <div className="pt-20">
       {/* Hero */}
@@ -44,13 +57,24 @@ export default function Home() {
             A celestial platform for scientific precision in knowledge discovery. Navigate through
             vast constellations of data and expert insights.
           </p>
-          <Link
-            href="/research"
-            className="inline-flex items-center gap-2 mt-10 bg-primary text-on-primary px-7 py-3 rounded-lg text-sm font-bold uppercase tracking-wide hover:scale-95 transition-transform"
-          >
-            Start Exploring
-            <span className="material-symbols-outlined text-base">arrow_forward</span>
-          </Link>
+          <div className="mt-10 flex flex-wrap items-center gap-5">
+            <Link
+              href="/research"
+              className="inline-flex items-center gap-2 bg-primary text-on-primary px-7 py-3 rounded-lg text-sm font-bold uppercase tracking-wide hover:scale-95 transition-transform"
+            >
+              Start Exploring
+              <span className="material-symbols-outlined text-base">arrow_forward</span>
+            </Link>
+            {visitorCount !== null && (
+              <div className="flex items-center gap-2 glass-card rounded-full px-4 py-2">
+                <span className="material-symbols-outlined text-primary text-lg">group</span>
+                <span className="text-sm text-on-surface-variant">
+                  <span className="font-bold text-on-surface">{visitorCount.toLocaleString('en-US')}</span>{' '}
+                  {visitorCount === 1 ? 'person has' : 'people have'} joined Knoworld
+                </span>
+              </div>
+            )}
+          </div>
         </div>
         <div className="absolute right-10 top-24 w-72 h-72 rounded-full bg-gradient-to-br from-surface-container-high to-surface-container-lowest border border-white/5 hidden lg:block" />
       </section>

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import RequireAuth from '../../components/RequireAuth';
 import { useAuth } from '../../components/AuthProvider';
-import { fetchVisitors } from '@/lib/visitor';
+import { fetchVisitors, setVisitorBlocked, peakHour, avgDuration } from '@/lib/visitor';
+import { fetchReviews } from '@/lib/reviews';
 
 const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
 
@@ -13,19 +14,31 @@ function VisitorsInner() {
   const isAdmin = user?.email === ADMIN_EMAIL;
 
   const [rows, setRows] = useState([]);
+  const [reviewed, setReviewed] = useState({ ids: new Set(), emails: new Set() });
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [q, setQ] = useState('');
   const [fieldFilter, setFieldFilter] = useState('');
+  const [busyId, setBusyId] = useState(null);
 
   useEffect(() => {
     if (!isAdmin) return;
-    fetchVisitors().then((res) => {
-      if (res.error) setErr(res.error);
-      setRows(res.data || []);
+    Promise.all([fetchVisitors(), fetchReviews()]).then(([vres, rres]) => {
+      if (vres.error) setErr(vres.error);
+      setRows(vres.data || []);
+      const ids = new Set();
+      const emails = new Set();
+      (rres.data || []).forEach((rv) => {
+        if (rv.visitor_id) ids.add(rv.visitor_id);
+        if (rv.visitor_email) emails.add((rv.visitor_email || '').toLowerCase());
+      });
+      setReviewed({ ids, emails });
       setLoading(false);
     });
   }, [isAdmin]);
+
+  const hasReviewedRow = (r) =>
+    reviewed.ids.has(r.id) || reviewed.emails.has((r.email || '').toLowerCase());
 
   const fields = useMemo(
     () => Array.from(new Set(rows.map((r) => r.field).filter(Boolean))).sort(),
@@ -43,6 +56,17 @@ function VisitorsInner() {
       );
     });
   }, [rows, q, fieldFilter]);
+
+  async function toggleBlock(r) {
+    setBusyId(r.id);
+    const res = await setVisitorBlocked(r.id, !r.blocked);
+    setBusyId(null);
+    if (res.ok) {
+      setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, blocked: !r.blocked } : x)));
+    } else {
+      alert('Could not update access: ' + (res.error || 'unknown error'));
+    }
+  }
 
   if (!isAdmin) {
     return (
@@ -123,27 +147,69 @@ function VisitorsInner() {
                   <th className="px-4 py-3 font-medium">Email</th>
                   <th className="px-4 py-3 font-medium">Birth year</th>
                   <th className="px-4 py-3 font-medium">Field</th>
+                  <th className="px-4 py-3 font-medium text-center">Visits</th>
+                  <th className="px-4 py-3 font-medium">Last visit</th>
+                  <th className="px-4 py-3 font-medium">Peak hour</th>
+                  <th className="px-4 py-3 font-medium">Avg time</th>
+                  <th className="px-4 py-3 font-medium text-center">Reviewed</th>
                   <th className="px-4 py-3 font-medium">Registered</th>
+                  <th className="px-4 py-3 font-medium text-center">Access</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r) => (
-                  <tr key={r.id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                    <td className="px-4 py-3 text-on-surface font-medium">{r.full_name}</td>
-                    <td className="px-4 py-3 text-on-surface-variant">{r.email}</td>
-                    <td className="px-4 py-3 text-on-surface-variant">{r.birth_year || '—'}</td>
-                    <td className="px-4 py-3">
-                      {r.field && (
-                        <span className="inline-block bg-primary/15 text-primary px-2.5 py-0.5 rounded-full text-xs">
-                          {r.field}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-on-surface-variant/80 whitespace-nowrap">
-                      {new Date(r.created_at).toLocaleString('en-US')}
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map((r) => {
+                  const dur = avgDuration(r.total_active_seconds, r.visit_count);
+                  const peak = peakHour(r.hour_histogram);
+                  const did = hasReviewedRow(r);
+                  return (
+                    <tr
+                      key={r.id}
+                      className={`border-b border-white/5 hover:bg-white/[0.02] ${r.blocked ? 'opacity-50' : ''}`}
+                    >
+                      <td className="px-4 py-3 text-on-surface font-medium">{r.full_name}</td>
+                      <td className="px-4 py-3 text-on-surface-variant">{r.email}</td>
+                      <td className="px-4 py-3 text-on-surface-variant">{r.birth_year || '—'}</td>
+                      <td className="px-4 py-3">
+                        {r.field && (
+                          <span className="inline-block bg-primary/15 text-primary px-2.5 py-0.5 rounded-full text-xs">
+                            {r.field}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center text-on-surface font-medium">{r.visit_count ?? 1}</td>
+                      <td className="px-4 py-3 text-on-surface-variant/80 whitespace-nowrap">
+                        {r.last_visit_at ? new Date(r.last_visit_at).toLocaleString('en-US') : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-on-surface-variant whitespace-nowrap">{peak || '—'}</td>
+                      <td className="px-4 py-3 text-on-surface-variant whitespace-nowrap">{dur || '—'}</td>
+                      <td className="px-4 py-3 text-center">
+                        {did ? (
+                          <span className="inline-flex items-center gap-1 text-emerald-400 text-xs font-medium">
+                            <span className="material-symbols-outlined text-base">check_circle</span> Yes
+                          </span>
+                        ) : (
+                          <span className="text-on-surface-variant/60 text-xs">No</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-on-surface-variant/80 whitespace-nowrap">
+                        {new Date(r.created_at).toLocaleString('en-US')}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          onClick={() => toggleBlock(r)}
+                          disabled={busyId === r.id}
+                          className={
+                            r.blocked
+                              ? 'px-3 py-1 rounded-full text-xs font-bold bg-error/15 text-error hover:bg-error/25 transition-colors disabled:opacity-50'
+                              : 'px-3 py-1 rounded-full text-xs font-medium border border-white/10 text-on-surface-variant hover:border-error/50 hover:text-error transition-colors disabled:opacity-50'
+                          }
+                        >
+                          {busyId === r.id ? '…' : r.blocked ? 'Blocked · Unblock' : 'Block'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -2,7 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { FIELDS, hasRegistered, registerVisitor } from '@/lib/visitor';
+import {
+  FIELDS,
+  hasRegistered,
+  registerVisitor,
+  recordVisit,
+  flushSessionDuration,
+  isBlocked,
+  MANDATORY_REVIEW_VISIT,
+} from '@/lib/visitor';
+import { hasReviewed } from '@/lib/reviews';
 import { useAuth } from './AuthProvider';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 
@@ -20,6 +29,7 @@ export default function VisitorGate() {
 
   const [mounted, setMounted] = useState(false);
   const [registered, setRegistered] = useState(false);
+  const [blocked, setBlocked] = useState(false);
   const [step, setStep] = useState('role'); // role | student | lecturer
 
   // Student form
@@ -39,9 +49,75 @@ export default function VisitorGate() {
   useEffect(() => {
     setMounted(true);
     setRegistered(hasRegistered());
+    setBlocked(isBlocked());
   }, []);
 
   const skip = SKIP_PREFIXES.some((p) => pathname?.startsWith(p));
+
+  // --- Ghi lần truy cập + đo thời lượng + ép đánh giá lần thứ 3 ---------------
+  useEffect(() => {
+    if (!mounted || skip || user || !registered) return;
+
+    let active = true;
+    let acc = 0; // giây tích luỹ chưa gửi
+
+    (async () => {
+      const { blocked: b, visitCount } = await recordVisit();
+      if (!active) return;
+      if (b) {
+        setBlocked(true);
+        return;
+      }
+      // Đủ số lần truy cập -> bắt buộc đánh giá (chặn cứng).
+      if (visitCount >= MANDATORY_REVIEW_VISIT && !hasReviewed()) {
+        window.dispatchEvent(new CustomEvent('kw-force-review'));
+      }
+    })();
+
+    const HEARTBEAT = 20; // giây
+    const flushNow = () => {
+      if (acc > 0) {
+        flushSessionDuration(acc);
+        acc = 0;
+      }
+    };
+    const timer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        acc += HEARTBEAT;
+        if (acc >= 60) flushNow();
+      }
+    }, HEARTBEAT * 1000);
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushNow();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', flushNow);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flushNow);
+      flushNow();
+    };
+  }, [mounted, skip, user, registered]);
+
+  // Người bị admin tắt quyền truy cập -> màn hình chặn (trừ /admin, /login).
+  if (blocked && !skip && !user) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/95 backdrop-blur-md">
+        <div className="relative w-full max-w-md glass-card rounded-card p-8 text-center">
+          <span className="material-symbols-outlined text-error text-4xl mb-3">block</span>
+          <h1 className="h-md mb-2">Access disabled</h1>
+          <p className="text-sm text-on-surface-variant">
+            Your access to Knoworld has been disabled by the administrator. If you think this
+            is a mistake, please contact us with the email you registered.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Hide the gate for: unmounted, skipped routes, signed-in lecturers, or registered students.
   if (!mounted || skip || loading || user || registered) return null;
 
