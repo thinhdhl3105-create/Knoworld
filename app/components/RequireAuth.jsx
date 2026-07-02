@@ -30,11 +30,11 @@ export default function RequireAuth({ children }) {
           <span className="material-symbols-outlined text-primary text-4xl mb-3">lock</span>
           <h1 className="h-md mb-2">Members only</h1>
           <p className="text-sm text-on-surface-variant mb-6">
-            Đăng nhập để xem phần này. Đang chuyển tới trang đăng nhập…
+            Sign in to view this section. Redirecting to the sign-in page…
           </p>
           <a href={`/login?next=${encodeURIComponent(pathname)}`}
             className="inline-block bg-primary text-on-primary px-6 py-2.5 rounded-lg text-sm font-bold">
-            Đăng nhập
+            Sign In
           </a>
         </div>
       </div>

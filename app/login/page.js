@@ -27,7 +27,7 @@ export default function LoginPage() {
     setError('');
     setMsg('');
     if (!isSupabaseConfigured) {
-      setError('Supabase chưa được cấu hình. Hãy thêm biến môi trường NEXT_PUBLIC_SUPABASE_URL / ANON_KEY.');
+      setError('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL / ANON_KEY.');
       return;
     }
     setBusy(true);
@@ -38,7 +38,7 @@ export default function LoginPage() {
         options: { data: { full_name: fullName } },
       });
       if (error) setError(error.message);
-      else setMsg('Đăng ký thành công! Kiểm tra email để xác nhận (nếu bật), rồi đăng nhập.');
+      else setMsg('Account created! Check your email to confirm (if enabled), then sign in.');
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setError(error.message);
@@ -61,7 +61,7 @@ export default function LoginPage() {
 
         {user && (
           <div className="mb-4 text-sm text-primary">
-            Bạn đã đăng nhập với {user.email}. <a href="/upload" className="underline">Vào dashboard</a>.
+            You're signed in as {user.email}. <a href="/upload" className="underline">Go to dashboard</a>.
           </div>
         )}
 

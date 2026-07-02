@@ -123,7 +123,7 @@ function ReviewsInner() {
               {(r.visitor_name || r.visitor_email) && (
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-3 pb-3 border-b border-white/5">
                   <span className="material-symbols-outlined text-primary text-lg">person</span>
-                  <span className="text-sm font-medium text-on-surface">{r.visitor_name || 'Khách'}</span>
+                  <span className="text-sm font-medium text-on-surface">{r.visitor_name || 'Guest'}</span>
                   {r.visitor_email && (
                     <span className="text-xs text-on-surface-variant">{r.visitor_email}</span>
                   )}
@@ -133,7 +133,7 @@ function ReviewsInner() {
                     </span>
                   )}
                   {r.visitor_birth_year && (
-                    <span className="text-xs text-on-surface-variant/80">Năm sinh: {r.visitor_birth_year}</span>
+                    <span className="text-xs text-on-surface-variant/80">Born: {r.visitor_birth_year}</span>
                   )}
                 </div>
               )}

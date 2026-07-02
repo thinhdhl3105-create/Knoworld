@@ -68,12 +68,12 @@ function VisitorsInner() {
           <span className="h-px w-12 bg-primary" />
           <span className="label-sm text-secondary tracking-widest">Admin</span>
           <Link href="/admin/reviews" className="ml-auto text-sm text-on-surface-variant hover:text-primary">
-            → Xem đánh giá
+            → View reviews
           </Link>
         </div>
-        <h1 className="h-xl mb-3">Người ra vào</h1>
+        <h1 className="h-xl mb-3">Visitors</h1>
         <p className="text-on-surface-variant">
-          {rows.length} người đã đăng ký vào web.
+          {rows.length} people have registered.
         </p>
       </header>
 
@@ -84,7 +84,7 @@ function VisitorsInner() {
             onClick={() => setFieldFilter('')}
             className={chip(!fieldFilter)}
           >
-            Tất cả ({rows.length})
+            All ({rows.length})
           </button>
           {fields.map((f) => (
             <button key={f} onClick={() => setFieldFilter(f)} className={chip(fieldFilter === f)}>
@@ -100,7 +100,7 @@ function VisitorsInner() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Tìm theo tên hoặc email…"
+          placeholder="Search by name or email…"
           className="flex-1 bg-transparent outline-none text-sm text-on-surface placeholder:text-on-surface-variant/60"
         />
       </div>
@@ -111,7 +111,7 @@ function VisitorsInner() {
         <p className="text-error glass-card rounded-card p-6">Failed to load data: {err}</p>
       ) : filtered.length === 0 ? (
         <p className="text-on-surface-variant glass-card rounded-card p-8 text-center">
-          Chưa có ai đăng ký.
+          No one has registered yet.
         </p>
       ) : (
         <div className="glass-card rounded-card overflow-hidden">
@@ -119,11 +119,11 @@ function VisitorsInner() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-on-surface-variant border-b border-white/10">
-                  <th className="px-4 py-3 font-medium">Họ tên</th>
+                  <th className="px-4 py-3 font-medium">Full name</th>
                   <th className="px-4 py-3 font-medium">Email</th>
-                  <th className="px-4 py-3 font-medium">Năm sinh</th>
-                  <th className="px-4 py-3 font-medium">Lĩnh vực</th>
-                  <th className="px-4 py-3 font-medium">Thời điểm</th>
+                  <th className="px-4 py-3 font-medium">Birth year</th>
+                  <th className="px-4 py-3 font-medium">Field</th>
+                  <th className="px-4 py-3 font-medium">Registered</th>
                 </tr>
               </thead>
               <tbody>
@@ -140,7 +140,7 @@ function VisitorsInner() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-on-surface-variant/80 whitespace-nowrap">
-                      {new Date(r.created_at).toLocaleString('vi-VN')}
+                      {new Date(r.created_at).toLocaleString('en-US')}
                     </td>
                   </tr>
                 ))}
