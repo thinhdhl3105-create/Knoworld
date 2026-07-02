@@ -13,6 +13,7 @@ const links = [
   { href: '/knowledge-hub', label: 'Knowledge Hub', auth: true },
   { href: '/videos', label: 'Video Case Studies' },
   { href: '/students', label: 'Student Case Studies' },
+  { href: '/admin/visitors', label: 'Visitors', admin: true },
   { href: '/admin/reviews', label: 'Reviews', admin: true },
 ];
 

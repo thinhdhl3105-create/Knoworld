@@ -3,6 +3,7 @@ import Nav from './components/Nav';
 import Footer from './components/Footer';
 import { AuthProvider } from './components/AuthProvider';
 import ReviewWidget from './components/ReviewWidget';
+import VisitorGate from './components/VisitorGate';
 
 export const metadata = {
   title: 'Knoworld — Explore knowledge like a universe',
@@ -18,6 +19,7 @@ export default function RootLayout({ children }) {
           <main className="flex-1">{children}</main>
           <Footer />
           <ReviewWidget />
+          <VisitorGate />
         </AuthProvider>
       </body>
     </html>

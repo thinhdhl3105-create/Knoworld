@@ -120,6 +120,23 @@ function ReviewsInner() {
         <div className="space-y-4">
           {rows.map((r) => (
             <div key={r.id} className="glass-card rounded-card p-5">
+              {(r.visitor_name || r.visitor_email) && (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-3 pb-3 border-b border-white/5">
+                  <span className="material-symbols-outlined text-primary text-lg">person</span>
+                  <span className="text-sm font-medium text-on-surface">{r.visitor_name || 'Khách'}</span>
+                  {r.visitor_email && (
+                    <span className="text-xs text-on-surface-variant">{r.visitor_email}</span>
+                  )}
+                  {r.visitor_field && (
+                    <span className="inline-block bg-primary/15 text-primary px-2.5 py-0.5 rounded-full text-xs">
+                      {r.visitor_field}
+                    </span>
+                  )}
+                  {r.visitor_birth_year && (
+                    <span className="text-xs text-on-surface-variant/80">Năm sinh: {r.visitor_birth_year}</span>
+                  )}
+                </div>
+              )}
               <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <div className="flex flex-wrap gap-x-6 gap-y-1">
                   {CRITERIA.map((c) => (
