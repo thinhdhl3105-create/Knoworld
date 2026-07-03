@@ -1,10 +1,13 @@
 'use client';
 
+// v16: hearts on student case study detail
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { fetchContentById } from '@/lib/content';
 import { trackContentView } from '@/lib/reviews';
+import { fetchHeartMap } from '@/lib/hearts';
+import HeartButton from '../../components/HeartButton';
 
 const sections = [
   { key: 'context', label: 'Context', icon: 'public' },
@@ -18,11 +21,13 @@ export default function StudentCaseDetail() {
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lightbox, setLightbox] = useState(null);
+  const [heart, setHeart] = useState(null);
 
   useEffect(() => {
     fetchContentById(id).then(({ data }) => {
       setItem(data);
       setLoading(false);
+      if (data) fetchHeartMap('content', [data.id]).then((m) => setHeart(m[data.id] || null));
     });
     // Mở chi tiết 1 case study = xem 1 nội dung → tính cho lời mời đánh giá.
     trackContentView();
@@ -59,7 +64,10 @@ export default function StudentCaseDetail() {
       </Link>
 
       <header className="mb-12">
-        <span className="label-sm text-secondary tracking-widest">{item.category || 'Student Case Study'}</span>
+        <div className="flex items-center justify-between gap-4">
+          <span className="label-sm text-secondary tracking-widest">{item.category || 'Student Case Study'}</span>
+          <HeartButton type="content" id={item.id} data={heart} />
+        </div>
         <h1 className="h-xl mt-2 mb-4">{item.title}</h1>
         {item.summary && <p className="text-lg text-on-surface-variant max-w-3xl leading-relaxed">{item.summary}</p>}
 

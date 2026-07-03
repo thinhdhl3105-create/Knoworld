@@ -1,8 +1,11 @@
 'use client';
 
+// v16: hearts on video case studies
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchContent, fetchConcepts } from '@/lib/content';
 import { trackContentView } from '@/lib/reviews';
+import { fetchHeartMap } from '@/lib/hearts';
+import HeartButton from '../components/HeartButton';
 
 // Normalise a YouTube/Vimeo/file URL into something embeddable.
 function toEmbed(url = '') {
@@ -19,12 +22,14 @@ export default function VideosPage() {
   const [concepts, setConcepts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState(null);
+  const [hearts, setHearts] = useState({});
 
   useEffect(() => {
     Promise.all([fetchContent('video'), fetchConcepts()]).then(([v, c]) => {
       setItems(v.data);
       setConcepts(c.data);
       setLoading(false);
+      fetchHeartMap('content', v.data.map((i) => i.id)).then(setHearts);
     });
   }, []);
 
@@ -74,7 +79,7 @@ export default function VideosPage() {
         </p>
       ) : (
         Object.entries(groups).map(([cat, vids]) => (
-          <CategoryRow key={cat} cat={cat} vids={vids} conceptById={conceptById} onPick={openVideo} />
+          <CategoryRow key={cat} cat={cat} vids={vids} conceptById={conceptById} onPick={openVideo} hearts={hearts} />
         ))
       )}
 
@@ -87,7 +92,10 @@ export default function VideosPage() {
                 <h2 className="font-display text-lg font-medium">{active.title}</h2>
                 {active.brand && <span className="text-xs text-secondary">{active.brand}</span>}
               </div>
-              <button onClick={() => setActive(null)} className="material-symbols-outlined text-on-surface-variant hover:text-primary">close</button>
+              <div className="flex items-center gap-3">
+                <HeartButton type="content" id={active.id} data={hearts[active.id]} />
+                <button onClick={() => setActive(null)} className="material-symbols-outlined text-on-surface-variant hover:text-primary">close</button>
+              </div>
             </div>
             <div className="aspect-video rounded-card overflow-hidden bg-black">
               {player?.type === 'iframe' ? (
@@ -120,7 +128,7 @@ const GRADS = ['from-[#1b2a4a]', 'from-[#3a2a4a]', 'from-[#2a3a3a]'];
 
 // A horizontal, drag-to-scroll slider of video cards for one category.
 // Capped at ROW_LIMIT; expandable into a full grid via the title / "View all".
-function CategoryRow({ cat, vids, conceptById, onPick }) {
+function CategoryRow({ cat, vids, conceptById, onPick, hearts = {} }) {
   const scroller = useRef(null);
   const drag = useRef({ active: false, startX: 0, startScroll: 0, moved: false });
   const [expanded, setExpanded] = useState(false);
@@ -203,6 +211,7 @@ function CategoryRow({ cat, vids, conceptById, onPick }) {
               grad={GRADS[i % 3]}
               concept={item.concept_id && conceptById[item.concept_id]}
               onPick={() => onPick(item)}
+              heart={hearts[item.id]}
               grid
             />
           ))}
@@ -224,6 +233,7 @@ function CategoryRow({ cat, vids, conceptById, onPick }) {
               grad={GRADS[i % 3]}
               concept={item.concept_id && conceptById[item.concept_id]}
               onPick={() => { if (!drag.current.moved) onPick(item); }}
+              heart={hearts[item.id]}
             />
           ))}
           {hasMore && (
@@ -242,7 +252,7 @@ function CategoryRow({ cat, vids, conceptById, onPick }) {
   );
 }
 
-function VideoCard({ item, grad, concept, onPick, grid = false }) {
+function VideoCard({ item, grad, concept, onPick, heart, grid = false }) {
   return (
     <div
       role="button"
@@ -261,7 +271,10 @@ function VideoCard({ item, grad, concept, onPick, grid = false }) {
         </div>
       </div>
       <div className="p-5 flex flex-col gap-2.5 flex-1">
-        <h3 className="font-display text-base font-medium leading-snug group-hover:text-primary transition-colors line-clamp-1">{item.title}</h3>
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-display text-base font-medium leading-snug group-hover:text-primary transition-colors line-clamp-1">{item.title}</h3>
+          <HeartButton type="content" id={item.id} data={heart} size="sm" className="shrink-0 -mt-0.5" />
+        </div>
         {item.brand && (
           <span className="inline-flex items-center gap-1 text-xs text-secondary">
             <span className="material-symbols-outlined text-sm">sell</span> {item.brand}

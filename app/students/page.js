@@ -1,20 +1,25 @@
 'use client';
 
+// v16: hearts on student case studies
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { fetchContent } from '@/lib/content';
+import { fetchHeartMap } from '@/lib/hearts';
 import ContentCard from '../components/ContentCard';
+import HeartButton from '../components/HeartButton';
 
 export default function StudentsPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('All');
   const [query, setQuery] = useState('');
+  const [hearts, setHearts] = useState({});
 
   useEffect(() => {
     fetchContent('student').then(({ data }) => {
       setItems(data);
       setLoading(false);
+      fetchHeartMap('content', data.map((i) => i.id)).then(setHearts);
     });
   }, []);
 
@@ -97,9 +102,18 @@ export default function StudentsPage() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map((item, i) => (
-              <Link key={item.id} href={`/students/${item.id}`}>
-                <ContentCard item={item} index={i} />
-              </Link>
+              <div key={item.id} className="relative">
+                <Link href={`/students/${item.id}`}>
+                  <ContentCard item={item} index={i} />
+                </Link>
+                <HeartButton
+                  type="content"
+                  id={item.id}
+                  data={hearts[item.id]}
+                  size="sm"
+                  className="absolute top-3 right-3 z-10 bg-background/70 backdrop-blur-sm"
+                />
+              </div>
             ))}
           </div>
           {items.length === 0 ? (
