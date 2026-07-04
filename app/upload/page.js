@@ -93,7 +93,9 @@ function captureVideoFrame(file) {
 const kindLabel = {
   research: 'Research Paper', foundation: 'Theoretical Foundation',
   student: 'Student Case Study',
-  video: 'Video Case Study', concept: 'Key Concept (Knowledge Hub)',
+  video: 'Video Case Study',
+  image: 'Image Case Study',
+  concept: 'Key Concept (Knowledge Hub)',
   framework: 'Framework (downloadable)',
 };
 
@@ -268,7 +270,7 @@ export default function UploadPage() {
         student_name: form.kind === 'student' ? (form.student_name.trim() || null) : null,
         school: form.kind === 'student' ? (form.school.trim() || null) : null,
         year: form.kind === 'student' ? (form.year.trim() || null) : null,
-        brand: (form.kind === 'video' || form.kind === 'student') ? (form.brand.trim() || null) : null,
+        brand: (form.kind === 'video' || form.kind === 'student' || form.kind === 'image') ? (form.brand.trim() || null) : null,
         concept_id:
           (form.kind === 'video' || form.kind === 'student') && form.concept_id
             ? form.concept_id
@@ -570,6 +572,37 @@ export default function UploadPage() {
                   {concepts.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
                 </select>
               </Field>
+            </>
+          )}
+
+          {/* image case study — campaign name (title) + brand + images only */}
+          {k === 'image' && (
+            <>
+              <p className="text-xs text-on-surface-variant -mt-1">
+                Chỉ cần <strong className="text-on-surface">tên campaign</strong> (ô Title ở trên),
+                <strong className="text-on-surface"> brand</strong> và các <strong className="text-on-surface">hình ảnh</strong> liên quan.
+              </p>
+              <Field label="Brand name">
+                <input value={form.brand} onChange={(e) => set('brand', e.target.value)} className={inputCls} placeholder="e.g. Nike, Coca-Cola" />
+              </Field>
+              <Field label="Campaign images (multiple)">
+                <input type="file" accept="image/*" multiple onChange={onMultiImages} disabled={!user || uploading === 'images'} className={fileCls} />
+                {uploading === 'images' && <span className="text-xs text-on-surface-variant">Uploading…</span>}
+              </Field>
+              {form.images.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {form.images.map((src, i) => (
+                    <div key={i} className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt="" className="w-20 h-20 object-cover rounded-lg border border-white/10" />
+                      <button type="button" onClick={() => removeImage(i)} className="absolute -top-2 -right-2 bg-error text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-on-surface-variant -mt-1">
+                Cover image (bên dưới) là ảnh đại diện trên thẻ. Nếu bỏ trống sẽ tự dùng hình đầu tiên.
+              </p>
             </>
           )}
 

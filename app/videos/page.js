@@ -1,7 +1,8 @@
 'use client';
 
-// v16: hearts on video case studies
-import { useEffect, useMemo, useRef, useState } from 'react';
+// v17: deep-link a single video via ?v=<id> (opened from global search)
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { fetchContent, fetchConcepts } from '@/lib/content';
 import { trackContentView } from '@/lib/reviews';
 import { fetchHeartMap } from '@/lib/hearts';
@@ -17,7 +18,9 @@ function toEmbed(url = '') {
   return { type: 'iframe', src: url };
 }
 
-export default function VideosPage() {
+function VideosPage() {
+  const params = useSearchParams();
+  const wantId = params.get('v');
   const [items, setItems] = useState([]);
   const [concepts, setConcepts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,8 +33,14 @@ export default function VideosPage() {
       setConcepts(c.data);
       setLoading(false);
       fetchHeartMap('content', v.data.map((i) => i.id)).then(setHearts);
+      // Opened from search (?v=<id>) → jump straight into that video.
+      if (wantId) {
+        const match = v.data.find((i) => String(i.id) === String(wantId));
+        if (match) { trackContentView(); setActive(match); }
+      }
     });
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantId]);
 
   const conceptById = useMemo(() => Object.fromEntries(concepts.map((c) => [c.id, c])), [concepts]);
 
@@ -118,6 +127,14 @@ export default function VideosPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function VideosPageWrapper() {
+  return (
+    <Suspense fallback={<div className="pt-32 px-5 max-w-container mx-auto text-on-surface-variant">Loading…</div>}>
+      <VideosPage />
+    </Suspense>
   );
 }
 

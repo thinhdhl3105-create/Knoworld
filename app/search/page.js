@@ -9,12 +9,16 @@ const FILTERS = [
   { key: 'all', label: 'All' },
   { key: 'video', label: 'Videos' },
   { key: 'student', label: 'Student Cases' },
+  { key: 'image', label: 'Image Cases' },
   { key: 'research', label: 'Research' },
   { key: 'concept', label: 'Knowledge' },
 ];
 
+// Deep-link each result straight to its content, not the section landing page.
 function hrefFor(item) {
   if (item._kind === 'student') return `/students/${item.id}`;
+  if (item._kind === 'video') return `/videos?v=${item.id}`;
+  if (item._kind === 'image') return `/images?i=${item.id}`;
   return item._meta?.href || '/';
 }
 
