@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import RequireAuth from '../../components/RequireAuth';
 import { useAuth } from '../../components/AuthProvider';
-import { fetchVisitors, setVisitorBlocked, peakHour, avgDuration } from '@/lib/visitor';
+import { fetchVisitors, setVisitorBlocked, setVisitorFullAccess, peakHour, avgDuration } from '@/lib/visitor';
 import { fetchReviews } from '@/lib/reviews';
 
 const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
@@ -52,7 +52,8 @@ function VisitorsInner() {
       if (!term) return true;
       return (
         (r.full_name || '').toLowerCase().includes(term) ||
-        (r.email || '').toLowerCase().includes(term)
+        (r.email || '').toLowerCase().includes(term) ||
+        (r.student_id || '').toLowerCase().includes(term)
       );
     });
   }, [rows, q, fieldFilter]);
@@ -63,6 +64,18 @@ function VisitorsInner() {
     setBusyId(null);
     if (res.ok) {
       setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, blocked: !r.blocked } : x)));
+    } else {
+      alert('Could not update access: ' + (res.error || 'unknown error'));
+    }
+  }
+
+  // v18: cho guest (stranger) được xem full như student.
+  async function toggleFullAccess(r) {
+    setBusyId(r.id);
+    const res = await setVisitorFullAccess(r.id, !r.full_access);
+    setBusyId(null);
+    if (res.ok) {
+      setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, full_access: !r.full_access } : x)));
     } else {
       alert('Could not update access: ' + (res.error || 'unknown error'));
     }
@@ -91,7 +104,10 @@ function VisitorsInner() {
         <div className="flex items-center gap-3 mb-4">
           <span className="h-px w-12 bg-primary" />
           <span className="label-sm text-secondary tracking-widest">Admin</span>
-          <Link href="/admin/reviews" className="ml-auto text-sm text-on-surface-variant hover:text-primary">
+          <Link href="/admin/access" className="ml-auto text-sm text-on-surface-variant hover:text-primary">
+            → Student list & guest cases
+          </Link>
+          <Link href="/admin/reviews" className="text-sm text-on-surface-variant hover:text-primary">
             → View reviews
           </Link>
         </div>
@@ -144,6 +160,8 @@ function VisitorsInner() {
               <thead>
                 <tr className="text-left text-on-surface-variant border-b border-white/10">
                   <th className="px-4 py-3 font-medium">Full name</th>
+                  <th className="px-4 py-3 font-medium">Role</th>
+                  <th className="px-4 py-3 font-medium">MSSV</th>
                   <th className="px-4 py-3 font-medium">Email</th>
                   <th className="px-4 py-3 font-medium">Birth year</th>
                   <th className="px-4 py-3 font-medium">Field</th>
@@ -167,6 +185,18 @@ function VisitorsInner() {
                       className={`border-b border-white/5 hover:bg-white/[0.02] ${r.blocked ? 'opacity-50' : ''}`}
                     >
                       <td className="px-4 py-3 text-on-surface font-medium">{r.full_name}</td>
+                      <td className="px-4 py-3">
+                        {r.role === 'stranger' ? (
+                          <span className="inline-block bg-amber-400/15 text-amber-300 px-2.5 py-0.5 rounded-full text-xs">
+                            Guest{r.full_access ? ' · full' : ''}
+                          </span>
+                        ) : (
+                          <span className="inline-block bg-emerald-400/15 text-emerald-300 px-2.5 py-0.5 rounded-full text-xs">
+                            Student
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-on-surface-variant whitespace-nowrap">{r.student_id || '—'}</td>
                       <td className="px-4 py-3 text-on-surface-variant">{r.email}</td>
                       <td className="px-4 py-3 text-on-surface-variant">{r.birth_year || '—'}</td>
                       <td className="px-4 py-3">
@@ -195,17 +225,33 @@ function VisitorsInner() {
                         {new Date(r.created_at).toLocaleString('en-US')}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <button
-                          onClick={() => toggleBlock(r)}
-                          disabled={busyId === r.id}
-                          className={
-                            r.blocked
-                              ? 'px-3 py-1 rounded-full text-xs font-bold bg-error/15 text-error hover:bg-error/25 transition-colors disabled:opacity-50'
-                              : 'px-3 py-1 rounded-full text-xs font-medium border border-white/10 text-on-surface-variant hover:border-error/50 hover:text-error transition-colors disabled:opacity-50'
-                          }
-                        >
-                          {busyId === r.id ? '…' : r.blocked ? 'Blocked · Unblock' : 'Block'}
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          {r.role === 'stranger' && (
+                            <button
+                              onClick={() => toggleFullAccess(r)}
+                              disabled={busyId === r.id}
+                              title="Allow this guest to view everything, like a student"
+                              className={
+                                r.full_access
+                                  ? 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-400/15 text-emerald-300 hover:bg-emerald-400/25 transition-colors disabled:opacity-50'
+                                  : 'px-3 py-1 rounded-full text-xs font-medium border border-white/10 text-on-surface-variant hover:border-emerald-400/50 hover:text-emerald-300 transition-colors disabled:opacity-50'
+                              }
+                            >
+                              {busyId === r.id ? '…' : r.full_access ? 'Full access ✓' : 'Allow access'}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => toggleBlock(r)}
+                            disabled={busyId === r.id}
+                            className={
+                              r.blocked
+                                ? 'px-3 py-1 rounded-full text-xs font-bold bg-error/15 text-error hover:bg-error/25 transition-colors disabled:opacity-50'
+                                : 'px-3 py-1 rounded-full text-xs font-medium border border-white/10 text-on-surface-variant hover:border-error/50 hover:text-error transition-colors disabled:opacity-50'
+                            }
+                          >
+                            {busyId === r.id ? '…' : r.blocked ? 'Blocked · Unblock' : 'Block'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

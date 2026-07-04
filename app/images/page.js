@@ -6,7 +6,10 @@ import { useSearchParams } from 'next/navigation';
 import { fetchContent } from '@/lib/content';
 import { trackContentView } from '@/lib/reviews';
 import { fetchHeartMap } from '@/lib/hearts';
+import { getCaseAccess } from '@/lib/access';
 import HeartButton from '../components/HeartButton';
+import GuestLimitBanner from '../components/GuestLimitBanner';
+import { useAuth } from '../components/AuthProvider';
 
 const GRADS = ['from-[#1b2a4a]', 'from-[#3a2a4a]', 'from-[#2a3a3a]', 'from-[#3a2a2a]'];
 
@@ -25,6 +28,14 @@ function ImagesPage() {
   const [active, setActive] = useState(null);
   const [lightbox, setLightbox] = useState(null);
   const [hearts, setHearts] = useState({});
+  const { user } = useAuth();
+  // v18: stranger (guest) chỉ được xem các case được chọn.
+  const [access, setAccess] = useState({ limited: false, allowedIds: null });
+
+  useEffect(() => {
+    if (user) { setAccess({ limited: false, allowedIds: null }); return; }
+    getCaseAccess().then(setAccess);
+  }, [user]);
 
   useEffect(() => {
     fetchContent('image').then(({ data }) => {
@@ -44,7 +55,24 @@ function ImagesPage() {
     [items]
   );
 
-  const filtered = items.filter((i) => {
+  // v18: lọc theo quyền — guest chỉ thấy các case được chọn.
+  const visibleItems = useMemo(
+    () => (access.limited && access.allowedIds
+      ? items.filter((i) => access.allowedIds.has(String(i.id)))
+      : items),
+    [items, access]
+  );
+
+  // Đóng case đang mở (vd. deep-link ?i=) nếu guest không được xem case đó.
+  useEffect(() => {
+    if (access.limited && access.allowedIds && active && !access.allowedIds.has(String(active.id))) {
+      setActive(null);
+      setLightbox(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [access, active?.id]);
+
+  const filtered = visibleItems.filter((i) => {
     const okCat = filter === 'All' || i.category === filter;
     const q = query.toLowerCase();
     const okQ = !q || i.title.toLowerCase().includes(q) || i.brand?.toLowerCase().includes(q) || i.summary?.toLowerCase().includes(q);
@@ -73,12 +101,15 @@ function ImagesPage() {
         </a>
       </header>
 
+      {access.limited && <GuestLimitBanner count={access.allowedIds?.size ?? 5} />}
+
       {loading ? (
         <p className="text-on-surface-variant">Loading…</p>
-      ) : items.length === 0 ? (
+      ) : visibleItems.length === 0 ? (
         <p className="text-on-surface-variant glass-card rounded-card p-8 text-center">
-          No image case studies yet. Add one from the dashboard — choose “Image Case Study”, enter a
-          campaign name and brand, then upload the campaign images.
+          {access.limited
+            ? 'No preview cases are available on this page yet.'
+            : 'No image case studies yet. Add one from the dashboard — choose “Image Case Study”, enter a campaign name and brand, then upload the campaign images.'}
         </p>
       ) : (
         <>

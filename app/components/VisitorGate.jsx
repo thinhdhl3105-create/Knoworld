@@ -6,6 +6,7 @@ import {
   FIELDS,
   hasRegistered,
   registerVisitor,
+  checkStudentId,
   recordVisit,
   flushSessionDuration,
   isBlocked,
@@ -30,14 +31,15 @@ export default function VisitorGate() {
   const [mounted, setMounted] = useState(false);
   const [registered, setRegistered] = useState(false);
   const [blocked, setBlocked] = useState(false);
-  const [step, setStep] = useState('role'); // role | student | lecturer
+  const [step, setStep] = useState('role'); // role | student | stranger | lecturer
 
-  // Student form
+  // Student / stranger form (dùng chung — student có thêm MSSV)
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [birthYear, setBirthYear] = useState('');
   const [field, setField] = useState('');
   const [otherField, setOtherField] = useState('');
+  const [studentId, setStudentId] = useState('');
 
   // Lecturer sign-in
   const [loginEmail, setLoginEmail] = useState('');
@@ -121,25 +123,44 @@ export default function VisitorGate() {
   // Hide the gate for: unmounted, skipped routes, signed-in lecturers, or registered students.
   if (!mounted || skip || loading || user || registered) return null;
 
-  // ---- Student submit -------------------------------------------------------
+  // ---- Student / stranger submit ---------------------------------------------
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const resolvedField = field === 'Other' ? otherField.trim() : field;
-  const canSubmitStudent =
-    fullName.trim().length > 1 && emailOk && !!resolvedField && !busy;
+  const baseValid = fullName.trim().length > 1 && emailOk && !!resolvedField && !busy;
+  const canSubmitStudent = baseValid && studentId.trim().length > 0;
+  const canSubmitStranger = baseValid;
 
-  async function handleStudentSubmit(e) {
+  async function handleDetailsSubmit(e, role) {
     e.preventDefault();
     setError('');
-    if (!canSubmitStudent) {
-      setError('Please fill in your full name, a valid email and your field.');
+    const canSubmit = role === 'student' ? canSubmitStudent : canSubmitStranger;
+    if (!canSubmit) {
+      setError(
+        role === 'student'
+          ? 'Please fill in your full name, student ID (MSSV), a valid email and your field.'
+          : 'Please fill in your full name, a valid email and your field.'
+      );
       return;
     }
     setBusy(true);
+
+    // Student: MSSV phải nằm trong danh sách được duyệt.
+    if (role === 'student') {
+      const check = await checkStudentId(studentId);
+      if (!check.ok) {
+        setBusy(false);
+        setError(check.error || 'Your student ID is not on the approved list.');
+        return;
+      }
+    }
+
     const res = await registerVisitor({
       fullName,
       email,
       birthYear,
       field: resolvedField,
+      role,
+      studentId: role === 'student' ? studentId : null,
     });
     setBusy(false);
     if (!res.ok) {
@@ -195,7 +216,7 @@ export default function VisitorGate() {
               <RoleCard
                 icon="school"
                 title="I'm a Student"
-                desc="Share a few details, then explore the content."
+                desc="Enter your student ID (MSSV) to unlock all case studies."
                 onClick={() => { setError(''); setStep('student'); }}
               />
               <RoleCard
@@ -204,26 +225,40 @@ export default function VisitorGate() {
                 desc="Sign in with your account to manage and contribute."
                 onClick={() => { setError(''); setStep('lecturer'); }}
               />
+              <RoleCard
+                icon="waving_hand"
+                title="I'm a Guest"
+                desc="Just curious? Share a few details and preview selected case studies."
+                onClick={() => { setError(''); setStep('stranger'); }}
+              />
             </div>
           </>
         )}
 
-        {/* STEP 2a — student details */}
-        {step === 'student' && (
+        {/* STEP 2a — student / guest details (student needs MSSV) */}
+        {(step === 'student' || step === 'stranger') && (
           <>
             <button onClick={back} className="flex items-center gap-1 text-xs text-on-surface-variant hover:text-primary mb-3">
               <span className="material-symbols-outlined text-base">arrow_back</span> Back
             </button>
             <h1 className="h-md mb-1">A few details</h1>
             <p className="text-sm text-on-surface-variant mb-6">
-              This helps us understand who's interested and improve your experience.
+              {step === 'student'
+                ? 'Your student ID is checked against the class list to unlock full access.'
+                : "This helps us understand who's interested. As a guest you can preview a selection of case studies."}
             </p>
 
-            <form onSubmit={handleStudentSubmit} className="flex flex-col gap-4">
+            <form onSubmit={(e) => handleDetailsSubmit(e, step)} className="flex flex-col gap-4">
               <Field label="Full name *">
                 <input value={fullName} onChange={(e) => setFullName(e.target.value)}
                   className={inputCls} placeholder="Jane Doe" autoFocus />
               </Field>
+              {step === 'student' && (
+                <Field label="Student ID (MSSV) *">
+                  <input value={studentId} onChange={(e) => setStudentId(e.target.value)}
+                    className={inputCls} placeholder="e.g. 2153xxxx" />
+                </Field>
+              )}
               <Field label="Email *">
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                   className={inputCls} placeholder="you@example.com" />
@@ -249,9 +284,9 @@ export default function VisitorGate() {
 
               {error && <p className="text-sm text-error">{error}</p>}
 
-              <button type="submit" disabled={!canSubmitStudent}
+              <button type="submit" disabled={step === 'student' ? !canSubmitStudent : !canSubmitStranger}
                 className="mt-1 bg-primary text-on-primary py-3 rounded-lg text-sm font-bold hover:scale-[0.98] transition-transform disabled:opacity-40 disabled:hover:scale-100">
-                {busy ? 'Saving…' : 'Start exploring'}
+                {busy ? (step === 'student' ? 'Checking…' : 'Saving…') : 'Start exploring'}
               </button>
               <p className="text-xs text-on-surface-variant/70 text-center">
                 Your details are used internally only, to improve the content.

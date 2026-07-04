@@ -6,7 +6,10 @@ import { useSearchParams } from 'next/navigation';
 import { fetchContent, fetchConcepts } from '@/lib/content';
 import { trackContentView } from '@/lib/reviews';
 import { fetchHeartMap } from '@/lib/hearts';
+import { getCaseAccess } from '@/lib/access';
 import HeartButton from '../components/HeartButton';
+import GuestLimitBanner from '../components/GuestLimitBanner';
+import { useAuth } from '../components/AuthProvider';
 
 // Normalise a YouTube/Vimeo/file URL into something embeddable.
 function toEmbed(url = '') {
@@ -21,11 +24,19 @@ function toEmbed(url = '') {
 function VideosPage() {
   const params = useSearchParams();
   const wantId = params.get('v');
+  const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [concepts, setConcepts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState(null);
   const [hearts, setHearts] = useState({});
+  // v18: stranger (guest) chỉ được xem các case được chọn.
+  const [access, setAccess] = useState({ limited: false, allowedIds: null });
+
+  useEffect(() => {
+    if (user) { setAccess({ limited: false, allowedIds: null }); return; }
+    getCaseAccess().then(setAccess);
+  }, [user]);
 
   useEffect(() => {
     Promise.all([fetchContent('video'), fetchConcepts()]).then(([v, c]) => {
@@ -44,14 +55,30 @@ function VideosPage() {
 
   const conceptById = useMemo(() => Object.fromEntries(concepts.map((c) => [c.id, c])), [concepts]);
 
+  // v18: lọc theo quyền — guest chỉ thấy các case được chọn.
+  const visibleItems = useMemo(
+    () => (access.limited && access.allowedIds
+      ? items.filter((i) => access.allowedIds.has(String(i.id)))
+      : items),
+    [items, access]
+  );
+
+  // Đóng video đang mở (vd. deep-link ?v=) nếu guest không được xem case đó.
+  useEffect(() => {
+    if (access.limited && access.allowedIds && active && !access.allowedIds.has(String(active.id))) {
+      setActive(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [access, active?.id]);
+
   const groups = useMemo(() => {
     const map = {};
-    items.forEach((i) => {
+    visibleItems.forEach((i) => {
       const k = i.category || 'Uncategorised';
       (map[k] = map[k] || []).push(i);
     });
     return map;
-  }, [items]);
+  }, [visibleItems]);
 
   const player = active ? toEmbed(active.media_url) : null;
 
@@ -80,11 +107,15 @@ function VideosPage() {
         </a>
       </header>
 
+      {access.limited && <GuestLimitBanner count={access.allowedIds?.size ?? 5} />}
+
       {loading ? (
         <p className="text-on-surface-variant">Loading…</p>
-      ) : items.length === 0 ? (
+      ) : visibleItems.length === 0 ? (
         <p className="text-on-surface-variant glass-card rounded-card p-8 text-center">
-          No videos yet. Upload a file or paste a YouTube link from the dashboard to get started.
+          {access.limited
+            ? 'No preview cases are available on this page yet.'
+            : 'No videos yet. Upload a file or paste a YouTube link from the dashboard to get started.'}
         </p>
       ) : (
         Object.entries(groups).map(([cat, vids]) => (
