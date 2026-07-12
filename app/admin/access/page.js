@@ -1,7 +1,7 @@
 'use client';
 
 // v18 — Admin > Access:
-//   1) Danh sách MSSV được duyệt (dán tay hoặc upload CSV)
+//   1) Danh sách MSSV được duyệt (dán tay hoặc upload Excel/CSV)
 //   2) Chọn tối đa 5 case (video/image) cho Guest (stranger) xem
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -16,6 +16,7 @@ import {
   saveFeaturedCaseIds,
   STRANGER_CASE_LIMIT,
 } from '@/lib/access';
+import { downloadStudentTemplate, parseStudentFile } from '@/lib/studentSheet';
 import { fetchContent } from '@/lib/content';
 
 const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
@@ -72,6 +73,7 @@ function AccessInner() {
   async function importRows(rows) {
     if (!rows.length) {
       setStuErr('No valid student IDs found.');
+      setStuBusy(false);
       return;
     }
     setStuBusy(true);
@@ -93,13 +95,28 @@ function AccessInner() {
     importRows(parseStudentList(pasteText));
   }
 
-  function handleFile(e) {
+  async function handleFile(e) {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => importRows(parseStudentList(String(reader.result || '')));
-    reader.readAsText(file);
     e.target.value = ''; // cho phép chọn lại cùng file
+    if (!file) return;
+    setStuBusy(true);
+    setStuErr('');
+    setStuMsg('');
+    try {
+      const rows = await parseStudentFile(file); // Excel (.xlsx/.xls) hoặc CSV/TXT
+      await importRows(rows);
+    } catch (err) {
+      setStuBusy(false);
+      setStuErr('Could not read the file. Use the Excel template or a CSV/TXT list.');
+    }
+  }
+
+  async function handleDownloadTemplate() {
+    try {
+      await downloadStudentTemplate();
+    } catch (err) {
+      setStuErr('Could not generate the Excel template.');
+    }
   }
 
   async function handleRemove(id) {
@@ -193,10 +210,32 @@ function AccessInner() {
                 disabled={stuBusy}
                 className="border border-white/15 px-5 py-2 rounded-lg text-sm text-on-surface-variant hover:border-primary/50 hover:text-primary transition-colors disabled:opacity-40"
               >
-                Upload CSV
+                Upload Excel / CSV
               </button>
-              <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleFile} className="hidden" />
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".xlsx,.xls,.csv,.txt"
+                onChange={handleFile}
+                className="hidden"
+              />
             </div>
+
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <p className="text-xs text-on-surface-variant mb-2">
+                Prefer a spreadsheet? Download the Excel template (columns{' '}
+                <code>MSSV</code> and <code>Họ tên</code>), fill it in, then upload it back.
+              </p>
+              <button
+                onClick={handleDownloadTemplate}
+                disabled={stuBusy}
+                className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline disabled:opacity-40"
+              >
+                <span className="material-symbols-outlined text-base">download</span>
+                Download Excel template (.xlsx)
+              </button>
+            </div>
+
             {stuMsg && <p className="text-xs text-emerald-400 mt-3">{stuMsg}</p>}
             {stuErr && <p className="text-xs text-error mt-3">{stuErr}</p>}
           </div>
