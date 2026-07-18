@@ -10,7 +10,6 @@ import {
 } from '@/lib/content';
 import ConceptGraph from '../components/ConceptGraph';
 import FrameworkSteps from '../components/FrameworkSteps';
-import RequireAuth from '../components/RequireAuth';
 
 function KnowledgeHubInner() {
   const [concepts, setConcepts] = useState([]);
@@ -351,10 +350,7 @@ function KnowledgeHubInner() {
   );
 }
 
+// v21: Knowledge Hub mở công khai — không cần đăng nhập.
 export default function KnowledgeHubPage() {
-  return (
-    <RequireAuth>
-      <KnowledgeHubInner />
-    </RequireAuth>
-  );
+  return <KnowledgeHubInner />;
 }

@@ -18,7 +18,7 @@ const CASE_STUDIES = [
 const links = [
   { href: '/dashboard', label: 'Dashboard', auth: true },
   { href: '/research', label: 'Research Archive', auth: true },
-  { href: '/knowledge-hub', label: 'Knowledge Hub', auth: true },
+  { href: '/knowledge-hub', label: 'Knowledge Hub' }, // v21: công khai
   { group: 'case-studies', label: 'Case Studies', children: CASE_STUDIES },
   { href: '/news', label: 'News' },
   { href: '/discussion', label: 'Discussion' },
@@ -35,7 +35,7 @@ export default function Nav() {
   const [q, setQ] = useState('');
   const csRef = useRef(null);
 
-  // Research Archive & Knowledge Hub are members-only; admin pages are admin-only.
+  // Research Archive is members-only; admin pages are admin-only. (v21: Knowledge Hub is public.)
   const isAdmin = user?.email === ADMIN_EMAIL;
   const visibleLinks = links.filter((l) => {
     if (l.admin) return isAdmin;

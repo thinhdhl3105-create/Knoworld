@@ -8,6 +8,7 @@ import {
   fetchNews,
   addNews,
   deleteNews,
+  fetchOgImage,
   NEWS_CATEGORIES,
   categoryMeta,
   sourceHost,
@@ -35,16 +36,30 @@ function AdminForm({ user, onAdded }) {
   const [year, setYear] = useState(String(thisYear));
   const [category, setCategory] = useState('market');
   const [summary, setSummary] = useState('');
+  const [imageUrl, setImageUrl] = useState(''); // v21: thumbnail (tự lấy hoặc dán tay)
+  const [findingImg, setFindingImg] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [open, setOpen] = useState(false);
+
+  // v21: dán link xong (rời ô nhập) -> tự tìm og:image của bài báo.
+  const autoFindImage = async () => {
+    if (!url.trim() || imageUrl.trim()) return;
+    setFindingImg(true);
+    const img = await fetchOgImage(url);
+    setFindingImg(false);
+    if (img) setImageUrl(img);
+  };
 
   const submit = async (e) => {
     e.preventDefault();
     if (sending) return;
     setSending(true);
     setError('');
-    const res = await addNews({ title, url, year, category, summary, user });
+    // Chưa có thumbnail thì thử tự lấy lần cuối trước khi đăng.
+    let img = imageUrl.trim();
+    if (!img) img = (await fetchOgImage(url)) || '';
+    const res = await addNews({ title, url, year, category, summary, imageUrl: img, user });
     setSending(false);
     if (!res.ok) {
       setError(res.error || 'Could not add the news item.');
@@ -53,6 +68,7 @@ function AdminForm({ user, onAdded }) {
     setTitle('');
     setUrl('');
     setSummary('');
+    setImageUrl('');
     setYear(String(thisYear));
     setCategory('market');
     setOpen(false);
@@ -81,9 +97,38 @@ function AdminForm({ user, onAdded }) {
           <input
             value={url}
             onChange={(e) => setUrl(e.target.value)}
+            onBlur={autoFindImage}
             placeholder="Article link (paste the website URL)"
             className="bg-surface-container-lowest border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
           />
+          {/* v21: thumbnail — tự lấy từ bài báo, có thể dán URL ảnh khác để thay */}
+          <div className="flex items-center gap-3">
+            {imageUrl.trim() ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={imageUrl}
+                alt="Thumbnail preview"
+                className="w-24 h-16 object-cover rounded-lg border border-white/10 shrink-0"
+                onError={(e) => (e.currentTarget.style.display = 'none')}
+              />
+            ) : (
+              <div className="w-24 h-16 rounded-lg border border-dashed border-white/15 shrink-0 flex items-center justify-center text-on-surface-variant/50">
+                <span className="material-symbols-outlined text-xl">
+                  {findingImg ? 'hourglass_top' : 'image'}
+                </span>
+              </div>
+            )}
+            <input
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder={
+                findingImg
+                  ? 'Finding thumbnail from the article…'
+                  : 'Thumbnail image URL (auto-filled from the article — optional)'
+              }
+              className="flex-1 bg-surface-container-lowest border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
+            />
+          </div>
           <div className="flex flex-col sm:flex-row gap-4">
             <input
               value={year}
@@ -130,6 +175,7 @@ function AdminForm({ user, onAdded }) {
 
 function NewsCard({ item, isAdmin, onDeleted }) {
   const host = sourceHost(item.url);
+  const [imgOk, setImgOk] = useState(true); // v21: ảnh hỏng -> ẩn, card về dạng cũ
 
   const remove = async () => {
     if (!window.confirm('Delete this news item?')) return;
@@ -137,46 +183,85 @@ function NewsCard({ item, isAdmin, onDeleted }) {
     if (res.ok) onDeleted();
   };
 
+  const showImg = !!item.image_url && imgOk;
+
   return (
-    <article className="glass-card rounded-card p-6 flex flex-col gap-3">
-      <div className="flex items-center gap-3 flex-wrap">
-        <CategoryBadge category={item.category} />
-        {item.year && (
-          <span className="text-xs font-bold text-on-surface-variant bg-white/5 px-2.5 py-0.5 rounded-full">
-            {item.year}
-          </span>
+    <article className="glass-card rounded-card p-6 flex gap-5">
+      {/* v21: thumbnail bài báo (nếu có) */}
+      {showImg && (
+        <a
+          href={item.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hidden sm:block shrink-0"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={item.image_url}
+            alt=""
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            onError={() => setImgOk(false)}
+            className="w-36 h-24 object-cover rounded-lg border border-white/10 hover:opacity-90 transition-opacity"
+          />
+        </a>
+      )}
+
+      <div className="flex flex-col gap-3 min-w-0 flex-1">
+        <div className="flex items-center gap-3 flex-wrap">
+          <CategoryBadge category={item.category} />
+          {item.year && (
+            <span className="text-xs font-bold text-on-surface-variant bg-white/5 px-2.5 py-0.5 rounded-full">
+              {item.year}
+            </span>
+          )}
+          {host && <span className="text-xs text-on-surface-variant/70">{host}</span>}
+          {isAdmin && (
+            <button
+              onClick={remove}
+              className="ml-auto inline-flex items-center gap-1 text-xs text-on-surface-variant hover:text-red-400 transition-colors"
+              title="Delete"
+            >
+              <span className="material-symbols-outlined text-sm">delete</span>
+            </button>
+          )}
+        </div>
+
+        {/* Ảnh bản mobile: nằm trên tiêu đề, rộng full card */}
+        {showImg && (
+          <a href={item.url} target="_blank" rel="noopener noreferrer" className="sm:hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={item.image_url}
+              alt=""
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              onError={() => setImgOk(false)}
+              className="w-full h-40 object-cover rounded-lg border border-white/10"
+            />
+          </a>
         )}
-        {host && <span className="text-xs text-on-surface-variant/70">{host}</span>}
-        {isAdmin && (
-          <button
-            onClick={remove}
-            className="ml-auto inline-flex items-center gap-1 text-xs text-on-surface-variant hover:text-red-400 transition-colors"
-            title="Delete"
-          >
-            <span className="material-symbols-outlined text-sm">delete</span>
-          </button>
+
+        <a
+          href={item.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group flex items-start gap-2"
+        >
+          <h2 className="font-display text-lg font-medium leading-snug group-hover:text-primary transition-colors">
+            {item.title}
+          </h2>
+          <span className="material-symbols-outlined text-base text-on-surface-variant group-hover:text-primary transition-colors mt-1">
+            open_in_new
+          </span>
+        </a>
+
+        {item.summary && (
+          <p className="text-sm text-on-surface-variant leading-relaxed whitespace-pre-wrap">
+            {item.summary}
+          </p>
         )}
       </div>
-
-      <a
-        href={item.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="group flex items-start gap-2"
-      >
-        <h2 className="font-display text-lg font-medium leading-snug group-hover:text-primary transition-colors">
-          {item.title}
-        </h2>
-        <span className="material-symbols-outlined text-base text-on-surface-variant group-hover:text-primary transition-colors mt-1">
-          open_in_new
-        </span>
-      </a>
-
-      {item.summary && (
-        <p className="text-sm text-on-surface-variant leading-relaxed whitespace-pre-wrap">
-          {item.summary}
-        </p>
-      )}
     </article>
   );
 }
