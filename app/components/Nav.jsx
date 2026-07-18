@@ -20,6 +20,7 @@ const links = [
   { href: '/research', label: 'Research Archive', auth: true },
   { href: '/knowledge-hub', label: 'Knowledge Hub', auth: true },
   { group: 'case-studies', label: 'Case Studies', children: CASE_STUDIES },
+  { href: '/news', label: 'News' },
   { href: '/discussion', label: 'Discussion' },
   { href: '/admin/visitors', label: 'Visitors', admin: true },
   { href: '/admin/reviews', label: 'Reviews', admin: true },
