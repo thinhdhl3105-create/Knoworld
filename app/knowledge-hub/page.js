@@ -99,9 +99,14 @@ function KnowledgeHubInner() {
             frameworks like IMC planning and branding strategy.
           </p>
         </div>
-        <a href="/upload" className="inline-flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-lg text-sm font-bold hover:scale-95 transition-transform whitespace-nowrap">
-          <span className="material-symbols-outlined text-base">add</span> Add Concept / Framework
-        </a>
+        <div className="flex flex-wrap gap-3">
+          <Link href="/knowledge-hub/import" className="inline-flex items-center gap-2 border border-primary/50 text-primary px-6 py-3 rounded-lg text-sm font-bold hover:scale-95 transition-transform whitespace-nowrap">
+            <span className="material-symbols-outlined text-base">upload_file</span> Import from slides / Excel
+          </Link>
+          <a href="/upload" className="inline-flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-lg text-sm font-bold hover:scale-95 transition-transform whitespace-nowrap">
+            <span className="material-symbols-outlined text-base">add</span> Add Concept / Framework
+          </a>
+        </div>
       </header>
 
       {/* Tabs */}
