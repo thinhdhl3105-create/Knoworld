@@ -9,6 +9,20 @@ import {
   fetchFoundationLinks,
 } from '@/lib/content';
 import RequireAuth from '../components/RequireAuth';
+import { fetchViewStats } from '@/lib/views';
+import { fetchHeartMap } from '@/lib/hearts';
+
+const RANGES = [
+  { days: 7, label: '7 days' },
+  { days: 30, label: '30 days' },
+  { days: null, label: 'All time' },
+];
+
+function contentHref(x) {
+  if (x.kind === 'video') return `/videos?v=${x.id}`;
+  if (x.kind === 'image') return `/images?i=${x.id}`;
+  return `/students/${x.id}`;
+}
 
 function DashboardInner() {
   const [research, setResearch] = useState([]);
@@ -17,7 +31,14 @@ function DashboardInner() {
   const [concepts, setConcepts] = useState([]);
   const [frameworks, setFrameworks] = useState([]);
   const [flinks, setFlinks] = useState([]);
+  const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
+  // v22: Most viewed
+  const [range, setRange] = useState(30);
+  const [viewStats, setViewStats] = useState({});
+  const [viewsError, setViewsError] = useState('');
+  const [viewsLoading, setViewsLoading] = useState(true);
+  const [hearts, setHearts] = useState({});
 
   useEffect(() => {
     Promise.all([
@@ -27,7 +48,11 @@ function DashboardInner() {
       fetchConcepts(),
       fetchFrameworks(),
       fetchFoundationLinks(),
-    ]).then(([r, v, s, c, f, fl]) => {
+      fetchContent('image'),
+    ]).then(([r, v, s, c, f, fl, im]) => {
+      setImages(im.data);
+      const ids = [...v.data, ...s.data, ...im.data].map((x) => x.id);
+      fetchHeartMap('content', ids).then(setHearts);
       setResearch(r.data);
       setVideos(v.data);
       setStudents(s.data);
@@ -37,6 +62,46 @@ function DashboardInner() {
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    setViewsLoading(true);
+    fetchViewStats(range).then(({ data, error }) => {
+      setViewStats(data);
+      setViewsError(error || '');
+      setViewsLoading(false);
+    });
+  }, [range]);
+
+  // v22: xếp hạng theo lượt xem (cùng số lượt xem -> nhiều tim hơn đứng trước).
+  const rankBy = (arr) =>
+    arr
+      .map((x) => ({
+        ...x,
+        _views: viewStats[x.id]?.views || 0,
+        _viewers: viewStats[x.id]?.viewers || 0,
+        _hearts: hearts[x.id]?.count || 0,
+      }))
+      .filter((x) => x._views > 0)
+      .sort((a, b) => b._views - a._views || b._hearts - a._hearts)
+      .slice(0, 5);
+  const topVideos = useMemo(() => rankBy(videos), [videos, viewStats, hearts]); // eslint-disable-line react-hooks/exhaustive-deps
+  const topCases = useMemo(
+    () => rankBy([...students.map((x) => ({ ...x, kind: x.kind || 'student' })), ...images]),
+    [students, images, viewStats, hearts] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const mostHearted = useMemo(
+    () =>
+      [...videos, ...students, ...images]
+        .map((x) => ({ ...x, _hearts: hearts[x.id]?.count || 0 }))
+        .filter((x) => x._hearts > 0)
+        .sort((a, b) => b._hearts - a._hearts)
+        .slice(0, 5),
+    [videos, students, images, hearts]
+  );
+  const totalViews = useMemo(
+    () => Object.values(viewStats).reduce((s, v) => s + v.views, 0),
+    [viewStats]
+  );
 
   const foundations = useMemo(() => research.filter((r) => r.is_foundation), [research]);
   const papers = useMemo(() => research.filter((r) => !r.is_foundation), [research]);
@@ -93,7 +158,7 @@ function DashboardInner() {
       .slice(0, 8);
   }, [foundations, papers, videos, students, concepts, frameworks]);
 
-  const caseStudies = videos.length + students.length;
+  const caseStudies = videos.length + students.length + images.length;
   const maxRpf = Math.max(1, ...researchPerFoundation.map((f) => f.count));
   const maxCat = Math.max(1, ...categoryBreakdown.map((c) => c.n));
 
@@ -137,6 +202,48 @@ function DashboardInner() {
                 <p className="label-sm text-on-surface-variant mt-1">{c.label}</p>
               </Link>
             ))}
+          </section>
+
+          {/* v22: Most viewed */}
+          <section className="mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-4">
+              <div>
+                <h2 className="h-md">Most viewed</h2>
+                <p className="text-xs text-on-surface-variant mt-1">
+                  {viewsLoading
+                    ? 'Loading views…'
+                    : `${totalViews} views in this period · one view per visitor per item per day`}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {RANGES.map((r) => (
+                  <button
+                    key={r.label}
+                    onClick={() => setRange(r.days)}
+                    className={
+                      range === r.days
+                        ? 'px-4 py-1.5 rounded-full text-xs bg-primary text-on-primary font-bold'
+                        : 'px-4 py-1.5 rounded-full text-xs border border-white/10 text-on-surface-variant hover:border-primary/50 transition-colors'
+                    }
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {viewsError && (
+              <p className="text-xs text-error mb-3">
+                View stats are not available yet (run migration_v22 in Supabase).
+              </p>
+            )}
+            <div className="grid lg:grid-cols-3 gap-6">
+              <TopList title="Top videos" icon="smart_display" items={topVideos} showViews
+                empty="No video views recorded in this period yet." />
+              <TopList title="Top case studies" icon="menu_book" items={topCases} showViews
+                empty="No case study views recorded in this period yet." />
+              <TopList title="Most hearted" icon="favorite" items={mostHearted}
+                empty="No hearts yet." />
+            </div>
           </section>
 
           <div className="grid lg:grid-cols-3 gap-6 mb-6">
@@ -254,6 +361,49 @@ function DashboardInner() {
         </>
       )}
     </div>
+  );
+}
+
+const KIND_LABEL = { video: 'Video', image: 'Image case', student: 'Student case' };
+
+function TopList({ title, icon, items, showViews, empty }) {
+  const max = Math.max(1, ...items.map((x) => (showViews ? x._views : x._hearts)));
+  return (
+    <section className="glass-card rounded-card p-6">
+      <h3 className="font-display text-base font-medium mb-4 flex items-center gap-2">
+        <span className="material-symbols-outlined text-primary text-xl">{icon}</span>
+        {title}
+      </h3>
+      {items.length === 0 ? (
+        <p className="text-sm text-on-surface-variant">{empty}</p>
+      ) : (
+        <ol className="flex flex-col gap-3">
+          {items.map((x, i) => {
+            const val = showViews ? x._views : x._hearts;
+            return (
+              <li key={x.id}>
+                <Link href={contentHref(x)} className="group block">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xs text-on-surface-variant tabular-nums w-4">{i + 1}</span>
+                    <span className="text-sm font-medium truncate flex-1 group-hover:text-primary transition-colors" title={x.title}>
+                      {x.title}
+                    </span>
+                    <span className="text-sm tabular-nums">{val}</span>
+                  </div>
+                  <div className="ml-6 mt-1.5 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${(val / max) * 100}%` }} />
+                  </div>
+                  <p className="ml-6 mt-1 text-[11px] text-on-surface-variant">
+                    {KIND_LABEL[x.kind] || 'Case'}
+                    {showViews ? ` · ${x._viewers} viewer${x._viewers === 1 ? '' : 's'} · ${x._hearts} ♥` : ' · hearts'}
+                  </p>
+                </Link>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
   );
 }
 

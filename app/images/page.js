@@ -44,7 +44,7 @@ function ImagesPage() {
       fetchHeartMap('content', data.map((i) => i.id)).then(setHearts);
       if (wantId) {
         const match = data.find((i) => String(i.id) === String(wantId));
-        if (match) { trackContentView(); setActive(match); }
+        if (match) { trackContentView(match); setActive(match); }
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -79,7 +79,7 @@ function ImagesPage() {
     return okCat && okQ;
   });
 
-  const openCase = (item) => { trackContentView(); setActive(item); };
+  const openCase = (item) => { trackContentView(item); setActive(item); };
   const activeImages = active ? (active.images && active.images.length ? active.images : [coverOf(active)].filter(Boolean)) : [];
 
   return (

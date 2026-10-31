@@ -27,10 +27,10 @@ export default function StudentCaseDetail() {
     fetchContentById(id).then(({ data }) => {
       setItem(data);
       setLoading(false);
+      // Mở chi tiết 1 case study = xem 1 nội dung (lời mời đánh giá + Most viewed).
+      trackContentView(data ? { id: data.id, kind: data.kind || 'student' } : undefined);
       if (data) fetchHeartMap('content', [data.id]).then((m) => setHeart(m[data.id] || null));
     });
-    // Mở chi tiết 1 case study = xem 1 nội dung → tính cho lời mời đánh giá.
-    trackContentView();
   }, [id]);
 
   if (loading) return <div className="pt-32 px-5 max-w-container mx-auto text-on-surface-variant">Loading…</div>;

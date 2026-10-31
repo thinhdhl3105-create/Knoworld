@@ -47,7 +47,7 @@ function VideosPage() {
       // Opened from search (?v=<id>) → jump straight into that video.
       if (wantId) {
         const match = v.data.find((i) => String(i.id) === String(wantId));
-        if (match) { trackContentView(); setActive(match); }
+        if (match) { trackContentView(match); setActive(match); }
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -84,7 +84,7 @@ function VideosPage() {
 
   // Mở 1 video = xem 1 nội dung → tính cho lời mời đánh giá.
   const openVideo = (item) => {
-    trackContentView();
+    trackContentView(item);
     setActive(item);
   };
 

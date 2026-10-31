@@ -6,6 +6,7 @@ import {
   hasReviewed,
   snoozeReview,
   submitReview,
+  MIN_COMMENT_LENGTH,
 } from '@/lib/reviews';
 import { getServerVisitCount, MANDATORY_REVIEW_VISIT } from '@/lib/visitor';
 
@@ -108,8 +109,10 @@ export default function ReviewWidget() {
   if (!mounted) return null;
 
   const setRating = (key, n) => setVals((v) => ({ ...v, [key]: n }));
+  const noteLen = comment.trim().length;
+  const noteOk = noteLen >= MIN_COMMENT_LENGTH;
   const canSubmit =
-    vals.convenience > 0 && vals.content > 0 && vals.overall > 0 && !submitting;
+    vals.convenience > 0 && vals.content > 0 && vals.overall > 0 && noteOk && !submitting;
 
   const dismissToast = () => {
     setToast(false);
@@ -128,7 +131,11 @@ export default function ReviewWidget() {
     });
     setSubmitting(false);
     if (!res.ok) {
-      setError("Couldn't submit your review. Please try again.");
+      setError(
+        res.error === 'comment_required'
+          ? `Please write at least ${MIN_COMMENT_LENGTH} characters of feedback.`
+          : "Couldn't submit your review. Please try again."
+      );
       return;
     }
     setDone(true);
@@ -224,17 +231,25 @@ export default function ReviewWidget() {
             </div>
 
             <label className="block text-sm text-on-surface mb-1.5">
-              Additional feedback
-              <span className="text-on-surface-variant"> (optional)</span>
+              Your feedback
+              <span className="text-error"> *</span>
+              <span className="text-on-surface-variant"> (required)</span>
             </label>
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               rows={3}
               maxLength={1000}
-              placeholder="What would you like us to improve?"
+              placeholder="What did you like, and what should we improve?"
+              aria-required="true"
               className="w-full bg-surface-container-low border border-white/10 rounded-lg p-3 text-sm text-on-surface placeholder:text-on-surface-variant/60 outline-none focus:border-primary/50 transition-colors resize-none"
             />
+
+            <p className={`text-xs mt-1 ${noteOk ? 'text-on-surface-variant' : 'text-secondary'}`}>
+              {noteOk
+                ? `${noteLen} characters`
+                : `At least ${MIN_COMMENT_LENGTH} characters (${noteLen}/${MIN_COMMENT_LENGTH})`}
+            </p>
 
             {error && <p className="text-error text-xs mt-2">{error}</p>}
 
