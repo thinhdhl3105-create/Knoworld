@@ -4,6 +4,13 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useAuth } from './components/AuthProvider';
 import { publicVisitorCount } from '@/lib/visitor';
+import { fetchConcepts, fetchContent } from '@/lib/content';
+import { conceptOfTheDay, fetchSiteStats } from '@/lib/engagement';
+import StarfieldHero from './components/StarfieldHero';
+import CountUp from './components/CountUp';
+import ActivityTicker from './components/ActivityTicker';
+import ConceptOfDay from './components/ConceptOfDay';
+import JourneyFlux from './components/JourneyFlux';
 
 const pathways = [
   {
@@ -13,7 +20,7 @@ const pathways = [
   },
   {
     href: '/knowledge-hub', tag: 'Repository', icon: 'hub',
-    title: 'Knowledge Hub', auth: true,
+    title: 'Knowledge Hub',
     desc: 'A connected map of key concepts and the bridges between them, plus downloadable frameworks like IMC planning and branding strategy.',
   },
   {
@@ -32,94 +39,129 @@ export default function Home() {
   const { user } = useAuth();
   const visiblePathways = pathways.filter((p) => !p.auth || user);
 
-  // Số người đã đăng ký (công khai).
   const [visitorCount, setVisitorCount] = useState(null);
+  const [concepts, setConcepts] = useState([]);
+  const [caseCount, setCaseCount] = useState(null);
+  const [stats, setStats] = useState(null);
+
   useEffect(() => {
     let alive = true;
     publicVisitorCount().then((n) => {
       if (alive && typeof n === 'number') setVisitorCount(n);
     });
+    fetchConcepts().then(({ data }) => { if (alive) setConcepts(data || []); });
+    Promise.all(['video', 'student', 'image'].map((k) => fetchContent(k))).then((rs) => {
+      if (alive) setCaseCount(rs.reduce((s, r) => s + (r.data?.length || 0), 0));
+    });
+    fetchSiteStats().then((s) => { if (alive) setStats(s); });
     return () => { alive = false; };
   }, []);
 
+  const cotd = conceptOfTheDay(concepts);
+  const numbers = [
+    visitorCount !== null && { icon: 'group', value: visitorCount, label: 'explorers joined' },
+    concepts.length > 0 && { icon: 'hub', value: concepts.length, label: 'concepts mapped' },
+    caseCount ? { icon: 'cases', value: caseCount, label: 'case studies' } : null,
+    stats?.views ? { icon: 'visibility', value: stats.views, label: 'case views' } : null,
+  ].filter(Boolean);
+
   return (
     <div className="pt-20">
-      {/* Hero */}
-      <section className="relative max-w-container mx-auto px-5 md:px-16 pt-20 pb-32 overflow-hidden">
-        <div className="nebula w-[480px] h-[480px] right-0 top-10 hidden md:block" />
-        <div className="relative z-10 max-w-2xl">
-          <h1 className="h-xl">
-            Explore knowledge
-            <br />
-            <span className="text-primary italic">like a universe.</span>
-          </h1>
-          <p className="mt-6 text-lg text-on-surface-variant max-w-md">
-            A celestial platform for scientific precision in knowledge discovery. Navigate through
-            vast constellations of data and expert insights.
-          </p>
-          <div className="mt-10 flex flex-wrap items-center gap-5">
-            <Link
-              href="/research"
-              className="inline-flex items-center gap-2 bg-primary text-on-primary px-7 py-3 rounded-lg text-sm font-bold uppercase tracking-wide hover:scale-95 transition-transform"
-            >
-              Start Exploring
-              <span className="material-symbols-outlined text-base">arrow_forward</span>
-            </Link>
-            {visitorCount !== null && (
-              <div className="flex items-center gap-2 glass-card rounded-full px-4 py-2">
-                <span className="material-symbols-outlined text-primary text-lg">group</span>
-                <span className="text-sm text-on-surface-variant">
-                  <span className="font-bold text-on-surface">{visitorCount.toLocaleString('en-US')}</span>{' '}
-                  {visitorCount === 1 ? 'person has' : 'people have'} joined Knoworld
+      {/* Hero — living universe */}
+      <section className="relative overflow-hidden min-h-[640px] md:min-h-[600px]">
+        <StarfieldHero concepts={concepts} />
+        <div className="nebula w-[520px] h-[520px] right-[8%] top-10 hidden md:block" />
+        <div className="relative z-10 max-w-container mx-auto px-5 md:px-16 pt-20 pb-28 pointer-events-none">
+          <div className="max-w-2xl pointer-events-auto">
+            <h1 className="h-xl kw-rise">
+              Explore knowledge
+              <br />
+              <span className="text-primary italic">like a universe.</span>
+            </h1>
+            <p className="mt-6 text-lg text-on-surface-variant max-w-md kw-rise [animation-delay:120ms]">
+              A celestial platform for scientific precision in knowledge discovery. Navigate through
+              vast constellations of data and expert insights.
+            </p>
+            <div className="mt-10 flex flex-wrap items-center gap-4 kw-rise [animation-delay:240ms]">
+              <Link
+                href={user ? '/research' : '/knowledge-hub'}
+                className="inline-flex items-center gap-2 bg-primary text-on-primary px-7 py-3 rounded-lg text-sm font-bold uppercase tracking-wide hover:scale-95 transition-transform"
+              >
+                Start Exploring
+                <span className="material-symbols-outlined text-base">arrow_forward</span>
+              </Link>
+              {concepts.length > 0 && (
+                <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-on-surface-variant">
+                  <span className="material-symbols-outlined text-base text-secondary">mouse</span>
+                  Hover the bright stars — each one is a concept
                 </span>
-              </div>
-            )}
+              )}
+            </div>
+            <div className="mt-8 kw-rise [animation-delay:360ms]">
+              <ActivityTicker />
+            </div>
           </div>
         </div>
-        <div className="absolute right-10 top-24 w-72 h-72 rounded-full bg-gradient-to-br from-surface-container-high to-surface-container-lowest border border-white/5 hidden lg:block" />
       </section>
 
-      {/* Curated Pathways */}
+      {/* Live numbers */}
+      {numbers.length > 0 && (
+        <section className="max-w-container mx-auto px-5 md:px-16 -mt-10 pb-24 relative z-10">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {numbers.map((n) => (
+              <div key={n.label} className="glass-card rounded-card p-5">
+                <span className="material-symbols-outlined text-secondary">{n.icon}</span>
+                <div className="font-display text-3xl font-semibold mt-2">
+                  <CountUp value={n.value} />
+                </div>
+                <div className="text-xs text-on-surface-variant mt-1">{n.label}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Curated Pathways + Concept of the day */}
       <section className="max-w-container mx-auto px-5 md:px-16 pb-32">
         <div className="flex items-center gap-3 mb-2">
           <span className="h-px w-12 bg-primary" />
         </div>
         <h2 className="h-lg mb-10">Curated Pathways</h2>
-        <div className="flex flex-col gap-5">
-          {visiblePathways.map((p, i) => (
-            <Link
-              key={i}
-              href={p.href}
-              className="group glass-card pulse-hover rounded-card p-6 md:p-8 flex items-center justify-between gap-6"
-            >
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="material-symbols-outlined text-secondary text-lg">{p.icon}</span>
-                  <span className="label-sm text-secondary">{p.tag}</span>
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 flex flex-col gap-5">
+            {visiblePathways.map((p, i) => (
+              <Link
+                key={i}
+                href={p.href}
+                className="group glass-card pulse-hover rounded-card p-6 md:p-8 flex items-center justify-between gap-6 hover:-translate-y-0.5"
+              >
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="material-symbols-outlined text-secondary text-lg">{p.icon}</span>
+                    <span className="label-sm text-secondary">{p.tag}</span>
+                  </div>
+                  <h3 className="font-display text-xl font-medium mb-2 group-hover:text-primary transition-colors">{p.title}</h3>
+                  <p className="text-sm text-on-surface-variant max-w-2xl leading-relaxed">{p.desc}</p>
                 </div>
-                <h3 className="font-display text-xl font-medium mb-2 group-hover:text-primary transition-colors">{p.title}</h3>
-                <p className="text-sm text-on-surface-variant max-w-2xl leading-relaxed">{p.desc}</p>
-              </div>
-              <span className="material-symbols-outlined text-outline text-3xl group-hover:text-primary group-hover:translate-x-1 transition-all">chevron_right</span>
-            </Link>
-          ))}
+                <span className="material-symbols-outlined text-outline text-3xl group-hover:text-primary group-hover:translate-x-1 transition-all">chevron_right</span>
+              </Link>
+            ))}
+          </div>
+          {cotd && (
+            <aside className="lg:sticky lg:top-28 self-start">
+              <ConceptOfDay concept={cotd} />
+            </aside>
+          )}
         </div>
       </section>
 
-      {/* Active Learning Flux */}
+      {/* Active Learning Flux — personal journey */}
       <section className="max-w-container mx-auto px-5 md:px-16 pb-32 text-center">
-        <h2 className="h-lg mb-12">Active Learning Flux</h2>
-        <div className="relative max-w-3xl mx-auto">
-          <div className="h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-          <div className="flex justify-between mt-6">
-            {['Origin Discovery', 'Knowledge Expansion', 'Universal Mastery'].map((s) => (
-              <div key={s} className="flex flex-col items-center gap-3">
-                <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_12px_rgba(198,191,255,0.8)]" />
-                <span className="label-sm text-on-surface-variant">{s}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <h2 className="h-lg mb-3">Active Learning Flux</h2>
+        <p className="text-sm text-on-surface-variant mb-12 max-w-xl mx-auto">
+          Your own journey through Knoworld. It grows as you explore concepts, open case studies and join the discussion — no tests, just curiosity.
+        </p>
+        <JourneyFlux />
       </section>
     </div>
   );

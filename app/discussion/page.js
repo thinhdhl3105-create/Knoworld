@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../components/AuthProvider';
 import HeartButton from '../components/HeartButton';
 import { fetchHeartMap } from '@/lib/hearts';
+import ConceptText from '../components/ConceptText';
+import { recordActivity, toast } from '@/lib/engagement';
+import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 import {
   fetchQuestions,
   fetchAnswers,
@@ -124,6 +127,8 @@ export default function DiscussionPage() {
     setTitle('');
     setBody('');
     setShowForm(false);
+    recordActivity('post');
+    toast('Question posted — the community will chime in!', 'forum');
     load();
   };
 
@@ -165,7 +170,7 @@ export default function DiscussionPage() {
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="Add more context (optional)…"
+            placeholder="Add more context (optional)… Tip: tag a concept like #BrandEquity"
             rows={4}
             maxLength={3000}
             className="bg-surface-container-lowest border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40 resize-y"
@@ -247,6 +252,8 @@ function QuestionCard({ q, heart, user, isAdmin, displayName, onDeleted }) {
 
   const loadAnswers = () => {
     fetchAnswers(q.id).then(({ data }) => {
+      // Câu trả lời được ghim lên đầu.
+      data = [...data].sort((x, y) => (y.is_best ? 1 : 0) - (x.is_best ? 1 : 0));
       setAnswers(data);
       setAnswerCount(data.length);
       fetchHeartMap('answer', data.map((a) => a.id)).then(setAHearts);
@@ -271,6 +278,17 @@ function QuestionCard({ q, heart, user, isAdmin, displayName, onDeleted }) {
       return;
     }
     setBody('');
+    recordActivity('post');
+    toast('Answer posted — thanks for sharing!', 'forum');
+    loadAnswers();
+  };
+
+  // v24: giảng viên ghim / bỏ ghim câu trả lời hay nhất.
+  const toggleBest = async (a) => {
+    if (!isSupabaseConfigured) return;
+    const { error } = await supabase.from('discussion_answers').update({ is_best: !a.is_best }).eq('id', a.id);
+    if (error) { toast('Could not update — has migration v24 been run?', 'error'); return; }
+    toast(a.is_best ? 'Unpinned' : 'Pinned as best answer', 'push_pin');
     loadAnswers();
   };
 
@@ -308,7 +326,7 @@ function QuestionCard({ q, heart, user, isAdmin, displayName, onDeleted }) {
             )}
           </div>
           <h2 className="font-display text-lg font-medium leading-snug mb-1">{q.title}</h2>
-          {q.body && <p className="text-sm text-on-surface-variant leading-relaxed whitespace-pre-wrap">{q.body}</p>}
+          {q.body && <ConceptText text={q.body} className="text-sm text-on-surface-variant leading-relaxed whitespace-pre-wrap" />}
 
           <div className="flex items-center gap-3 mt-4">
             <HeartButton type="question" id={q.id} data={heart} size="sm" />
@@ -332,7 +350,7 @@ function QuestionCard({ q, heart, user, isAdmin, displayName, onDeleted }) {
             <p className="text-sm text-on-surface-variant">No answers yet — share what you know!</p>
           ) : (
             answers.map((a) => (
-              <div key={a.id} className="flex items-start gap-3">
+              <div key={a.id} className={`flex items-start gap-3 ${a.is_best ? 'rounded-card border border-secondary/40 bg-secondary/[0.06] p-3 -mx-3' : ''}`}>
                 <Avatar row={a} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap text-xs text-on-surface-variant">
@@ -341,6 +359,12 @@ function QuestionCard({ q, heart, user, isAdmin, displayName, onDeleted }) {
                     </span>
                     <span>·</span>
                     <span>{timeAgo(a.created_at)}</span>
+                    {a.is_best && (
+                      <span className="inline-flex items-center gap-1 text-secondary font-bold">
+                        <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+                        Best answer
+                      </span>
+                    )}
                     {(isAdmin || isMine(a)) && (
                       <button
                         onClick={() => removeAnswer(a)}
@@ -351,9 +375,18 @@ function QuestionCard({ q, heart, user, isAdmin, displayName, onDeleted }) {
                       </button>
                     )}
                   </div>
-                  <p className="text-sm text-on-surface leading-relaxed whitespace-pre-wrap mt-1">{a.body}</p>
-                  <div className="mt-2">
+                  <ConceptText text={a.body} className="text-sm text-on-surface leading-relaxed whitespace-pre-wrap mt-1" />
+                  <div className="mt-2 flex items-center gap-2">
                     <HeartButton type="answer" id={a.id} data={aHearts[a.id]} size="sm" />
+                    {isAdmin && (
+                      <button type="button" onClick={() => toggleBest(a)}
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold border transition-colors ${
+                          a.is_best ? 'border-secondary/50 text-secondary bg-secondary/10' : 'border-white/10 text-on-surface-variant hover:border-secondary/40 hover:text-secondary'
+                        }`}>
+                        <span className="material-symbols-outlined text-sm">push_pin</span>
+                        {a.is_best ? 'Unpin best' : 'Pin as best'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -365,7 +398,7 @@ function QuestionCard({ q, heart, user, isAdmin, displayName, onDeleted }) {
             <textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              placeholder="Write your answer…"
+              placeholder="Write your answer… (tag a concept with #ConceptName)"
               rows={3}
               maxLength={3000}
               className="bg-surface-container-lowest border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40 resize-y"

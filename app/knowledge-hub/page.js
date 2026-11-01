@@ -9,6 +9,13 @@ import {
   fetchConceptLinkedContent,
 } from '@/lib/content';
 import ConceptGraph from '../components/ConceptGraph';
+import { recordActivity } from '@/lib/engagement';
+
+// v24: concept đã mở trên trình duyệt này (chấm vàng trên bản đồ).
+const VISITED_KEY = 'kw_visited_concepts';
+function loadVisited() {
+  try { return new Set(JSON.parse(localStorage.getItem(VISITED_KEY) || '[]')); } catch { return new Set(); }
+}
 import FrameworkSteps from '../components/FrameworkSteps';
 
 function KnowledgeHubInner() {
@@ -21,6 +28,24 @@ function KnowledgeHubInner() {
   const [tab, setTab] = useState('map'); // map | frameworks
   const [openFw, setOpenFw] = useState(null);
   const [mapCat, setMapCat] = useState('all'); // which category the map shows
+  const [visited, setVisited] = useState(() => new Set());
+  const [find, setFind] = useState('');
+  const [findOpen, setFindOpen] = useState(false);
+
+  useEffect(() => { setVisited(loadVisited()); }, []);
+
+  // Mở 1 concept: ghi nhận khám phá (hành trình + streak) và đánh dấu đã xem.
+  useEffect(() => {
+    if (!selectedId) return;
+    recordActivity('concept', selectedId);
+    setVisited((prev) => {
+      if (prev.has(selectedId)) return prev;
+      const next = new Set(prev);
+      next.add(selectedId);
+      try { localStorage.setItem(VISITED_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  }, [selectedId]);
 
   useEffect(() => {
     Promise.all([
@@ -34,6 +59,11 @@ function KnowledgeHubInner() {
       setFrameworks(f.data);
       setLinkedContent(lc.data);
       setLoading(false);
+      // Deep link: /knowledge-hub?c=<id> (từ trang chủ, tìm kiếm, discussion…)
+      const want = new URLSearchParams(window.location.search).get('c');
+      if (want && c.data.some((x) => String(x.id) === want)) {
+        setSelectedId(c.data.find((x) => String(x.id) === want).id);
+      }
     });
   }, []);
 
@@ -78,6 +108,25 @@ function KnowledgeHubInner() {
     () => groupedConcepts.map(([cat, items]) => ({ cat, count: items.length })),
     [groupedConcepts]
   );
+
+  const findMatches = useMemo(() => {
+    const q = find.trim().toLowerCase();
+    if (!q) return [];
+    return concepts
+      .filter((c) => [c.title, c.summary, ...(c.tags || [])].filter(Boolean).join(' ').toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [find, concepts]);
+
+  const pickFromFind = (c) => {
+    // Nếu concept nằm ngoài bản đồ đang lọc thì chuyển về "All".
+    const cat = (c.category && c.category.trim()) || 'Khác';
+    if (mapCat !== 'all' && mapCat !== cat) setMapCat('all');
+    setSelectedId(c.id);
+    setFind('');
+    setFindOpen(false);
+  };
+
+  const exploredCount = concepts.filter((c) => visited.has(c.id)).length;
 
   // The concepts shown in the map for the active category filter.
   const mapNodes = useMemo(() => {
@@ -127,9 +176,53 @@ function KnowledgeHubInner() {
       </div>
 
       {loading ? (
-        <p className="text-on-surface-variant">Loading the constellation…</p>
+        <div className="grid lg:grid-cols-3 gap-6" aria-label="Loading the constellation…">
+          <div className="kw-skel lg:col-span-2 h-[340px] md:h-[480px]" />
+          <div className="kw-skel h-[340px] md:h-[480px]" />
+        </div>
       ) : tab === 'map' ? (
         <div className="grid lg:grid-cols-3 gap-6">
+          {/* v24: fly-to search + exploration meter */}
+          <div className="lg:col-span-3 flex flex-col sm:flex-row sm:items-center gap-3 -mt-2">
+            <div className="relative flex-1 max-w-md">
+              <div className="flex items-center gap-2 glass-card rounded-full px-4 py-2 focus-within:border-primary/50 transition-colors">
+                <span className="material-symbols-outlined text-on-surface-variant text-lg">travel_explore</span>
+                <input
+                  value={find}
+                  onChange={(e) => { setFind(e.target.value); setFindOpen(true); }}
+                  onFocus={() => setFindOpen(true)}
+                  onBlur={() => setTimeout(() => setFindOpen(false), 150)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && findMatches[0]) pickFromFind(findMatches[0]); }}
+                  placeholder="Fly to a concept…"
+                  className="flex-1 bg-transparent outline-none text-sm text-on-surface placeholder:text-on-surface-variant/60"
+                />
+              </div>
+              {findOpen && findMatches.length > 0 && (
+                <div className="absolute z-20 left-0 right-0 mt-2 glass-card rounded-card p-1.5 shadow-xl">
+                  {findMatches.map((c) => (
+                    <button key={c.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pickFromFind(c)}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/[0.05] flex items-center gap-2">
+                      <span className={`w-1.5 h-1.5 rounded-full ${visited.has(c.id) ? 'bg-secondary' : 'bg-primary/50'}`} />
+                      <span className="text-sm text-on-surface">{c.title}</span>
+                      {c.category && <span className="ml-auto text-[11px] text-on-surface-variant">{c.category}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {concepts.length > 0 && (
+              <div className="flex items-center gap-3 text-xs text-on-surface-variant">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-secondary" /> You've explored
+                  <b className="text-on-surface tabular-nums">{exploredCount}/{concepts.length}</b>
+                </span>
+                <span className="w-24 h-1 rounded-full bg-white/10 overflow-hidden">
+                  <span className="block h-full bg-secondary transition-[width] duration-700" style={{ width: `${(exploredCount / concepts.length) * 100}%` }} />
+                </span>
+              </div>
+            )}
+          </div>
+
           {/* Category filter — each category is its own focused map */}
           {mapCategories.length > 1 && (
             <div className="lg:col-span-3 flex flex-wrap items-center gap-2 -mt-2">
@@ -152,11 +245,11 @@ function KnowledgeHubInner() {
           )}
 
           <div className="lg:col-span-2">
-            <ConceptGraph nodes={mapNodes} links={links} selectedId={selectedId} onSelect={setSelectedId} />
+            <ConceptGraph nodes={mapNodes} links={links} selectedId={selectedId} onSelect={setSelectedId} visited={visited} />
             {concepts.length > 0 && (
               <p className="text-xs text-on-surface-variant mt-3">
                 {mapCat === 'all'
-                  ? 'Tip: click a node to read it, drag nodes to rearrange the map.'
+                  ? 'Tip: hover a node to light up its connections · scroll to zoom · drag the background to pan.'
                   : `Showing the “${mapCat}” map — ${mapNodes.length} concept${mapNodes.length === 1 ? '' : 's'}. Click a node to read it.`}
               </p>
             )}
@@ -200,7 +293,7 @@ function KnowledgeHubInner() {
                         </span>
                         <div className="flex flex-col gap-2 mt-2">
                           {relatedVideos.map((v) => (
-                            <Link key={v.id} href="/videos"
+                            <Link key={v.id} href={`/videos?v=${v.id}`}
                               className="text-sm text-on-surface hover:text-primary transition-colors flex items-start gap-2">
                               <span className="material-symbols-outlined text-base text-secondary mt-0.5">arrow_outward</span>
                               {v.title}
@@ -255,7 +348,14 @@ function KnowledgeHubInner() {
                           onClick={() => { setSelectedId(c.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                           onKeyDown={(e) => e.key === 'Enter' && setSelectedId(c.id)}
                           className={`cursor-pointer text-left glass-card pulse-hover rounded-card p-5 ${selectedId === c.id ? 'ring-1 ring-primary' : ''}`}>
-                          {c.category && <span className="label-sm text-secondary">{c.category}</span>}
+                          <div className="flex items-center justify-between gap-2">
+                            {c.category && <span className="label-sm text-secondary">{c.category}</span>}
+                            {visited.has(c.id) && (
+                              <span className="ml-auto text-[10px] text-secondary inline-flex items-center gap-0.5" title="You've explored this">
+                                <span className="material-symbols-outlined text-sm">visibility</span> seen
+                              </span>
+                            )}
+                          </div>
                           <h4 className="font-display text-base font-medium mt-1 mb-1">{c.title}</h4>
                           {c.summary && <p className="text-sm text-on-surface-variant line-clamp-2">{c.summary}</p>}
                         </div>

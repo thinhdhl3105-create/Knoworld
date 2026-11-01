@@ -61,7 +61,8 @@ export default function ReviewWidget() {
   const [vals, setVals] = useState({ convenience: 0, content: 0, overall: 0 });
   const [comment, setComment] = useState('');
   const [thankYou, setThankYou] = useState(false);
-  const [mandatory, setMandatory] = useState(false); // ép đánh giá (không tắt được)
+  const [mandatory, setMandatory] = useState(false); // bắt buộc đánh giá (v24: không chặn màn hình)
+  const [minimized, setMinimized] = useState(false); // v24: thu gọn bảng bắt buộc
 
   // Mở form (từ toast hoặc nút nổi).
   const openForm = useCallback(() => {
@@ -150,7 +151,7 @@ export default function ReviewWidget() {
       {!open && (
         <button
           onClick={openForm}
-          className="fixed bottom-5 right-5 z-[55] flex items-center gap-2 bg-primary text-on-primary px-4 py-3 rounded-full shadow-lg shadow-black/40 text-sm font-bold hover:scale-95 transition-transform"
+          className="fixed bottom-20 md:bottom-5 right-4 md:right-5 z-[55] flex items-center gap-2 bg-primary text-on-primary px-4 py-3 rounded-full shadow-lg shadow-black/40 text-sm font-bold hover:scale-95 transition-transform"
           aria-label="Rate this website"
         >
           <span className="material-symbols-outlined text-xl">rate_review</span>
@@ -160,7 +161,7 @@ export default function ReviewWidget() {
 
       {/* Toast mời đánh giá (không chặn màn hình) */}
       {toast && !open && (
-        <div className="fixed bottom-20 right-5 z-[55] w-72 glass-card rounded-card p-4 shadow-xl shadow-black/40 animate-[kwSlideUp_.3s_ease]">
+        <div className="fixed bottom-36 md:bottom-20 right-4 md:right-5 z-[55] w-72 glass-card rounded-card p-4 shadow-xl shadow-black/40 animate-[kwSlideUp_.3s_ease]">
           <button
             onClick={dismissToast}
             className="absolute top-2 right-2 material-symbols-outlined text-on-surface-variant hover:text-primary text-lg"
@@ -183,7 +184,7 @@ export default function ReviewWidget() {
 
       {/* Lời cảm ơn sau khi gửi */}
       {thankYou && (
-        <div className="fixed bottom-20 right-5 z-[55] w-72 glass-card rounded-card p-4 shadow-xl shadow-black/40 animate-[kwSlideUp_.3s_ease]">
+        <div className="fixed bottom-36 md:bottom-20 right-4 md:right-5 z-[55] w-72 glass-card rounded-card p-4 shadow-xl shadow-black/40 animate-[kwSlideUp_.3s_ease]">
           <p className="text-sm font-bold text-on-surface flex items-center gap-2">
             <span className="material-symbols-outlined text-primary">favorite</span>
             Thanks for your feedback!
@@ -192,17 +193,40 @@ export default function ReviewWidget() {
       )}
 
       {/* Modal form đầy đủ */}
-      {open && (
+      {/* v24: bảng bắt buộc thu gọn thành nút nhắc, vẫn duyệt web bình thường */}
+      {open && mandatory && minimized && (
+        <button
+          onClick={() => setMinimized(false)}
+          className="fixed bottom-20 md:bottom-5 right-4 md:right-5 z-[60] flex items-center gap-2 bg-secondary text-on-secondary px-4 py-3 rounded-full shadow-lg shadow-black/40 text-sm font-bold animate-pulse"
+        >
+          <span className="material-symbols-outlined text-xl">rate_review</span>
+          Rate us (15s) to keep exploring
+        </button>
+      )}
+
+      {open && !(mandatory && minimized) && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          className={mandatory
+            ? 'fixed z-[60] bottom-20 md:bottom-5 right-4 md:right-5 left-4 md:left-auto pointer-events-none flex justify-end'
+            : 'fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm'}
           onClick={() => { if (!mandatory) setOpen(false); }}
         >
           <div
-            className="w-full max-w-md glass-card rounded-card p-6"
+            className={`w-full max-w-md glass-card rounded-card p-6 pointer-events-auto ${mandatory ? 'shadow-2xl shadow-black/60 max-h-[75vh] overflow-y-auto animate-[kwSlideUp_.3s_ease]' : ''}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between mb-1">
               <h2 className="font-display text-lg font-medium">Rate your experience</h2>
+              {mandatory && (
+                <button
+                  onClick={() => setMinimized(true)}
+                  className="material-symbols-outlined text-on-surface-variant hover:text-primary"
+                  aria-label="Minimize"
+                  title="Minimize — you can keep browsing"
+                >
+                  remove
+                </button>
+              )}
               {!mandatory && (
                 <button
                   onClick={() => setOpen(false)}
@@ -215,7 +239,7 @@ export default function ReviewWidget() {
             </div>
             <p className="text-xs text-on-surface-variant mb-4">
               {mandatory
-                ? 'You have visited a few times — please rate us to keep exploring.'
+                ? 'You have visited a few times — a quick rating helps us improve. Feel free to keep browsing; it stays here until you submit.'
                 : 'Rate from 1 (Poor) to 5 (Excellent).'}
             </p>
 

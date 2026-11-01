@@ -4,12 +4,19 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 // Lightweight dependency-free force-directed graph rendered as SVG.
 // nodes: [{id, title, category}]  links: [{source_id, target_id, label}]
-export default function ConceptGraph({ nodes, links, selectedId, onSelect }) {
+// v24: zoom (cuộn chuột / nút +/-), kéo nền để di chuyển, rê chuột vào node để
+// làm sáng các concept liên quan, tự "bay" tới concept đang chọn, node to theo số liên kết.
+export default function ConceptGraph({ nodes, links, selectedId, onSelect, visited }) {
   const W = 760;
   const H = 480;
   const [pos, setPos] = useState({});
+  const [view, setView] = useState({ k: 1, x: 0, y: 0 });
+  const [hoverId, setHoverId] = useState(null);
   const draggingRef = useRef(null);
+  const panRef = useRef(null);
+  const movedRef = useRef(false);
   const svgRef = useRef(null);
+  const animRef = useRef(0);
 
   // Build adjacency for force sim
   const edges = useMemo(
@@ -19,6 +26,20 @@ export default function ConceptGraph({ nodes, links, selectedId, onSelect }) {
         .map((l) => ({ s: l.source_id, t: l.target_id, label: l.label })),
     [links, nodes]
   );
+
+  const degree = useMemo(() => {
+    const d = {};
+    edges.forEach((e) => { d[e.s] = (d[e.s] || 0) + 1; d[e.t] = (d[e.t] || 0) + 1; });
+    return d;
+  }, [edges]);
+  const neighbors = useMemo(() => {
+    const m = {};
+    edges.forEach((e) => {
+      (m[e.s] ||= new Set()).add(e.t);
+      (m[e.t] ||= new Set()).add(e.s);
+    });
+    return m;
+  }, [edges]);
 
   // Run a short force simulation when graph changes.
   useEffect(() => {
@@ -71,8 +92,65 @@ export default function ConceptGraph({ nodes, links, selectedId, onSelect }) {
       });
     }
     setPos({ ...p });
+    setView({ k: 1, x: 0, y: 0 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, edges]);
+
+  // Animate the camera to a target view.
+  const flyTo = (target) => {
+    cancelAnimationFrame(animRef.current);
+    const reduce = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) { setView(target); return; }
+    const from = { ...viewRef.current };
+    const t0 = performance.now();
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / 650);
+      const e = 1 - Math.pow(1 - k, 3);
+      setView({
+        k: from.k + (target.k - from.k) * e,
+        x: from.x + (target.x - from.x) * e,
+        y: from.y + (target.y - from.y) * e,
+      });
+      if (k < 1) animRef.current = requestAnimationFrame(step);
+    };
+    animRef.current = requestAnimationFrame(step);
+  };
+  const viewRef = useRef(view);
+  viewRef.current = view;
+
+  // Fly to the selected concept (from search, list, URL…).
+  useEffect(() => {
+    if (!selectedId) return;
+    const p = pos[selectedId];
+    if (!p) return;
+    const k = Math.max(viewRef.current.k, 1.5);
+    flyTo({ k, x: W / 2 - p.x * k, y: H / 2 - p.y * k });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, pos[selectedId]?.x == null]);
+
+  const zoomBy = (factor, cx = W / 2, cy = H / 2) => {
+    const v = viewRef.current;
+    const k = Math.max(0.5, Math.min(3.5, v.k * factor));
+    const f = k / v.k;
+    setView({ k, x: cx - (cx - v.x) * f, y: cy - (cy - v.y) * f });
+  };
+  const resetView = () => flyTo({ k: 1, x: 0, y: 0 });
+
+  // Wheel zoom (non-passive so the page doesn't scroll while zooming the map).
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const cx = ((e.clientX - rect.left) / rect.width) * W;
+      const cy = ((e.clientY - rect.top) / rect.height) * H;
+      zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12, cx, cy);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes.length]);
 
   function clientToSvg(e) {
     const rect = svgRef.current.getBoundingClientRect();
@@ -80,16 +158,34 @@ export default function ConceptGraph({ nodes, links, selectedId, onSelect }) {
     const y = ((e.clientY - rect.top) / rect.height) * H;
     return { x, y };
   }
+  function toGraph(pt) {
+    const v = viewRef.current;
+    return { x: (pt.x - v.x) / v.k, y: (pt.y - v.y) / v.k };
+  }
   function onDown(id, e) {
-    e.preventDefault();
+    e.stopPropagation();
+    if (!e.touches) e.preventDefault();
     draggingRef.current = id;
+    movedRef.current = false;
+  }
+  function onBgDown(e) {
+    const pt = clientToSvg(e.touches ? e.touches[0] : e);
+    panRef.current = { sx: pt.x, sy: pt.y, vx: viewRef.current.x, vy: viewRef.current.y };
   }
   function onMove(e) {
-    if (!draggingRef.current) return;
-    const { x, y } = clientToSvg(e.touches ? e.touches[0] : e);
-    setPos((prev) => ({ ...prev, [draggingRef.current]: { ...prev[draggingRef.current], x, y } }));
+    const src = e.touches ? e.touches[0] : e;
+    if (!src) return;
+    const pt = clientToSvg(src);
+    if (draggingRef.current) {
+      movedRef.current = true;
+      const { x, y } = toGraph(pt);
+      setPos((prev) => ({ ...prev, [draggingRef.current]: { ...prev[draggingRef.current], x, y } }));
+    } else if (panRef.current) {
+      const p = panRef.current;
+      setView((v) => ({ ...v, x: p.vx + (pt.x - p.sx), y: p.vy + (pt.y - p.sy) }));
+    }
   }
-  function onUp() { draggingRef.current = null; }
+  function onUp() { draggingRef.current = null; panRef.current = null; }
 
   if (!nodes.length) {
     return (
@@ -99,28 +195,38 @@ export default function ConceptGraph({ nodes, links, selectedId, onSelect }) {
     );
   }
 
+  const focusId = hoverId || selectedId;
+  const lit = focusId ? new Set([focusId, ...(neighbors[focusId] || [])]) : null;
+
   return (
+    <div className="relative">
     <svg
       ref={svgRef}
       viewBox={`0 0 ${W} ${H}`}
-      className="w-full glass-card rounded-card touch-none select-none"
+      className="w-full glass-card rounded-card select-none cursor-grab active:cursor-grabbing"
+      style={{ touchAction: 'none' }}
+      onMouseDown={onBgDown}
+      onTouchStart={onBgDown}
       onMouseMove={onMove}
       onMouseUp={onUp}
       onMouseLeave={onUp}
       onTouchMove={onMove}
       onTouchEnd={onUp}
     >
+      <g transform={`translate(${view.x},${view.y}) scale(${view.k})`}>
       {edges.map((e, i) => {
         const a = pos[e.s]; const b = pos[e.t];
         if (!a || !b) return null;
-        const active = selectedId && (e.s === selectedId || e.t === selectedId);
+        const active = focusId && (e.s === focusId || e.t === focusId);
+        const dim = lit && !active;
         const mx = (a.x + b.x) / 2; const my = (a.y + b.y) / 2;
         return (
           <g key={i}>
             <line x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-              stroke={active ? 'var(--color-primary, #c6bfff)' : 'rgba(255,255,255,0.16)'}
-              strokeWidth={active ? 2 : 1.2} />
-            {e.label && (
+              stroke={active ? 'var(--color-primary, #c6bfff)' : dim ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.16)'}
+              strokeWidth={(active ? 2 : 1.2) / Math.sqrt(view.k)}
+              style={{ transition: 'stroke .25s' }} />
+            {e.label && (!lit || active) && (
               <text x={mx} y={my - 4} textAnchor="middle" fontSize="9"
                 fill="rgba(255,255,255,0.45)">{e.label}</text>
             )}
@@ -135,7 +241,10 @@ export default function ConceptGraph({ nodes, links, selectedId, onSelect }) {
         const isResearch = n.type === 'research';
         // Fixed-size circles — the label now sits *below* the node, so the
         // circle no longer needs to stretch to fit the text.
-        const r = isFoundation ? 22 : isResearch ? 14 : 18;
+        const base = isFoundation ? 22 : isResearch ? 14 : 15;
+        const r = base + Math.min(9, (degree[n.id] || 0) * 1.6);
+        const dim = lit && !lit.has(n.id);
+        const seen = visited && visited.has(n.id);
         // Foundations = primary (violet); research = secondary (teal); default = violet.
         const accent = isResearch ? 'var(--color-secondary, #7fd4c4)' : 'var(--color-primary, #c6bfff)';
         const fillIdle = isResearch ? 'rgba(127,212,196,0.12)' : 'rgba(198,191,255,0.14)';
@@ -143,14 +252,24 @@ export default function ConceptGraph({ nodes, links, selectedId, onSelect }) {
         const title = n.title || '';
         const label = title.length > 26 ? title.slice(0, 25) + '…' : title;
         return (
-          <g key={n.id} transform={`translate(${p.x},${p.y})`} style={{ cursor: 'pointer' }}
+          <g key={n.id} transform={`translate(${p.x},${p.y})`}
+            style={{ cursor: 'pointer', opacity: dim ? 0.22 : 1, transition: 'opacity .25s' }}
             onMouseDown={(e) => onDown(n.id, e)}
             onTouchStart={(e) => onDown(n.id, e)}
-            onClick={() => onSelect?.(n.id)}>
+            onMouseEnter={() => setHoverId(n.id)}
+            onMouseLeave={() => setHoverId(null)}
+            onClick={(e) => { e.stopPropagation(); if (!movedRef.current) onSelect?.(n.id); }}>
+            {sel && (
+              <circle r={r + 8} fill="none" stroke={accent} strokeOpacity="0.45" strokeWidth="1.5">
+                <animate attributeName="r" values={`${r + 4};${r + 12};${r + 4}`} dur="2.4s" repeatCount="indefinite" />
+                <animate attributeName="stroke-opacity" values="0.5;0;0.5" dur="2.4s" repeatCount="indefinite" />
+              </circle>
+            )}
             <circle r={r}
               fill={sel ? accent : fillIdle}
               stroke={sel ? accent : strokeIdle}
               strokeWidth={sel ? 2.5 : isFoundation ? 1.8 : 1.5} />
+            {seen && !sel && <circle r={3} cx={r * 0.7} cy={-r * 0.7} fill="#f6bd56" />}
             {/* Label under the node. A dark stroke behind the glyphs keeps it
                 readable over edges and other nodes. */}
             <text textAnchor="middle" y={r + 13} fontSize={isResearch ? 9.5 : 10.5}
@@ -168,6 +287,20 @@ export default function ConceptGraph({ nodes, links, selectedId, onSelect }) {
           </g>
         );
       })}
+      </g>
     </svg>
+      <div className="absolute top-3 right-3 flex flex-col gap-1.5">
+        {[
+          { icon: 'add', label: 'Zoom in', fn: () => zoomBy(1.25) },
+          { icon: 'remove', label: 'Zoom out', fn: () => zoomBy(0.8) },
+          { icon: 'center_focus_strong', label: 'Reset view', fn: resetView },
+        ].map((b) => (
+          <button key={b.icon} type="button" onClick={b.fn} title={b.label} aria-label={b.label}
+            className="w-8 h-8 grid place-items-center rounded-lg glass-card text-on-surface-variant hover:text-primary hover:border-primary/40 transition-colors">
+            <span className="material-symbols-outlined text-lg">{b.icon}</span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

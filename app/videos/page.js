@@ -8,6 +8,8 @@ import { trackContentView } from '@/lib/reviews';
 import { fetchHeartMap } from '@/lib/hearts';
 import { getCaseAccess } from '@/lib/access';
 import HeartButton from '../components/HeartButton';
+import ReactionBar from '../components/ReactionBar';
+import UpNext, { pickUpNext } from '../components/UpNext';
 import GuestLimitBanner from '../components/GuestLimitBanner';
 import { useAuth } from '../components/AuthProvider';
 
@@ -110,7 +112,9 @@ function VideosPage() {
       {access.limited && <GuestLimitBanner count={access.allowedIds?.size ?? 5} />}
 
       {loading ? (
-        <p className="text-on-surface-variant">Loading…</p>
+        <div className="flex gap-5 overflow-hidden">
+          {[0, 1, 2, 3].map((i) => <div key={i} className="kw-skel shrink-0 w-[280px] h-[280px]" />)}
+        </div>
       ) : visibleItems.length === 0 ? (
         <p className="text-on-surface-variant glass-card rounded-card p-8 text-center">
           {access.limited
@@ -125,8 +129,8 @@ function VideosPage() {
 
       {/* Player modal */}
       {active && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setActive(null)}>
-          <div className="w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] flex items-start md:items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto kw-page" onClick={() => setActive(null)}>
+          <div className="w-full max-w-3xl my-auto py-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h2 className="font-display text-lg font-medium">{active.title}</h2>
@@ -147,13 +151,15 @@ function VideosPage() {
                 <div className="w-full h-full flex items-center justify-center text-on-surface-variant text-sm">No playable media on this entry.</div>
               )}
             </div>
+            <ReactionBar contentId={active.id} className="mt-4" />
             {active.summary && <p className="text-sm text-on-surface-variant mt-4 leading-relaxed">{active.summary}</p>}
             {active.concept_id && conceptById[active.concept_id] && (
-              <a href="/knowledge-hub" className="inline-flex items-center gap-1 text-sm text-primary mt-3">
+              <a href={`/knowledge-hub?c=${active.concept_id}`} className="inline-flex items-center gap-1 text-sm text-primary mt-3">
                 <span className="material-symbols-outlined text-base">hub</span>
                 Related concept: {conceptById[active.concept_id].title}
               </a>
             )}
+            <UpNext items={pickUpNext(active, visibleItems)} onPick={openVideo} title="Watch next" />
           </div>
         </div>
       )}

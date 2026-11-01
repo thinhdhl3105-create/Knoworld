@@ -52,3 +52,37 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(146,142,160,0.25); border-radius:20px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(198,191,255,0.4); }
+
+/* ---------------------------------------------------------------------------
+   v24: motion & micro-interactions
+   --------------------------------------------------------------------------- */
+@keyframes kwRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes kwFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kwPop { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
+@keyframes kwShimmer { 100% { transform: translateX(100%); } }
+
+.kw-rise { animation: kwRise .7s cubic-bezier(.2,.7,.2,1) both; }
+.kw-page { animation: kwFade .35s ease both; }
+.kw-pop { animation: kwPop .35s ease; }
+
+/* Skeleton loader */
+.kw-skel { position: relative; overflow: hidden; background: rgba(255,255,255,0.05); border-radius: 0.875rem; }
+.kw-skel::after {
+  content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(198,191,255,0.08), transparent);
+  animation: kwShimmer 1.4s infinite;
+}
+
+/* Reveal-on-scroll (gắn class kw-reveal; JS thêm .is-in) */
+.kw-reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s cubic-bezier(.2,.7,.2,1); }
+.kw-reveal.is-in { opacity: 1; transform: none; }
+
+/* Mobile bottom nav leaves room at the bottom */
+@media (max-width: 767px) { body { padding-bottom: 64px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .kw-rise, .kw-page, .kw-pop { animation: none !important; }
+  .kw-skel::after { animation: none; }
+  .kw-reveal { opacity: 1; transform: none; transition: none; }
+}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toggleHeart } from '@/lib/hearts';
+import { notifyProgress } from '@/lib/engagement';
 
 // Nút thả tim dùng chung cho video / student case study / discussion.
 // data: { count, hearted } — nạp sẵn từ fetchHeartMap của trang cha.
@@ -9,6 +10,7 @@ import { toggleHeart } from '@/lib/hearts';
 export default function HeartButton({ type, id, data, size = 'md', className = '' }) {
   const [state, setState] = useState(data || { count: 0, hearted: false });
   const [busy, setBusy] = useState(false);
+  const [pop, setPop] = useState(false);
 
   useEffect(() => {
     if (data) setState(data);
@@ -20,9 +22,10 @@ export default function HeartButton({ type, id, data, size = 'md', className = '
     if (busy) return;
     setBusy(true);
     // Optimistic update
+    if (!state.hearted) { setPop(true); setTimeout(() => setPop(false), 400); }
     setState((s) => ({ count: Math.max(0, s.count + (s.hearted ? -1 : 1)), hearted: !s.hearted }));
     const res = await toggleHeart(type, id);
-    if (res) setState(res);
+    if (res) { setState(res); notifyProgress(); }
     setBusy(false);
   };
 
@@ -45,7 +48,7 @@ export default function HeartButton({ type, id, data, size = 'md', className = '
       } ${className}`}
     >
       <span
-        className={`material-symbols-outlined ${s.icon} ${state.hearted ? 'heart-filled' : ''}`}
+        className={`material-symbols-outlined ${s.icon} ${state.hearted ? 'heart-filled' : ''} ${pop ? 'kw-pop' : ''}`}
         style={state.hearted ? { fontVariationSettings: "'FILL' 1" } : undefined}
       >
         favorite

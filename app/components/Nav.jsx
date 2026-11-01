@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthProvider';
+import useProgress from './useProgress';
 
 const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
 
@@ -34,6 +35,8 @@ export default function Nav() {
   const [csOpen, setCsOpen] = useState(false); // desktop Case Studies dropdown
   const [q, setQ] = useState('');
   const csRef = useRef(null);
+  const { progress, streak } = useProgress();
+  const openPalette = () => { setOpen(false); window.dispatchEvent(new CustomEvent('kw-open-palette')); };
 
   // Research Archive is members-only; admin pages are admin-only. (v21: Knowledge Hub is public.)
   const isAdmin = user?.email === ADMIN_EMAIL;
@@ -132,18 +135,26 @@ export default function Nav() {
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">
-          <form onSubmit={submitSearch} className="hidden lg:flex items-center gap-1.5 glass-card rounded-full px-2.5 py-1.5 focus-within:border-primary/50 transition-colors">
-            <span className="material-symbols-outlined text-on-surface-variant text-lg">search</span>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search…"
-              className="w-20 xl:w-28 bg-transparent outline-none text-sm text-on-surface placeholder:text-on-surface-variant/60"
-            />
-          </form>
-          <Link href="/search" className="lg:hidden material-symbols-outlined text-on-surface-variant hover:text-primary" aria-label="Search">
+          <button type="button" onClick={openPalette}
+            className="hidden lg:flex items-center gap-1.5 glass-card rounded-full pl-2.5 pr-2 py-1.5 hover:border-primary/50 transition-colors text-on-surface-variant"
+            aria-label="Search (Ctrl+K)">
+            <span className="material-symbols-outlined text-lg">search</span>
+            <span className="text-sm w-14 xl:w-20 text-left opacity-70">Search…</span>
+            <kbd className="text-[10px] border border-white/15 rounded px-1 py-0.5 opacity-70">Ctrl K</kbd>
+          </button>
+          <button type="button" onClick={openPalette} className="lg:hidden material-symbols-outlined text-on-surface-variant hover:text-primary" aria-label="Search">
             search
-          </Link>
+          </button>
+
+          {progress?.available && (
+            <Link href="/journey" title={`${streak.current}-day streak · My Journey`}
+              className={`hidden sm:inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-bold border transition-colors ${
+                streak.activeToday ? 'border-[#ff8a3d]/50 text-[#ffb27a] bg-[#ff8a3d]/10' : 'border-white/10 text-on-surface-variant hover:border-[#ff8a3d]/40'
+              }`}>
+              <span className="material-symbols-outlined text-lg" style={streak.activeToday ? { fontVariationSettings: "'FILL' 1" } : undefined}>local_fire_department</span>
+              <span className="tabular-nums">{streak.current}</span>
+            </Link>
+          )}
 
           {user ? (
             <>

@@ -8,6 +8,8 @@ import { trackContentView } from '@/lib/reviews';
 import { fetchHeartMap } from '@/lib/hearts';
 import { getCaseAccess } from '@/lib/access';
 import HeartButton from '../components/HeartButton';
+import ReactionBar from '../components/ReactionBar';
+import UpNext, { pickUpNext } from '../components/UpNext';
 import GuestLimitBanner from '../components/GuestLimitBanner';
 import { useAuth } from '../components/AuthProvider';
 
@@ -215,6 +217,7 @@ function ImagesPage() {
                 <button onClick={() => setActive(null)} className="material-symbols-outlined text-on-surface-variant hover:text-primary">close</button>
               </div>
             </div>
+            <ReactionBar contentId={active.id} className="mb-4" />
             {active.summary && <p className="text-sm text-on-surface-variant leading-relaxed mb-5">{active.summary}</p>}
             {activeImages.length > 0 ? (
               <div className="grid sm:grid-cols-2 gap-4">
@@ -228,6 +231,7 @@ function ImagesPage() {
             ) : (
               <p className="text-on-surface-variant text-sm">No images on this campaign yet.</p>
             )}
+            <UpNext items={pickUpNext(active, visibleItems || items)} onPick={openCase} title="Explore next" />
           </div>
         </div>
       )}
