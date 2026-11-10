@@ -95,7 +95,10 @@ body {
 .kw-nav:not(.is-home) { background: linear-gradient(to bottom, rgba(19,18,27,.92), rgba(19,18,27,.72)); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid rgba(255,255,255,.06); }
 .kw-nav.is-home { pointer-events: none; }
 .kw-nav.is-home > * { pointer-events: auto; }
-.kw-nav-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; max-width: 1760px; margin: 0 auto; }
+.kw-nav-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; max-width: 1760px; margin: 0 auto; position: relative; }
+/* v32: bản sao ẩn để đo nút; nút không vừa hàng -> gom vào "More" */
+.kw-nav-measure { position: absolute; left: 0; top: 0; gap: 6px; visibility: hidden; pointer-events: none; }
+@media (max-width: 1535px) { .kw-nav-links .kw-pill, .kw-nav-measure .kw-pill { padding: 0 10px; gap: 6px; } }
 @media (min-width: 768px) { .kw-nav { padding: 14px 16px 10px; } }
 
 .kw-pill {

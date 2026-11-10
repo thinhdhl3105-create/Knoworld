@@ -5,7 +5,7 @@
 // tìm kiếm, tài khoản, Upload. Màn hình < 1280px dùng nút ☰.
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthProvider';
 import useProgress from './useProgress';
 import { publicVisitorCount } from '@/lib/visitor';
@@ -85,6 +85,12 @@ export default function Nav() {
   const [q, setQ] = useState('');
   const [explorers, setExplorers] = useState(null);
   const barRef = useRef(null);
+  // v32: đo chỗ trống — nút nào không vừa hàng thì gom vào "More ▾" (không để bị đè).
+  const rowRef = useRef(null);
+  const brandRef = useRef(null);
+  const measureRef = useRef(null);
+  const rightRef = useRef(null);
+  const [shown, setShown] = useState(99);
   const { progress, streak } = useProgress();
   const isHome = pathname === '/';
   // v28: các trang con có đầu trang bầu trời -> menu trong suốt cho tới khi cuộn xuống.
@@ -114,6 +120,33 @@ export default function Nav() {
 
   useEffect(() => { setOpen(false); setOpenGroup(null); }, [pathname]);
 
+  const useIso = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+  useIso(() => {
+    const row = rowRef.current;
+    if (!row) return undefined;
+    const measure = () => {
+      const m = measureRef.current;
+      if (!m || window.innerWidth < 1280) { setShown(99); return; }
+      const ws = [...m.children].map((c) => c.offsetWidth);
+      const moreW = ws.pop();
+      const gap = 6;
+      const avail = row.clientWidth - (brandRef.current?.offsetWidth || 0) - (rightRef.current?.offsetWidth || 0) - 8 - gap - 8;
+      const total = ws.reduce((x, w) => x + w + gap, 0);
+      if (total <= avail) { setShown(99); return; }
+      let used = moreW;
+      let k = 0;
+      while (k < ws.length && used + ws[k] + gap <= avail) { used += ws[k] + gap; k += 1; }
+      setShown(k);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(row);
+    if (rightRef.current) ro.observe(rightRef.current);
+    window.addEventListener('resize', measure);
+    document.fonts?.ready?.then(measure).catch(() => {});
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
+  }, [user, isAdmin, explorers, progress?.available]);
+
   useEffect(() => {
     const onDoc = (e) => {
       if (barRef.current && !barRef.current.contains(e.target)) { setOpenGroup(null); setOpen(false); }
@@ -135,15 +168,25 @@ export default function Nav() {
 
   return (
     <nav ref={barRef} className={`kw-nav ${transparent ? 'is-home' : ''}`} aria-label="Main">
-      <div className="kw-nav-row">
+      <div ref={rowRef} className="kw-nav-row">
         {/* Left: brand + districts */}
         <div className="flex items-center gap-1.5 min-w-0">
-          <Link href="/" className="kw-pill kw-brand" aria-label="Knoworld City — home">
+          <Link ref={brandRef} href="/" className="kw-pill kw-brand" aria-label="Knoworld City — home">
             <span className="material-symbols-outlined text-[18px] text-primary">location_city</span>
             <span className="font-display text-[15px] font-semibold tracking-tight">Knoworld</span>
           </Link>
-          <div className="hidden xl:flex items-center gap-1.5">
-            {visibleLinks.map((l) => {
+          {/* Bản sao ẩn chỉ để đo độ rộng từng nút */}
+          <div ref={measureRef} className="kw-nav-measure hidden xl:flex" aria-hidden="true">
+            {visibleLinks.map((l) => (
+              <span key={l.href || l.group} className="kw-pill">
+                <Dot c={l.dot} />{l.label}{l.lock ? ' 🔒' : ''}
+                {l.children && <span className="material-symbols-outlined text-[16px] -mr-1">expand_more</span>}
+              </span>
+            ))}
+            <span className="kw-pill">More<span className="material-symbols-outlined text-[16px] -mr-1">expand_more</span></span>
+          </div>
+          <div className="kw-nav-links hidden xl:flex items-center gap-1.5">
+            {visibleLinks.slice(0, shown).map((l) => {
               if (l.children) {
                 const isOpen = openGroup === l.group;
                 const groupActive = l.children.some((c) => pathname === c.href);
@@ -173,11 +216,43 @@ export default function Nav() {
                 </Link>
               );
             })}
+            {shown < visibleLinks.length && (() => {
+              const rest = visibleLinks.slice(shown);
+              const isOpen = openGroup === 'more';
+              const restActive = rest.some((l) => (l.children ? l.children.some((c) => pathname === c.href) : pathname === l.href || pathname.startsWith(`${l.href}/`)));
+              return (
+                <div className="relative">
+                  <button type="button" onClick={() => toggle('more')} aria-expanded={isOpen}
+                    className={`kw-pill ${restActive ? 'is-on' : ''}`}>
+                    More
+                    <span className={`material-symbols-outlined text-[16px] -mr-1 transition-transform ${isOpen ? 'rotate-180' : ''}`}>expand_more</span>
+                  </button>
+                  {isOpen && (
+                    <div className="kw-menu right-0 w-60">
+                      {rest.map((l) => (l.children ? (
+                        <div key={l.group} className="mt-1">
+                          <div className="kw-menu-label"><Dot c={l.dot} />{l.label}{l.lock ? ' 🔒' : ''}</div>
+                          {l.children.map((c) => (
+                            <Link key={c.href} href={c.href} className={`kw-menu-item pl-6 ${pathname === c.href ? 'is-on' : ''}`}>
+                              <span className="material-symbols-outlined text-lg">{c.icon}</span>{c.label}
+                            </Link>
+                          ))}
+                        </div>
+                      ) : (
+                        <Link key={l.href} href={l.href} className={`kw-menu-item ${pathname === l.href ? 'is-on' : ''}`}>
+                          <Dot c={l.dot} />{l.label}
+                        </Link>
+                      )))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
         {/* Right: city stats board + search + account */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div ref={rightRef} className="flex items-center gap-1.5 shrink-0">
           <div className="hidden 2xl:block"><CityStats progress={progress} streak={streak} explorers={explorers} /></div>
           <div className="2xl:hidden"><CityStats progress={progress} streak={streak} explorers={explorers} compact /></div>
 
