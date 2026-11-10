@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 import { useAuth } from '../components/AuthProvider';
+import KnoworldCity from '../components/city/KnoworldCity';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -48,8 +49,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="pt-32 pb-24 max-w-md mx-auto px-5">
-      <div className="glass-card rounded-card p-8">
+    <div className="relative min-h-screen">
+      {/* v26: the city keeps living behind the form */}
+      <KnoworldCity mode="backdrop" className="!fixed inset-0" />
+      <div className="fixed inset-0 bg-background/35 pointer-events-none" />
+      <div className="relative z-10 pt-32 pb-24 max-w-md mx-auto px-5">
+      <div className="glass-card rounded-card p-8 bg-background/80 backdrop-blur-md">
         <div className="flex items-center gap-2 mb-6">
           <span className="material-symbols-outlined text-primary">blur_on</span>
           <span className="font-display text-xl font-semibold">Knoworld</span>
@@ -97,6 +102,7 @@ export default function LoginPage() {
             {mode === 'signin' ? 'Sign up' : 'Sign in'}
           </button>
         </p>
+      </div>
       </div>
     </div>
   );

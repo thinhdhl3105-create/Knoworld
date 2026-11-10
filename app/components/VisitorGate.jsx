@@ -193,7 +193,7 @@ export default function VisitorGate() {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/95 backdrop-blur-md overflow-y-auto">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/55 backdrop-blur-[3px] overflow-y-auto">
       <div className="nebula w-[420px] h-[420px] -top-20 -right-20 hidden md:block pointer-events-none" />
       <div className="relative w-full max-w-md glass-card rounded-card p-7 my-8">
         <div className="flex items-center gap-2 mb-5">

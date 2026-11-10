@@ -6,7 +6,7 @@ import { useAuth } from './components/AuthProvider';
 import { publicVisitorCount } from '@/lib/visitor';
 import { fetchConcepts, fetchContent } from '@/lib/content';
 import { conceptOfTheDay, fetchSiteStats } from '@/lib/engagement';
-import StarfieldHero from './components/StarfieldHero';
+import KnoworldCity from './components/city/KnoworldCity';
 import CountUp from './components/CountUp';
 import ActivityTicker from './components/ActivityTicker';
 import ConceptOfDay from './components/ConceptOfDay';
@@ -67,46 +67,40 @@ export default function Home() {
 
   return (
     <div className="pt-20">
-      {/* Hero — living universe */}
-      <section className="relative overflow-hidden min-h-[640px] md:min-h-[600px]">
-        <StarfieldHero concepts={concepts} />
-        <div className="nebula w-[520px] h-[520px] right-[8%] top-10 hidden md:block" />
-        <div className="relative z-10 max-w-container mx-auto px-5 md:px-16 pt-20 pb-28 pointer-events-none">
-          <div className="max-w-2xl pointer-events-auto">
-            <h1 className="h-xl kw-rise">
-              Explore knowledge
-              <br />
-              <span className="text-primary italic">like a universe.</span>
-            </h1>
-            <p className="mt-6 text-lg text-on-surface-variant max-w-md kw-rise [animation-delay:120ms]">
-              A celestial platform for scientific precision in knowledge discovery. Navigate through
-              vast constellations of data and expert insights.
-            </p>
-            <div className="mt-10 flex flex-wrap items-center gap-4 kw-rise [animation-delay:240ms]">
-              <Link
-                href={user ? '/research' : '/knowledge-hub'}
-                className="inline-flex items-center gap-2 bg-primary text-on-primary px-7 py-3 rounded-lg text-sm font-bold uppercase tracking-wide hover:scale-95 transition-transform"
-              >
-                Start Exploring
-                <span className="material-symbols-outlined text-base">arrow_forward</span>
-              </Link>
-              {concepts.length > 0 && (
-                <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-on-surface-variant">
-                  <span className="material-symbols-outlined text-base text-secondary">mouse</span>
-                  Hover the bright stars — each one is a concept
-                </span>
-              )}
-            </div>
-            <div className="mt-8 kw-rise [animation-delay:360ms]">
-              <ActivityTicker />
-            </div>
+      {/* Hero — Knoworld City (v26): every building is a section of the site */}
+      <section className="relative">
+        <KnoworldCity className="h-[calc(100svh-9rem)] md:h-[calc(100svh-5rem)] min-h-[480px] md:min-h-[560px] max-h-[920px]" />
+      </section>
+
+      <section className="max-w-container mx-auto px-5 md:px-16 pt-14 pb-16">
+        <div className="max-w-2xl">
+          <h1 className="h-xl kw-rise">
+            Explore knowledge
+            <br />
+            <span className="text-primary italic">like a living city.</span>
+          </h1>
+          <p className="mt-6 text-lg text-on-surface-variant max-w-md kw-rise [animation-delay:120ms]">
+            Every building is a part of Knoworld. Click one to walk in, switch the land and the weather,
+            or watch the city turn from day to night on Vietnam time.
+          </p>
+          <div className="mt-10 flex flex-wrap items-center gap-4 kw-rise [animation-delay:240ms]">
+            <Link
+              href={user ? '/research' : '/knowledge-hub'}
+              className="inline-flex items-center gap-2 bg-primary text-on-primary px-7 py-3 rounded-lg text-sm font-bold uppercase tracking-wide hover:scale-95 transition-transform"
+            >
+              Start Exploring
+              <span className="material-symbols-outlined text-base">arrow_forward</span>
+            </Link>
+          </div>
+          <div className="mt-8 kw-rise [animation-delay:360ms]">
+            <ActivityTicker />
           </div>
         </div>
       </section>
 
       {/* Live numbers */}
       {numbers.length > 0 && (
-        <section className="max-w-container mx-auto px-5 md:px-16 -mt-10 pb-24 relative z-10">
+        <section className="max-w-container mx-auto px-5 md:px-16 pb-24 relative z-10">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {numbers.map((n) => (
               <div key={n.label} className="glass-card rounded-card p-5">
