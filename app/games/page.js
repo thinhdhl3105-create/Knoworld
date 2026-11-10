@@ -4,6 +4,7 @@
 // Harbour Cup: đua thuyền theo thời gian, thứ tự về đích = thứ tự thuyết trình.
 // Lucky Cards (v34): mỗi nhóm lật 1 lá bài, sau lá bài là 5 thương hiệu (có logo), không nhóm nào trùng.
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import CityPage from '../components/city/CityPage';
 import { useAuth } from '../components/AuthProvider';
 import { mountCityGames } from '@/lib/cityGames';
@@ -54,6 +55,18 @@ export default function GamesPage() {
       subtitle="Two quick games for presentation day. Race the ferries to decide who presents first, then flip a lucky card: behind every number are 5 brands, never shared between groups."
     >
       <div className="kwgm" ref={ref} />
+
+      {/* v36: phà sang Temple Isle */}
+      <section className="kwgm" aria-label="Temple Isle">
+        <Link href="/temple" className="panel" style={{ display: 'flex', alignItems: 'center', gap: 14, textDecoration: 'none', borderColor: 'rgba(255,179,71,.45)' }}>
+          <svg width="44" height="44" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 14h24l-4-5H8z" fill="#c0563a"/><path d="M8 9h16l-3-4H11z" fill="#9a3322"/><rect x="7" y="14" width="18" height="10" fill="#e7b45a"/><rect x="14" y="17" width="4" height="7" fill="#5a2716"/><rect x="8" y="14" width="2" height="10" fill="#b3342a"/><rect x="22" y="14" width="2" height="10" fill="#b3342a"/><rect x="4" y="24" width="24" height="3" fill="#cfc4ae"/></svg>
+          <span style={{ flex: 1 }}>
+            <b style={{ display: 'block', color: '#ffd27a', fontSize: 16 }}>Ferry to Temple Isle ⛴</b>
+            <span style={{ fontSize: 13, color: '#c8c4d7' }}>Walk around Knoworld Temple: tap the wooden fish for merit, buy incense, draw a fortune stick or ask Thầy Phán.</span>
+          </span>
+          <span className="material-symbols-outlined" aria-hidden="true" style={{ color: '#ffd27a' }}>arrow_forward</span>
+        </Link>
+      </section>
 
       {(race || brands) && (
         <section className="kwgm" aria-labelledby="pubH">

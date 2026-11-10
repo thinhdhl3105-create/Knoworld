@@ -10,6 +10,7 @@ export function cityTemplate(hasAdmin) {
   ${hasAdmin ? '<button type="button" data-city="admin"><span class="dot" style="background:#7ee8ff"></span>Admin City 🔒</button>' : ''}
   <button type="button" data-city="profile"><span class="dot" style="background:#ff9bd2"></span>Profile City</button>
   <button type="button" data-city="games"><span class="dot" style="background:#5ee0a0"></span>Game Island</button>
+  <button type="button" data-city="temple"><span class="dot" style="background:#ffb347"></span>Temple Isle</button>
   ${hasAdmin ? '<button type="button" data-city="island"><span class="dot" style="background:#ffd27a"></span>Thinh\'s Island 🔒</button>' : ''}
   <button type="button" data-city="home">Overview</button>
 </div>
