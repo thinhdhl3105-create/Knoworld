@@ -13,7 +13,10 @@ import {
   recordVisit,
   flushSessionDuration,
   isBlocked,
+  getVisitor,
 } from '@/lib/visitor';
+import { getSavedAvatar, saveAvatar, randomAvatar, VIEW_BUST } from '@/lib/citizenAvatar';
+import { AvatarCreator, AvatarFigure, AvatarPrompt } from './CitizenAvatar';
 import { useAuth } from './AuthProvider';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 import './gate.css';
@@ -78,11 +81,16 @@ export default function VisitorGate() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [issuedRole, setIssuedRole] = useState('student');
+  // v33: nhân vật cư dân. needsAvatar = đã đăng ký từ trước nhưng chưa tạo nhân vật.
+  const [avatar, setAvatar] = useState(null);
+  const [needsAvatar, setNeedsAvatar] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     setRegistered(hasRegistered());
     setBlocked(isBlocked());
+    setAvatar(randomAvatar());
+    setNeedsAvatar(hasRegistered() && !getSavedAvatar());
   }, []);
 
   const skip = SKIP_PREFIXES.some((p) => pathname?.startsWith(p));
@@ -138,6 +146,11 @@ export default function VisitorGate() {
     );
   }
 
+  if (mounted && !skip && !loading && !user && registered && needsAvatar) {
+    const first = (getVisitor()?.full_name || '').trim().split(/\s+/).slice(-1)[0];
+    return <AvatarPrompt name={first} onDone={() => setNeedsAvatar(false)} />;
+  }
+
   if (!mounted || skip || loading || user || registered) return null;
 
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -172,6 +185,8 @@ export default function VisitorGate() {
     });
     setBusy(false);
     if (!res.ok) { setError(res.error || "Couldn't file your application. Please try again."); return; }
+    await saveAvatar(avatar);
+    setNeedsAvatar(false);
     setIssuedRole(step);
     setStep('issued');
   }
@@ -235,9 +250,10 @@ export default function VisitorGate() {
               <IdCard
                 permit={permit} number={number}
                 name={fullName} sid={step === 'student' ? studentId : null}
-                district={resolvedField} year={birthYear}
+                district={resolvedField} year={birthYear} avatar={avatar}
               />
               <p className="kwg-aside-note">Your citizen card fills in as you type. It is stamped once the registry approves your application.</p>
+              <AvatarCreator value={avatar} onChange={setAvatar} />
             </div>
             <form onSubmit={handleDetailsSubmit} className="kwg-form" noValidate>
               <Section n="01" title="Identity">
@@ -322,7 +338,7 @@ export default function VisitorGate() {
 
         {step === 'issued' && (
           <div className="kwg-issued">
-            <IdCard permit={permit} number={number} name={fullName} sid={issuedRole === 'student' ? studentId : null} district={resolvedField} year={birthYear} stamped />
+            <IdCard permit={permit} number={number} name={fullName} sid={issuedRole === 'student' ? studentId : null} district={resolvedField} year={birthYear} avatar={avatar} stamped />
             <h1 className="kwg-h1">Welcome, citizen!</h1>
             <p className="kwg-sub">
               Your {permit.title} <b>{number}</b> has been issued. Every building in the city is now open
@@ -349,7 +365,7 @@ function BackBar({ onBack, permit }) {
   );
 }
 
-function IdCard({ permit, number, name, sid, district, year, stamped = false }) {
+function IdCard({ permit, number, name, sid, district, year, avatar, stamped = false }) {
   return (
     <div className={`kwg-id ${stamped ? 'is-stamped' : ''}`} style={{ '--c': permit.color }}>
       <div className="kwg-id-top">
@@ -357,8 +373,8 @@ function IdCard({ permit, number, name, sid, district, year, stamped = false }) 
         <span>{permit.title}</span>
       </div>
       <div className="kwg-id-main">
-        <div className="kwg-id-photo" aria-hidden="true">
-          {name.trim() ? name.trim().split(/\s+/).slice(-1)[0].slice(0, 1).toUpperCase() : <span className="material-symbols-outlined">person</span>}
+        <div className={`kwg-id-photo ${avatar ? 'has-avatar' : ''}`} aria-hidden="true">
+          {avatar ? <AvatarFigure avatar={avatar} viewBox={VIEW_BUST} /> : name.trim() ? name.trim().split(/\s+/).slice(-1)[0].slice(0, 1).toUpperCase() : <span className="material-symbols-outlined">person</span>}
         </div>
         <dl className="kwg-id-fields">
           <div className="wide"><dt>Name</dt><dd>{name.trim() || '—'}</dd></div>

@@ -1,0 +1,47 @@
+/* v33 — Nhân vật cư dân (bộ tạo nhân vật dưới thẻ cư dân) */
+.kwa-figure { display: block; line-height: 0; }
+.kwa-figure svg { width: 100%; height: 100%; display: block; }
+
+.kwa { margin-top: 14px; border: 1px solid var(--g-line, rgba(255,255,255,.11)); border-radius: 14px; background: rgba(255,255,255,.03); overflow: hidden; }
+.kwa-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--g-line, rgba(255,255,255,.11)); }
+.kwa-head h3 { margin: 0; font: 600 15px/1.2 'Space Grotesk', Inter, sans-serif; }
+.kwa-head p { margin: 2px 0 0; font-size: 12px; color: var(--g-muted, #a6a0ba); }
+.kwa-btn { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; font: 600 12px/1 Inter, sans-serif !important; padding: 8px 10px; border-radius: 9px; background: rgba(255,255,255,.06); border: 1px solid var(--g-line, rgba(255,255,255,.11)); }
+.kwa-btn:hover { border-color: #c6bfff; }
+.kwa-btn .material-symbols-outlined { font-size: 16px; }
+
+.kwa-stage { display: grid; justify-items: center; padding: 6px 0 10px; background: radial-gradient(ellipse at 50% 88%, rgba(139,92,246,.24), transparent 62%); }
+.kwa-big { width: 150px; height: 196px; }
+.kwa-name { font: 600 12px/1 'Space Grotesk', sans-serif; color: #c6bfff; letter-spacing: .04em; }
+@media (prefers-reduced-motion: no-preference) { .kwa-big svg { animation: kwa-bob 3.2s ease-in-out infinite; } }
+@keyframes kwa-bob { 50% { transform: translateY(-4px); } }
+
+.kwa-rows { display: grid; gap: 13px; padding: 4px 14px 14px; }
+.kwa-label { display: block; margin-bottom: 7px; font: 600 10.5px/1 Inter, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--g-muted, #a6a0ba); }
+.kwa-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.kwa-chip { font: 500 12.5px/1 Inter, sans-serif !important; padding: 7px 11px; border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid var(--g-line, rgba(255,255,255,.11)); }
+.kwa-chip[aria-checked="true"] { background: rgba(198,191,255,.18); border-color: #c6bfff; color: #fff; }
+.kwa-swatches { display: flex; flex-wrap: wrap; gap: 7px; }
+.kwa-sw { width: 26px; height: 26px; border-radius: 50%; padding: 0; border: 2px solid transparent; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
+.kwa-sw[aria-checked="true"] { border-color: #fff; box-shadow: 0 0 0 2px #8b5cf6; }
+.kwa-hint { margin: 6px 0 0; font-size: 11.5px; color: var(--g-muted, #a6a0ba); }
+.kwa-tabs { display: inline-flex; gap: 3px; padding: 3px; border-radius: 9px; background: rgba(255,255,255,.05); margin-bottom: 9px; }
+.kwa-tab { font: 600 12px/1 Inter, sans-serif !important; padding: 7px 11px; border-radius: 7px; background: none; border: 0; color: var(--g-muted, #a6a0ba) !important; }
+.kwa-tab[aria-selected="true"] { background: rgba(198,191,255,.2); color: #fff !important; }
+.kwa-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); gap: 6px; }
+.kwa-tile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 2px 7px; border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid var(--g-line, rgba(255,255,255,.11)); }
+.kwa-tile .kwa-figure { width: 52px; height: 60px; }
+.kwa-tile span:last-child { font: 500 10.5px/1.2 Inter, sans-serif; text-align: center; }
+.kwa-tile[aria-pressed="true"] { border-color: #c6bfff; background: rgba(198,191,255,.14); }
+
+/* Ảnh trên thẻ cư dân */
+.kwg-id-photo.has-avatar { overflow: hidden; background: radial-gradient(circle at 50% 30%, rgba(120,100,200,.35), rgba(0,0,0,.3)); }
+.kwg-id-photo.has-avatar .kwa-figure { width: 100%; height: 100%; }
+
+/* Bảng nhắc người cũ */
+.kwa-prompt { max-width: 520px; }
+.kwa-prompt .kwg-kicker { display: block; margin-bottom: 8px; }
+.kwa-prompt .kwg-submit { margin-top: 14px; }
+
+/* Cột trái giờ cao hơn (có bộ tạo nhân vật) -> bỏ sticky để cuộn được hết. */
+@media (min-width: 900px) { .kwg-split-aside { position: static; } }
