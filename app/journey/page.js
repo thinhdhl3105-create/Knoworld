@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { earnedBadges, journeyStages } from '@/lib/engagement';
+import CityPage from '../components/city/CityPage';
 import useProgress from '../components/useProgress';
 
 // v24: "My Journey" — streak, lịch hoạt động 12 tuần, huy hiệu khám phá.
@@ -28,7 +29,7 @@ function Calendar({ days = [], today }) {
     <div className="overflow-x-auto">
       <div className="flex gap-1 w-max">
         <div className="flex flex-col gap-1 mr-1 text-[10px] text-on-surface-variant">
-          {['Mon', '', 'Wed', '', 'Fri', '', 'Sun'].map((l, i) => <span key={i} className="h-3.5 leading-[14px]">{l}</span>)}
+          {['Mon', '', 'Wed', '', 'Fri', '', 'Sun'].map((l, i) => <span key={i} className="h-[18px] leading-[18px]">{l}</span>)}
         </div>
         {cols.map((col, i) => (
           <div key={i} className="flex flex-col gap-1">
@@ -36,9 +37,9 @@ function Calendar({ days = [], today }) {
               <span
                 key={c.key}
                 title={c.future ? '' : `${c.key}${set.has(c.key) ? ' · active' : ''}`}
-                className={`w-3.5 h-3.5 rounded-[4px] ${
-                  c.future ? 'bg-transparent' : set.has(c.key) ? 'bg-secondary shadow-[0_0_8px_rgba(246,189,86,0.5)]' : 'bg-white/[0.06]'
-                } ${c.key === today ? 'ring-1 ring-primary' : ''}`}
+                className={`w-4 h-[18px] rounded-[2px] ${
+                  c.future ? 'bg-transparent' : set.has(c.key) ? 'kw-window-on' : 'kw-window-off'
+                } ${c.key === today ? 'ring-1 ring-[#ff9bd2]' : ''}`}
               />
             ))}
           </div>
@@ -71,21 +72,14 @@ export default function JourneyPage() {
   ];
 
   return (
-    <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16 kw-page">
-      <header className="mb-12">
-        <div className="flex items-center gap-3 mb-4">
-          <span className="h-px w-12 bg-primary" />
-          <span className="label-sm text-secondary tracking-widest">Your orbit</span>
-        </div>
-        <h1 className="h-xl mb-4">My Journey</h1>
-        <p className="text-lg text-on-surface-variant max-w-2xl leading-relaxed">
-          Everything here grows from your own curiosity — exploring concepts, opening cases and joining the conversation.
-          It lives in this browser, no sign-in needed.
-        </p>
-        {!progress.available && (
-          <p className="mt-4 text-sm text-secondary">Journey tracking is warming up — check back in a moment.</p>
-        )}
-      </header>
+    <CityPage
+      place="journey"
+      title="My Journey"
+      subtitle="This is your house in Profile City. Every day you explore, one more window lights up — no tests, just curiosity. It lives in this browser, no sign-in needed."
+    >
+      {!progress.available && (
+        <p className="mb-6 text-sm text-secondary">Journey tracking is warming up — check back in a moment.</p>
+      )}
 
       {/* Streak + calendar */}
       <section className="grid lg:grid-cols-3 gap-5 mb-10">
@@ -108,7 +102,7 @@ export default function JourneyPage() {
         </div>
         <div className="glass-card rounded-card p-6 lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
-            <span className="label-sm text-on-surface-variant">Last {WEEKS} weeks</span>
+            <span className="label-sm text-on-surface-variant">Your windows · last {WEEKS} weeks</span>
             <span className="text-xs text-on-surface-variant">{progress.days.length} active day{progress.days.length === 1 ? '' : 's'}</span>
           </div>
           <Calendar days={progress.days} today={progress.today} />
@@ -126,31 +120,39 @@ export default function JourneyPage() {
         ))}
       </section>
 
-      {/* Journey stages */}
+      {/* Journey stages — the floors of your house */}
       <section className="glass-card rounded-card p-6 md:p-8 mb-10">
-        <h2 className="h-md mb-6">Active Learning Flux</h2>
-        <div className="grid md:grid-cols-3 gap-5">
-          {stages.map((s, i) => (
-            <div key={s.key} className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <span className={`w-6 h-6 rounded-full grid place-items-center text-xs font-bold ${s.progress >= 1 ? 'bg-secondary text-on-secondary' : 'bg-white/10 text-on-surface-variant'}`}>
-                  {s.progress >= 1 ? '✓' : i + 1}
-                </span>
-                <span className="font-display font-medium">{s.name}</span>
+        <h2 className="h-md mb-2">Floors of your house</h2>
+        <p className="text-sm text-on-surface-variant mb-6">Each floor opens as your exploring grows.</p>
+        <div className="flex flex-col gap-3">
+          {[...stages].reverse().map((s, ri) => {
+            const floor = stages.length - ri;
+            const done = s.progress >= 1;
+            const current = !done && (floor === 1 || stages[floor - 2].progress >= 1);
+            return (
+              <div key={s.key}
+                className={`rounded-xl p-4 border flex flex-col gap-2 ${
+                  done ? 'border-[#5ee0a0]/40 bg-[#5ee0a0]/[0.07]' : current ? 'border-primary/40 bg-primary/[0.07]' : 'border-dashed border-white/15 opacity-70'
+                }`}>
+                <div className="flex items-center gap-3">
+                  <span className="font-display text-sm font-bold text-on-surface-variant w-8">{floor}F</span>
+                  <span className={`font-display font-medium ${done ? 'text-[#5ee0a0]' : current ? 'text-primary' : ''}`}>{s.name}</span>
+                  {done && <span className="ml-auto text-xs text-[#5ee0a0]">Unlocked</span>}
+                </div>
+                <div className="h-1.5 rounded-full bg-white/10 overflow-hidden ml-11">
+                  <div className="h-full bg-gradient-to-r from-primary to-secondary transition-[width] duration-700" style={{ width: `${s.progress * 100}%` }} />
+                </div>
+                <p className="text-xs text-on-surface-variant ml-11">{s.hint}</p>
               </div>
-              <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-primary to-secondary transition-[width] duration-700" style={{ width: `${s.progress * 100}%` }} />
-              </div>
-              <p className="text-xs text-on-surface-variant">{s.hint}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
       {/* Badges */}
       <section>
         <div className="flex items-end justify-between mb-6">
-          <h2 className="h-md">Discovery badges</h2>
+          <h2 className="h-md">Plaques on your door</h2>
           <span className="text-sm text-on-surface-variant"><b className="text-on-surface">{earned}</b> / {badges.length} collected</span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -158,7 +160,7 @@ export default function JourneyPage() {
             <div
               key={b.id}
               className={`rounded-card p-5 text-center flex flex-col items-center gap-2 border transition-all ${
-                b.earned ? 'glass-card border-secondary/40 shadow-[0_0_24px_rgba(246,189,86,0.12)]' : 'border-white/5 bg-white/[0.02] opacity-55'
+                b.earned ? 'kw-plaque-gold shadow-[0_0_24px_rgba(246,189,86,0.15)]' : 'border-dashed border-white/15 bg-white/[0.03] opacity-60'
               }`}
             >
               <span
@@ -181,6 +183,6 @@ export default function JourneyPage() {
           </Link>
         </div>
       </section>
-    </div>
+    </CityPage>
   );
 }

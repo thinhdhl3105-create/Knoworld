@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation';
 import { fetchContentById, fetchContent } from '@/lib/content';
 import { trackContentView } from '@/lib/reviews';
 import { fetchHeartMap } from '@/lib/hearts';
+import CityPage from '../../components/city/CityPage';
 import HeartButton from '../../components/HeartButton';
 import ReactionBar from '../../components/ReactionBar';
 import UpNext, { pickUpNext } from '../../components/UpNext';
@@ -96,9 +97,9 @@ export default function StudentCaseDetail() {
   ].filter(Boolean);
 
   return (
-    <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
-      <Link href="/students" className="inline-flex items-center gap-1 text-sm text-on-surface-variant hover:text-primary mb-8">
-        <span className="material-symbols-outlined text-base">arrow_back</span> Case Studies
+    <CityPage place="students" title={item.title} subtitle={item.summary}>
+      <Link href="/students" className="kw-chip mb-8">
+        <span className="material-symbols-outlined text-base">arrow_back</span> All exhibits
       </Link>
 
       <header className="mb-12">
@@ -106,8 +107,6 @@ export default function StudentCaseDetail() {
           <span className="label-sm text-secondary tracking-widest">{item.category || 'Student Case Study'}</span>
           <HeartButton type="content" id={item.id} data={heart} />
         </div>
-        <h1 className="h-xl mt-2 mb-4">{item.title}</h1>
-        {item.summary && <p className="text-lg text-on-surface-variant max-w-3xl leading-relaxed">{item.summary}</p>}
 
         {meta.length > 0 && (
           <div className="flex flex-wrap gap-x-6 gap-y-2 mt-6">
@@ -132,7 +131,7 @@ export default function StudentCaseDetail() {
 
       {item.cover_url && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={item.cover_url} alt={item.title} className="w-full rounded-card mb-14 max-h-[460px] object-cover border border-white/10" />
+        <div className="kw-frame mb-14"><img src={item.cover_url} alt={item.title} className="w-full rounded-[2px] max-h-[460px] object-cover" /></div>
       )}
 
       {activeSections.length > 1 && (
@@ -142,13 +141,35 @@ export default function StudentCaseDetail() {
             { id: 'think', icon: 'psychology', label: 'Think first, then reveal' },
             { id: 'all', icon: 'article', label: 'Show everything' },
           ].map((m) => (
-            <button key={m.id} type="button" onClick={() => switchMode(m.id)}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                mode === m.id ? 'bg-primary text-on-primary' : 'border border-white/10 text-on-surface-variant hover:border-primary/40'
-              }`}>
+            <button key={m.id} type="button" onClick={() => switchMode(m.id)} className={`kw-chip ${mode === m.id ? 'is-on' : ''}`}>
               <span className="material-symbols-outlined text-base">{m.icon}</span>{m.label}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* v28: các cánh cửa Insight → Creative → Execution */}
+      {mode === 'think' && activeSections.length > 1 && (
+        <div className="grid gap-3 mb-12" style={{ gridTemplateColumns: `repeat(${Math.min(activeSections.length, 4)}, minmax(0, 1fr))` }}>
+          {activeSections.map((s, i) => {
+            const open = i < revealed;
+            const next = i === revealed;
+            return (
+              <button
+                key={s.key}
+                type="button"
+                disabled={!open && !next}
+                onClick={() => (next
+                  ? setRevealed(i + 1)
+                  : document.getElementById(`sec-${s.key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))}
+                className={`kw-door ${open ? 'is-open' : ''} ${next ? 'is-next' : ''}`}
+              >
+                <span className="kw-label">Door {i + 1}</span>
+                <span className="font-display text-[15px] font-semibold text-[#ece9f5]">{s.label}</span>
+                <span className="text-[11.5px] text-on-surface-variant">{open ? 'Open' : next ? 'Think, then open' : 'Locked'}</span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -191,7 +212,7 @@ export default function StudentCaseDetail() {
           const img = images[i];
           const imageRight = i % 2 === 1;
           return (
-            <section key={s.key} className="grid md:grid-cols-2 gap-8 items-center">
+            <section key={s.key} id={`sec-${s.key}`} className="grid md:grid-cols-2 gap-8 items-center scroll-mt-28">
               <div className={imageRight ? 'md:order-1' : 'md:order-2'}>
                 <div className="flex items-center gap-3 mb-3">
                   <span className="material-symbols-outlined text-primary">{s.icon}</span>
@@ -257,6 +278,6 @@ export default function StudentCaseDetail() {
           <img src={lightbox} alt="visual" className="max-w-full max-h-[90vh] rounded-lg" />
         </div>
       )}
-    </div>
+    </CityPage>
   );
 }

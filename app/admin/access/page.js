@@ -18,6 +18,7 @@ import {
 } from '@/lib/access';
 import { downloadStudentTemplate, parseStudentFile } from '@/lib/studentSheet';
 import { fetchContent } from '@/lib/content';
+import CityPage from '../../components/city/CityPage';
 
 const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
 
@@ -160,16 +161,13 @@ function AccessInner() {
   }
 
   return (
-    <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
+<CityPage place="access" title="Access control" subtitle="Manage the approved student list (MSSV) and choose which case studies guests can preview.">
       <header className="mb-10">
         <div className="flex items-center gap-3 mb-4">
-          <span className="h-px w-12 bg-primary" />
-          <span className="label-sm text-secondary tracking-widest">Admin</span>
           <Link href="/admin/visitors" className="ml-auto text-sm text-on-surface-variant hover:text-primary">
             → Visitors
           </Link>
         </div>
-        <h1 className="h-xl mb-3">Access control</h1>
         <p className="text-on-surface-variant max-w-2xl">
           Manage the approved student list (MSSV) and choose which case studies guests can preview.
         </p>
@@ -340,7 +338,7 @@ function AccessInner() {
           </>
         )}
       </section>
-    </div>
+    </CityPage>
   );
 }
 

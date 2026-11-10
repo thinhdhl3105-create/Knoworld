@@ -5,6 +5,7 @@ import Link from 'next/link';
 import RequireAuth from '../../components/RequireAuth';
 import { useAuth } from '../../components/AuthProvider';
 import { fetchReviews, reviewStats } from '@/lib/reviews';
+import CityPage from '../../components/city/CityPage';
 
 const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
 
@@ -84,13 +85,8 @@ function ReviewsInner() {
   }
 
   return (
-    <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
+<CityPage place="reviews" title="User Reviews" subtitle="What explorers say about their visit to Knoworld.">
       <header className="mb-10">
-        <div className="flex items-center gap-3 mb-4">
-          <span className="h-px w-12 bg-primary" />
-          <span className="label-sm text-secondary tracking-widest">Admin</span>
-        </div>
-        <h1 className="h-xl mb-3">User Reviews</h1>
         <p className="text-on-surface-variant">
           {stats.count} reviews collected.
         </p>
@@ -162,7 +158,7 @@ function ReviewsInner() {
           ))}
         </div>
       )}
-    </div>
+    </CityPage>
   );
 }
 

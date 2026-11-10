@@ -4,6 +4,7 @@
 // Ai cũng xem được. Chỉ admin thấy form thêm tin và nút xoá.
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../components/AuthProvider';
+import CityPage from '../components/city/CityPage';
 import {
   fetchNews,
   addNews,
@@ -295,45 +296,43 @@ export default function NewsPage() {
   }, [items, filter]);
 
   return (
-    <div className="pt-32 pb-24 max-w-4xl mx-auto px-5 md:px-8">
-      <header className="mb-10">
-        <div className="flex items-center gap-3 mb-4">
-          <span className="h-px w-12 bg-primary" />
-          <span className="label-sm text-secondary tracking-widest">Market</span>
-        </div>
-        <h1 className="h-xl mb-4">News</h1>
-        <p className="text-lg text-on-surface-variant max-w-2xl leading-relaxed">
-          Curated market updates — crises, regulatory changes, and the latest moves shaping the
-          industry. Tap any headline to read the full article at the source.
-        </p>
-      </header>
+    <CityPage
+      place="news"
+      title="News Tower"
+      subtitle="Market updates, crises and regulation shaping the industry — on air around the clock. Tap a headline to read it at the source."
+      width="max-w-4xl"
+    >
+      {items.length > 0 && (
+        <section className="kw-led mb-6" aria-label="Latest headlines">
+          <span className="kw-led-tag">ON AIR</span>
+          <div className="kw-led-track">
+            <div className="kw-led-run">
+              {[0, 1].map((rep) => (
+                <span key={rep} className="inline-flex gap-12" aria-hidden={rep === 1 ? 'true' : undefined}>
+                  {items.slice(0, 8).map((n) => (
+                    <a key={`${rep}-${n.id}`} href={n.url} target="_blank" rel="noreferrer" tabIndex={rep === 1 ? -1 : undefined}>
+                      • {n.title}
+                    </a>
+                  ))}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {isAdmin && <AdminForm user={user} onAdded={load} />}
 
       {/* Bộ lọc theo nhãn */}
       {availableCats.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap mb-6">
-          <button
-            onClick={() => setFilter('all')}
-            className={
-              filter === 'all'
-                ? 'px-4 py-1.5 rounded-full text-sm bg-primary text-on-primary font-bold'
-                : 'px-4 py-1.5 rounded-full text-sm border border-white/10 text-on-surface-variant hover:border-primary/50 transition-colors'
-            }
-          >
+          <span className="kw-label mr-1">Channels</span>
+          <button onClick={() => setFilter('all')} className={`kw-chip ${filter === 'all' ? 'is-on' : ''}`}>
             All
           </button>
           {availableCats.map((c) => (
-            <button
-              key={c.key}
-              onClick={() => setFilter(c.key)}
-              className={
-                filter === c.key
-                  ? 'px-4 py-1.5 rounded-full text-sm bg-primary text-on-primary font-bold inline-flex items-center gap-1'
-                  : 'px-4 py-1.5 rounded-full text-sm border border-white/10 text-on-surface-variant hover:border-primary/50 transition-colors inline-flex items-center gap-1'
-              }
-            >
-              <span className="material-symbols-outlined text-base">{c.icon}</span>
+            <button key={c.key} onClick={() => setFilter(c.key)} className={`kw-chip ${filter === c.key ? 'is-on' : ''}`}>
+              <span className="kw-dot" style={{ background: c.color }} />
               {c.label}
             </button>
           ))}
@@ -358,6 +357,6 @@ export default function NewsPage() {
           ))}
         </div>
       )}
-    </div>
+    </CityPage>
   );
 }

@@ -11,6 +11,7 @@ import {
 import RequireAuth from '../components/RequireAuth';
 import { fetchViewStats } from '@/lib/views';
 import { fetchHeartMap } from '@/lib/hearts';
+import CityPage from '../components/city/CityPage';
 
 const RANGES = [
   { days: 7, label: '7 days' },
@@ -172,22 +173,16 @@ function DashboardInner() {
   ];
 
   return (
-    <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
-      <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-3 mb-4">
-            <span className="h-px w-12 bg-primary" />
-            <span className="label-sm text-secondary tracking-widest">Knowledge Analytics</span>
-          </div>
-          <h1 className="h-xl mb-4">Dashboard</h1>
-          <p className="text-lg text-on-surface-variant max-w-2xl leading-relaxed">
-            A live overview of your knowledge base — what you’ve built, how it connects, and where the gaps are.
-          </p>
-        </div>
-        <Link href="/upload" className="inline-flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-lg text-sm font-bold hover:scale-95 transition-transform whitespace-nowrap">
-          <span className="material-symbols-outlined text-base">add</span> Add entry
+<CityPage
+      place="dashboard"
+      title="Dashboard"
+      subtitle="City Hall's live overview of the knowledge base — what's been built, how it connects, and where the gaps are."
+      actions={(
+        <Link href="/upload" className="kw-pill is-accent">
+          <span className="material-symbols-outlined text-base">add</span>Add entry
         </Link>
-      </header>
+      )}
+    >
 
       {loading ? (
         <p className="text-on-surface-variant">Crunching the numbers…</p>
@@ -360,7 +355,7 @@ function DashboardInner() {
           </div>
         </>
       )}
-    </div>
+    </CityPage>
   );
 }
 

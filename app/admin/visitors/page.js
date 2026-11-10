@@ -6,6 +6,7 @@ import RequireAuth from '../../components/RequireAuth';
 import { useAuth } from '../../components/AuthProvider';
 import { fetchVisitors, setVisitorBlocked, setVisitorFullAccess, peakHour, avgDuration } from '@/lib/visitor';
 import { fetchReviews } from '@/lib/reviews';
+import CityPage from '../../components/city/CityPage';
 
 const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
 
@@ -157,11 +158,9 @@ function VisitorsInner() {
   }
 
   return (
-    <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
+<CityPage place="visitors" title="Visitors" subtitle="Everyone who has entered Knoworld through the city gate.">
       <header className="mb-8">
         <div className="flex items-center gap-3 mb-4">
-          <span className="h-px w-12 bg-primary" />
-          <span className="label-sm text-secondary tracking-widest">Admin</span>
           <Link href="/admin/access" className="ml-auto text-sm text-on-surface-variant hover:text-primary">
             → Student list & guest cases
           </Link>
@@ -169,7 +168,6 @@ function VisitorsInner() {
             → View reviews
           </Link>
         </div>
-        <h1 className="h-xl mb-3">Visitors</h1>
         <p className="text-on-surface-variant">
           {groups.length} people have registered
           {rows.length > groups.length ? ` (${rows.length} registrations, merged by email)` : ''}.
@@ -372,7 +370,7 @@ function VisitorsInner() {
           </div>
         </div>
       )}
-    </div>
+    </CityPage>
   );
 }
 

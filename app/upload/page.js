@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 import { useAuth } from '../components/AuthProvider';
+import CityPage from '../components/city/CityPage';
 
 const empty = {
   kind: 'research', title: '', summary: '', body: '', category: '', tags: '',
@@ -396,13 +397,12 @@ export default function UploadPage() {
   const isContent = tableOf(k) === 'content';
 
   return (
-    <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
+<CityPage
+      place="upload"
+      title={editing ? 'Edit entry' : 'Publish to Knoworld'}
+      subtitle="The post office: send a concept, case study, video or paper out to the whole city."
+    >
       <header className="mb-10">
-        <div className="flex items-center gap-3 mb-4">
-          <span className="h-px w-12 bg-primary" />
-          <span className="label-sm text-secondary tracking-widest">Contributor Dashboard</span>
-        </div>
-        <h1 className="h-lg">{editing ? 'Edit entry' : 'Publish to Knoworld'}</h1>
         {user && <p className="text-sm text-on-surface-variant mt-2">Signed in as {user.email}</p>}
         {!configured && (
           <div className="mt-4 glass-card rounded-card p-4 text-sm text-secondary">
@@ -718,7 +718,7 @@ export default function UploadPage() {
           />
         </div>
       </div>
-    </div>
+    </CityPage>
   );
 }
 

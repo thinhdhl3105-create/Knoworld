@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../components/AuthProvider';
 import HeartButton from '../components/HeartButton';
 import { fetchHeartMap } from '@/lib/hearts';
+import CityPage from '../components/city/CityPage';
 import ConceptText from '../components/ConceptText';
 import { recordActivity, toast } from '@/lib/engagement';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
@@ -133,30 +134,18 @@ export default function DiscussionPage() {
   };
 
   return (
-    <div className="pt-32 pb-24 max-w-4xl mx-auto px-5 md:px-8">
-      <header className="mb-10">
-        <div className="flex items-center gap-3 mb-4">
-          <span className="h-px w-12 bg-primary" />
-          <span className="label-sm text-secondary tracking-widest">Community</span>
-        </div>
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div>
-            <h1 className="h-xl mb-4">Discussion</h1>
-            <p className="text-lg text-on-surface-variant max-w-2xl leading-relaxed">
-              Ask anything about IMC, branding, strategy or the case studies — and help others by
-              answering. Post with your name or stay anonymous.
-            </p>
-          </div>
-          <button
-            onClick={() => setShowForm((v) => !v)}
-            className="inline-flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-lg text-sm font-bold hover:scale-95 transition-transform whitespace-nowrap"
-          >
-            <span className="material-symbols-outlined text-base">{showForm ? 'close' : 'help'}</span>
-            {showForm ? 'Cancel' : 'Ask a Question'}
-          </button>
-        </div>
-      </header>
-
+    <CityPage
+      place="discussion"
+      title="Discussion"
+      subtitle="Pin a question on the town square's board — about IMC, branding, strategy or a case study. Anyone can answer; post with your name or stay anonymous."
+      width="max-w-4xl"
+      actions={(
+        <button type="button" onClick={() => setShowForm((v) => !v)} className="kw-pill is-accent">
+          <span className="material-symbols-outlined text-base">{showForm ? 'close' : 'push_pin'}</span>
+          {showForm ? 'Cancel' : 'Pin a question'}
+        </button>
+      )}
+    >
       {/* Form đặt câu hỏi */}
       {showForm && (
         <form onSubmit={submit} className="glass-card rounded-card p-6 mb-10 flex flex-col gap-4">
@@ -195,15 +184,7 @@ export default function DiscussionPage() {
           { k: 'new', label: 'Newest' },
           { k: 'top', label: 'Most hearted' },
         ].map((s) => (
-          <button
-            key={s.k}
-            onClick={() => setSort(s.k)}
-            className={
-              sort === s.k
-                ? 'px-4 py-1.5 rounded-full text-sm bg-primary text-on-primary font-bold'
-                : 'px-4 py-1.5 rounded-full text-sm border border-white/10 text-on-surface-variant hover:border-primary/50 transition-colors'
-            }
-          >
+          <button key={s.k} onClick={() => setSort(s.k)} className={`kw-chip ${sort === s.k ? 'is-on' : ''}`}>
             {s.label}
           </button>
         ))}
@@ -219,9 +200,11 @@ export default function DiscussionPage() {
           No questions yet — be the first to ask!
         </p>
       ) : (
-        <div className="flex flex-col gap-4">
-          {sorted.map((q) => (
+        <section className="kw-board" aria-label="Town square notice board">
+        <div className="flex flex-col gap-6">
+          {sorted.map((q, i) => (
             <QuestionCard
+              pin={PINS[i % PINS.length]}
               key={q.id}
               q={q}
               heart={qHearts[q.id]}
@@ -232,12 +215,15 @@ export default function DiscussionPage() {
             />
           ))}
         </div>
+        </section>
       )}
-    </div>
+    </CityPage>
   );
 }
 
-function QuestionCard({ q, heart, user, isAdmin, displayName, onDeleted }) {
+const PINS = ['#ff8a8a', '#5ee0a0', '#c6bfff', '#ffd27a', '#7ec8ff'];
+
+function QuestionCard({ q, heart, user, isAdmin, displayName, onDeleted, pin }) {
   const [open, setOpen] = useState(false);
   const [answers, setAnswers] = useState(null); // null = chưa tải
   const [aHearts, setAHearts] = useState({});
@@ -305,7 +291,7 @@ function QuestionCard({ q, heart, user, isAdmin, displayName, onDeleted }) {
   };
 
   return (
-    <article className="glass-card rounded-card p-6">
+    <article className="kw-note glass-card rounded-card p-6" style={{ '--pin': pin }}>
       <div className="flex items-start gap-4">
         <Avatar row={q} />
         <div className="flex-1 min-w-0">

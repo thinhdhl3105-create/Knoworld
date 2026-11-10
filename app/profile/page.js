@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../components/AuthProvider';
 import { loadSiteContent, saveSiteContent } from '@/lib/siteContent';
+import CityPage from '../components/city/CityPage';
 
 const CV_URL = 'https://lamthinh.vercel.app/cv.html';
 const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
@@ -206,7 +207,7 @@ export default function ProfilePage() {
   const c = content;
 
   return (
-    <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
+<CityPage place="profile" title="Profile" subtitle="The person behind Knoworld — research, teaching and work.">
       {/* Admin edit bar */}
       {isAdmin && (
         <div className="fixed right-5 bottom-5 z-50 flex items-center gap-2">
@@ -380,6 +381,6 @@ export default function ProfilePage() {
           </label>
         )}
       </Section>
-    </div>
+    </CityPage>
   );
 }

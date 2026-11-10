@@ -5,8 +5,15 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { fetchContent } from '@/lib/content';
 import { fetchHeartMap } from '@/lib/hearts';
-import ContentCard from '../components/ContentCard';
 import HeartButton from '../components/HeartButton';
+import CityPage from '../components/city/CityPage';
+
+const FRAME_GRADS = [
+  'from-[#2f6b6a] to-[#12302f]',
+  'from-[#8a3e5a] to-[#2b1424]',
+  'from-[#8a6a2a] to-[#2b200f]',
+  'from-[#3e4a8a] to-[#141a35]',
+];
 
 export default function StudentsPage() {
   const [items, setItems] = useState([]);
@@ -37,18 +44,11 @@ export default function StudentsPage() {
   });
 
   return (
-    <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
-      <header className="mb-12">
-        <div className="flex items-center gap-3 mb-4">
-          <span className="h-px w-12 bg-primary" />
-          <span className="label-sm text-secondary tracking-widest">Academic Excellence</span>
-        </div>
-        <h1 className="h-xl mb-6">Student Case Studies</h1>
-        <p className="text-lg text-on-surface-variant max-w-2xl leading-relaxed">
-          A curated showcase of validated projects from our leading student community.
-        </p>
-      </header>
-
+    <CityPage
+      place="students"
+      title="Student Case Studies"
+      subtitle="An exhibition of student work. Stand in front of a piece, think about it first, then step inside to see the insight, the idea and the execution."
+    >
       {loading ? (
         <p className="text-on-surface-variant">Loading…</p>
       ) : (
@@ -64,10 +64,10 @@ export default function StudentsPage() {
                 )}
               </div>
               <div className="p-8 md:p-10 flex flex-col justify-center gap-4">
-                <span className="label-sm text-secondary">Spotlight · {featured.category}</span>
+                <span className="label-sm text-secondary">Exhibit of the week{featured.category ? ` · ${featured.category}` : ''}</span>
                 <h2 className="h-lg">{featured.title}</h2>
                 <p className="text-on-surface-variant leading-relaxed">{featured.summary}</p>
-                <span className="text-sm text-primary font-bold flex items-center gap-1">View case study <span className="material-symbols-outlined text-base">arrow_forward</span></span>
+                <span className="text-sm text-primary font-bold flex items-center gap-1">Step inside <span className="material-symbols-outlined text-base">arrow_forward</span></span>
               </div>
             </Link>
           )}
@@ -75,17 +75,10 @@ export default function StudentsPage() {
           {/* Filters */}
           <div className="flex flex-col md:flex-row md:items-center gap-4 mb-8">
             <div className="flex flex-wrap gap-2">
+              <span className="kw-label self-center mr-1">Rooms</span>
               {categories.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setFilter(c)}
-                  className={
-                    filter === c
-                      ? 'px-4 py-1.5 rounded-full text-sm bg-primary text-on-primary font-bold'
-                      : 'px-4 py-1.5 rounded-full text-sm border border-white/10 text-on-surface-variant hover:border-primary/50 transition-colors'
-                  }
-                >
-                  {c}
+                <button key={c} onClick={() => setFilter(c)} className={`kw-chip ${filter === c ? 'is-on' : ''}`}>
+                  {c === 'All' ? 'All rooms' : c}
                 </button>
               ))}
             </div>
@@ -100,21 +93,39 @@ export default function StudentsPage() {
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filtered.map((item, i) => (
-              <div key={item.id} className="relative">
-                <Link href={`/students/${item.id}`}>
-                  <ContentCard item={item} index={i} />
-                </Link>
-                <HeartButton
-                  type="content"
-                  id={item.id}
-                  data={hearts[item.id]}
-                  size="sm"
-                  className="absolute top-3 right-3 z-10 bg-background/70 backdrop-blur-sm"
-                />
-              </div>
-            ))}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10 pt-4">
+            {filtered.map((item, i) => {
+              const authors = Array.isArray(item.authors) ? item.authors.filter((a) => a && a.name).map((a) => a.name) : [];
+              return (
+                <div key={item.id} className="kw-exhibit">
+                  <Link href={`/students/${item.id}`} className="group block">
+                    <div className="kw-frame transition-transform group-hover:-translate-y-0.5">
+                      <div className={`relative aspect-[4/3] overflow-hidden rounded-[2px] bg-gradient-to-br ${FRAME_GRADS[i % FRAME_GRADS.length]}`}>
+                        {item.cover_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.cover_url} alt={item.title} className="absolute inset-0 w-full h-full object-cover" />
+                        ) : (
+                          <span className="absolute inset-0 grid place-items-center material-symbols-outlined text-5xl text-white/40">auto_awesome</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="kw-plaque">
+                      <span className="font-display text-[14px] font-semibold leading-snug line-clamp-2">{item.title}</span>
+                      <span className="text-[11.5px] text-[#4b445c] line-clamp-1">
+                        {[item.category, authors.join(', ')].filter(Boolean).join(' · ') || 'Student work'}
+                      </span>
+                    </div>
+                  </Link>
+                  <HeartButton
+                    type="content"
+                    id={item.id}
+                    data={hearts[item.id]}
+                    size="sm"
+                    className="absolute top-[42px] right-4 z-10 bg-background/70 backdrop-blur-sm"
+                  />
+                </div>
+              );
+            })}
           </div>
           {items.length === 0 ? (
             <p className="text-on-surface-variant glass-card rounded-card p-8 text-center">
@@ -135,6 +146,6 @@ export default function StudentsPage() {
           </section>
         </>
       )}
-    </div>
+    </CityPage>
   );
 }

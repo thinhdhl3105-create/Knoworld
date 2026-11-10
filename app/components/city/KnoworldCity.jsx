@@ -41,6 +41,7 @@ export default function KnoworldCity({ mode = 'hero', className = '', underNav =
         mode,
         isAdmin,
         news: news.current,
+        focus: mode === 'hero' ? new URLSearchParams(window.location.search).get('b') : null,
         onNavigate: mode === 'hero' ? (route) => router.push(route) : null,
       });
     });

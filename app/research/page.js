@@ -5,6 +5,7 @@ import { fetchContent, fetchFoundationLinks } from '@/lib/content';
 import ContentCard from '../components/ContentCard';
 import ConceptGraph from '../components/ConceptGraph';
 import RequireAuth from '../components/RequireAuth';
+import CityPage from '../components/city/CityPage';
 
 function ResearchPageInner() {
   const [items, setItems] = useState([]);
@@ -55,23 +56,16 @@ function ResearchPageInner() {
   const unlinkedPapers = papers.filter((p) => !linkedPaperIds.has(p.id));
 
   return (
-    <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
-      <header className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-3 mb-4">
-            <span className="h-px w-12 bg-primary" />
-            <span className="label-sm text-secondary tracking-widest">Scientific Archives</span>
-          </div>
-          <h1 className="h-xl mb-6">Research Archive</h1>
-          <p className="text-lg text-on-surface-variant max-w-2xl leading-relaxed">
-            Ongoing research updates, downloadable papers, and the editable theoretical
-            foundations that underpin every framework and case study.
-          </p>
-        </div>
-        <a href="/upload" className="inline-flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-lg text-sm font-bold hover:scale-95 transition-transform whitespace-nowrap">
-          <span className="material-symbols-outlined text-base">upload</span> Upload Research
+<CityPage
+      place="research"
+      title="Research Archive"
+      subtitle="Ongoing research updates, downloadable papers and the editable theoretical foundations behind every framework and case study."
+      actions={(
+        <a href="/upload" className="kw-pill is-accent">
+          <span className="material-symbols-outlined text-base">upload</span>Upload research
         </a>
-      </header>
+      )}
+    >
 
       {/* Tabs */}
       <div className="flex items-center gap-2 mb-10 border-b border-white/10">
@@ -321,7 +315,7 @@ function ResearchPageInner() {
           </div>
         </div>
       )}
-    </div>
+    </CityPage>
   );
 }
 

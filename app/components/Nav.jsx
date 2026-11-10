@@ -36,6 +36,11 @@ const links = [
   { group: 'admin', label: 'Admin', admin: true, dot: '#7ee8ff', lock: true, children: ADMIN_LINKS },
 ];
 
+const CITY_ROUTES = [
+  '/news', '/knowledge-hub', '/videos', '/students', '/images', '/discussion', '/research', '/search',
+  '/journey', '/profile', '/upload', '/dashboard', '/admin',
+];
+
 function Dot({ c }) {
   return <span className="kw-dot" style={{ background: c }} aria-hidden="true" />;
 }
@@ -80,6 +85,16 @@ export default function Nav() {
   const barRef = useRef(null);
   const { progress, streak } = useProgress();
   const isHome = pathname === '/';
+  // v28: các trang con có đầu trang bầu trời -> menu trong suốt cho tới khi cuộn xuống.
+  const overCity = isHome || CITY_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const on = () => setScrolled(window.scrollY > 220);
+    on();
+    window.addEventListener('scroll', on, { passive: true });
+    return () => window.removeEventListener('scroll', on);
+  }, [pathname]);
+  const transparent = isHome || (overCity && !scrolled);
   const openPalette = () => { setOpen(false); window.dispatchEvent(new CustomEvent('kw-open-palette')); };
 
   const isAdmin = user?.email === ADMIN_EMAIL;
@@ -117,7 +132,7 @@ export default function Nav() {
   const toggle = (g) => setOpenGroup((x) => (x === g ? null : g));
 
   return (
-    <nav ref={barRef} className={`kw-nav ${isHome ? 'is-home' : ''}`} aria-label="Main">
+    <nav ref={barRef} className={`kw-nav ${transparent ? 'is-home' : ''}`} aria-label="Main">
       <div className="kw-nav-row">
         {/* Left: brand + districts */}
         <div className="flex items-center gap-1.5 min-w-0">

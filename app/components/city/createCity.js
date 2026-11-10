@@ -1147,17 +1147,17 @@ export function createCity(root, opts = {}) {
     $('cNote').textContent = o.note || ''; $('cNote').hidden = !o.note;
     card.hidden = false;
   }
-  function select(key) {
+  function select(key, nav = true) {
     const b = byKey[key]; selected = key; selectedCity = null; hovered = null; refreshMarks(); closeMenus();
     flyTo(new THREE.Vector3(b.cx, Math.min(b.top * 0.4, 7), b.cz), zoomFor(b.top > 12 ? 28 : 21));
     const I = cityOf(b.city);
     showCard({
       eyebrow: `<span class="dot" style="background:${I.color}"></span>${I.name}`,
       name: b.name, desc: b.desc, route: b.route,
-      note: opts.onNavigate ? 'Opening the page…' : '',
+      note: opts.onNavigate && nav ? 'Opening the page…' : '',
     });
     clearTimeout(navT);
-    if (opts.onNavigate) navT = setTimeout(() => opts.onNavigate(b.route), reduce ? 300 : 1150);
+    if (opts.onNavigate && nav) navT = setTimeout(() => opts.onNavigate(b.route), reduce ? 300 : 1150);
   }
   function selectCity(id) {
     clearTimeout(navT);
@@ -1285,6 +1285,8 @@ export function createCity(root, opts = {}) {
   controls.update();
   envE = applyEnv(hours, 0); updateClock(); drawSky(envE, hours, 0, 0); placeCityLabels();
   const go = () => { if (!alive) return; if (billboard) drawBillboard(0); raf = requestAnimationFrame(tick); };
+  // v28: quay lại từ trang con (/?b=news) -> bay tới đúng tòa nhà đó, không tự mở trang.
+  if (!backdrop && opts.focus && byKey[opts.focus]) setTimeout(() => { if (alive) select(opts.focus, false); }, 500);
   (document.fonts && document.fonts.ready ? Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1200))]) : Promise.resolve()).then(go);
 
   return {

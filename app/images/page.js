@@ -12,6 +12,7 @@ import ReactionBar from '../components/ReactionBar';
 import UpNext, { pickUpNext } from '../components/UpNext';
 import GuestLimitBanner from '../components/GuestLimitBanner';
 import { useAuth } from '../components/AuthProvider';
+import CityPage from '../components/city/CityPage';
 
 const GRADS = ['from-[#1b2a4a]', 'from-[#3a2a4a]', 'from-[#2a3a3a]', 'from-[#3a2a2a]'];
 
@@ -85,23 +86,16 @@ function ImagesPage() {
   const activeImages = active ? (active.images && active.images.length ? active.images : [coverOf(active)].filter(Boolean)) : [];
 
   return (
-    <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
-      <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-3 mb-4">
-            <span className="h-px w-12 bg-primary" />
-            <span className="label-sm text-secondary tracking-widest">Visual Campaigns</span>
-          </div>
-          <h1 className="h-xl mb-6">Image Case Studies</h1>
-          <p className="text-lg text-on-surface-variant max-w-2xl leading-relaxed">
-            Campaigns told through visuals — the campaign name, the brand behind it, and the
-            key images that brought it to life.
-          </p>
-        </div>
-        <a href="/upload" className="inline-flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-lg text-sm font-bold hover:scale-95 transition-transform whitespace-nowrap">
-          <span className="material-symbols-outlined text-base">upload</span> Upload Campaign
+<CityPage
+      place="images"
+      title="Image Case Studies"
+      subtitle="A photo gallery of campaigns — the campaign name, the brand behind it and the key visuals that brought it to life."
+      actions={(
+        <a href="/upload" className="kw-pill is-accent">
+          <span className="material-symbols-outlined text-base">upload</span>Upload campaign
         </a>
-      </header>
+      )}
+    >
 
       {access.limited && <GuestLimitBanner count={access.allowedIds?.size ?? 5} />}
 
@@ -243,7 +237,7 @@ function ImagesPage() {
           <img src={lightbox} alt="visual" className="max-w-full max-h-[92vh] rounded-lg" />
         </div>
       )}
-    </div>
+    </CityPage>
   );
 }
 

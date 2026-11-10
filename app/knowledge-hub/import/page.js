@@ -15,6 +15,7 @@ import {
 } from '@/lib/conceptImport';
 import RequireAuth from '../../components/RequireAuth';
 import { useAuth } from '../../components/AuthProvider';
+import CityPage from '../../components/city/CityPage';
 
 const inputCls =
   'w-full bg-surface-container-lowest border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40';
@@ -240,16 +241,11 @@ function ImportInner() {
   );
 
   return (
-    <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
+<CityPage place="import" title="Nhập concept từ file" subtitle="Tải lên slide (.pptx), Word (.docx) hoặc Excel theo mẫu — web đọc ra danh sách concept để bạn xem, sửa rồi lưu cả loạt vào bản đồ.">
       <header className="mb-10">
         <Link href="/knowledge-hub" className="text-sm text-on-surface-variant hover:text-primary inline-flex items-center gap-1 mb-6">
           <span className="material-symbols-outlined text-base">arrow_back</span> Knowledge Hub
         </Link>
-        <div className="flex items-center gap-3 mb-4">
-          <span className="h-px w-12 bg-primary" />
-          <span className="label-sm text-secondary tracking-widest">Bulk import</span>
-        </div>
-        <h1 className="h-xl mb-4">Nhập concept từ file</h1>
         <p className="text-lg text-on-surface-variant max-w-3xl leading-relaxed">
           Tải lên slide PowerPoint (.pptx), tài liệu Word (.docx) hoặc file Excel theo mẫu. Web đọc ra danh sách
           concept để bạn xem, sửa, rồi lưu cả loạt vào bản đồ kiến thức.
@@ -469,7 +465,7 @@ function ImportInner() {
           )}
         </section>
       )}
-    </div>
+    </CityPage>
   );
 }
 

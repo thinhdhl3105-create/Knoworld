@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { lineColor, lineOf, metroPath } from '@/lib/metroLines';
 
 // Lightweight dependency-free force-directed graph rendered as SVG.
 // nodes: [{id, title, category}]  links: [{source_id, target_id, label}]
@@ -40,6 +41,15 @@ export default function ConceptGraph({ nodes, links, selectedId, onSelect, visit
     });
     return m;
   }, [edges]);
+
+  // v28: metro — ga đổi tuyến = nối với concept thuộc nhóm khác, hoặc có từ 3 liên kết.
+  const catOf = useMemo(() => Object.fromEntries(nodes.map((n) => [n.id, lineOf(n.category)])), [nodes]);
+  const interchange = useMemo(() => {
+    const set = new Set();
+    edges.forEach((e) => { if (catOf[e.s] !== catOf[e.t]) { set.add(e.s); set.add(e.t); } });
+    Object.entries(degree).forEach(([id, d]) => { if (d >= 3) set.add(id); });
+    return set;
+  }, [edges, catOf, degree]);
 
   // Run a short force simulation when graph changes.
   useEffect(() => {
@@ -213,22 +223,28 @@ export default function ConceptGraph({ nodes, links, selectedId, onSelect, visit
       onTouchMove={onMove}
       onTouchEnd={onUp}
     >
+      <defs><pattern id="kwmetro" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="rgba(255,255,255,0.07)" /></pattern></defs>
+      <rect width={W} height={H} fill="url(#kwmetro)" />
       <g transform={`translate(${view.x},${view.y}) scale(${view.k})`}>
       {edges.map((e, i) => {
         const a = pos[e.s]; const b = pos[e.t];
         if (!a || !b) return null;
         const active = focusId && (e.s === focusId || e.t === focusId);
         const dim = lit && !active;
+        const same = catOf[e.s] === catOf[e.t];
+        const color = same ? lineColor(catOf[e.s]) : 'rgba(220,215,240,0.45)';
+        const d = metroPath(a, b);
         const mx = (a.x + b.x) / 2; const my = (a.y + b.y) / 2;
         return (
-          <g key={i}>
-            <line x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-              stroke={active ? 'var(--color-primary, #c6bfff)' : dim ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.16)'}
-              strokeWidth={(active ? 2 : 1.2) / Math.sqrt(view.k)}
-              style={{ transition: 'stroke .25s' }} />
-            {e.label && (!lit || active) && (
-              <text x={mx} y={my - 4} textAnchor="middle" fontSize="9"
-                fill="rgba(255,255,255,0.45)">{e.label}</text>
+          <g key={i} style={{ opacity: dim ? 0.14 : 1, transition: 'opacity .25s' }}>
+            {active && <path d={d} fill="none" stroke={color} strokeOpacity="0.35" strokeWidth={14 / Math.sqrt(view.k)} strokeLinecap="round" strokeLinejoin="round" />}
+            <path d={d} fill="none" stroke={color}
+              strokeWidth={(same ? 6 : 3.5) / Math.sqrt(view.k)}
+              strokeDasharray={same ? undefined : `${6 / Math.sqrt(view.k)} ${5 / Math.sqrt(view.k)}`}
+              strokeLinecap="round" strokeLinejoin="round" />
+            {e.label && active && (
+              <text x={mx} y={my - 8} textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.75)"
+                style={{ paintOrder: 'stroke', stroke: 'rgba(12,11,24,0.9)', strokeWidth: 3 }}>{e.label}</text>
             )}
           </g>
         );
@@ -239,41 +255,36 @@ export default function ConceptGraph({ nodes, links, selectedId, onSelect, visit
         const sel = n.id === selectedId;
         const isFoundation = n.type === 'foundation';
         const isResearch = n.type === 'research';
-        // Fixed-size circles — the label now sits *below* the node, so the
-        // circle no longer needs to stretch to fit the text.
-        const base = isFoundation ? 22 : isResearch ? 14 : 15;
-        const r = base + Math.min(9, (degree[n.id] || 0) * 1.6);
+        const xchg = interchange.has(n.id);
+        const r = xchg ? 9 : 7;
         const dim = lit && !lit.has(n.id);
         const seen = visited && visited.has(n.id);
-        // Foundations = primary (violet); research = secondary (teal); default = violet.
-        const accent = isResearch ? 'var(--color-secondary, #7fd4c4)' : 'var(--color-primary, #c6bfff)';
-        const fillIdle = isResearch ? 'rgba(127,212,196,0.12)' : 'rgba(198,191,255,0.14)';
-        const strokeIdle = isResearch ? 'rgba(127,212,196,0.5)' : 'rgba(198,191,255,0.5)';
+        const color = lineColor(n.category);
         const title = n.title || '';
         const label = title.length > 26 ? title.slice(0, 25) + '…' : title;
         return (
           <g key={n.id} transform={`translate(${p.x},${p.y})`}
-            style={{ cursor: 'pointer', opacity: dim ? 0.22 : 1, transition: 'opacity .25s' }}
+            style={{ cursor: 'pointer', opacity: dim ? 0.25 : 1, transition: 'opacity .25s' }}
             onMouseDown={(e) => onDown(n.id, e)}
             onTouchStart={(e) => onDown(n.id, e)}
             onMouseEnter={() => setHoverId(n.id)}
             onMouseLeave={() => setHoverId(null)}
             onClick={(e) => { e.stopPropagation(); if (!movedRef.current) onSelect?.(n.id); }}>
+            <circle r={18} fill="transparent" />
             {sel && (
-              <circle r={r + 8} fill="none" stroke={accent} strokeOpacity="0.45" strokeWidth="1.5">
-                <animate attributeName="r" values={`${r + 4};${r + 12};${r + 4}`} dur="2.4s" repeatCount="indefinite" />
-                <animate attributeName="stroke-opacity" values="0.5;0;0.5" dur="2.4s" repeatCount="indefinite" />
+              <circle r={r + 9} fill="none" stroke="#ffd27a" strokeWidth="2" strokeDasharray="4 4">
+                <animate attributeName="r" values={`${r + 6};${r + 12};${r + 6}`} dur="2.4s" repeatCount="indefinite" />
               </circle>
             )}
             <circle r={r}
-              fill={sel ? accent : fillIdle}
-              stroke={sel ? accent : strokeIdle}
-              strokeWidth={sel ? 2.5 : isFoundation ? 1.8 : 1.5} />
-            {seen && !sel && <circle r={3} cx={r * 0.7} cy={-r * 0.7} fill="#f6bd56" />}
+              fill={sel ? color : '#13121b'}
+              stroke={xchg ? '#ece9f5' : color}
+              strokeWidth={xchg ? 4 : 3.5} />
+            {seen && !sel && <circle r={3} cx={r + 2} cy={-r - 2} fill="#f6bd56" />}
             {/* Label under the node. A dark stroke behind the glyphs keeps it
                 readable over edges and other nodes. */}
-            <text textAnchor="middle" y={r + 13} fontSize={isResearch ? 9.5 : 10.5}
-              fill={sel ? '#ffffff' : '#dcd9f0'}
+            <text textAnchor="middle" y={r + 15} fontSize={isResearch ? 9.5 : 10.5}
+              fill={sel ? '#ffd27a' : '#e5e0ed'}
               style={{
                 pointerEvents: 'none',
                 fontWeight: isFoundation ? 700 : 600,

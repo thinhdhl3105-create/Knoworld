@@ -7,6 +7,7 @@ import { fetchContent, fetchConcepts } from '@/lib/content';
 import { trackContentView } from '@/lib/reviews';
 import { fetchHeartMap } from '@/lib/hearts';
 import { getCaseAccess } from '@/lib/access';
+import CityPage from '../components/city/CityPage';
 import HeartButton from '../components/HeartButton';
 import ReactionBar from '../components/ReactionBar';
 import UpNext, { pickUpNext } from '../components/UpNext';
@@ -91,23 +92,28 @@ function VideosPage() {
   };
 
   return (
-    <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
-      <header className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-3 mb-4">
-            <span className="h-px w-12 bg-primary" />
-            <span className="label-sm text-secondary tracking-widest">Visual Learning</span>
-          </div>
-          <h1 className="h-xl mb-6">Video Case Studies</h1>
-          <p className="text-lg text-on-surface-variant max-w-2xl leading-relaxed">
-            Video breakdowns — uploaded or linked from YouTube — grouped by category and tied to
-            the Knowledge Hub concepts they bring to life.
-          </p>
-        </div>
-        <a href="/upload" className="inline-flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-lg text-sm font-bold hover:scale-95 transition-transform whitespace-nowrap">
-          <span className="material-symbols-outlined text-base">upload</span> Upload Video
+    <CityPage
+      place="videos"
+      title="Video Case Studies"
+      subtitle="Pick a hall, grab a ticket and watch how real campaigns were built — each film tied to the concepts it brings to life."
+      actions={(
+        <a href="/upload" className="kw-pill is-accent">
+          <span className="material-symbols-outlined text-base">upload</span>Upload video
         </a>
-      </header>
+      )}
+    >
+      {!loading && visibleItems[0] && (
+        <section className="kw-marquee mb-10">
+          <div className="flex flex-col gap-1.5 min-w-0">
+            <span className="text-[11px] font-bold tracking-[0.2em] text-[#ffd27a]">NOW SHOWING</span>
+            <span className="font-display text-xl font-semibold text-[#ece9f5] truncate">{visibleItems[0].title}</span>
+            {visibleItems[0].category && <span className="text-xs text-on-surface-variant">{visibleItems[0].category}</span>}
+          </div>
+          <button type="button" onClick={() => openVideo(visibleItems[0])} className="kw-pill is-accent">
+            <span className="material-symbols-outlined text-base">play_arrow</span>Watch now
+          </button>
+        </section>
+      )}
 
       {access.limited && <GuestLimitBanner count={access.allowedIds?.size ?? 5} />}
 
@@ -122,8 +128,8 @@ function VideosPage() {
             : 'No videos yet. Upload a file or paste a YouTube link from the dashboard to get started.'}
         </p>
       ) : (
-        Object.entries(groups).map(([cat, vids]) => (
-          <CategoryRow key={cat} cat={cat} vids={vids} conceptById={conceptById} onPick={openVideo} hearts={hearts} />
+        Object.entries(groups).map(([cat, vids], hall) => (
+          <CategoryRow key={cat} hall={hall + 1} cat={cat} vids={vids} conceptById={conceptById} onPick={openVideo} hearts={hearts} />
         ))
       )}
 
@@ -163,7 +169,7 @@ function VideosPage() {
           </div>
         </div>
       )}
-    </div>
+    </CityPage>
   );
 }
 
@@ -182,7 +188,7 @@ const GRADS = ['from-[#1b2a4a]', 'from-[#3a2a4a]', 'from-[#2a3a3a]'];
 
 // A horizontal, drag-to-scroll slider of video cards for one category.
 // Capped at ROW_LIMIT; expandable into a full grid via the title / "View all".
-function CategoryRow({ cat, vids, conceptById, onPick, hearts = {} }) {
+function CategoryRow({ hall, cat, vids, conceptById, onPick, hearts = {} }) {
   const scroller = useRef(null);
   const drag = useRef({ active: false, startX: 0, startScroll: 0, moved: false });
   const [expanded, setExpanded] = useState(false);
@@ -222,6 +228,7 @@ function CategoryRow({ cat, vids, conceptById, onPick, hearts = {} }) {
             className={`group text-left ${hasMore ? 'cursor-pointer' : 'cursor-default'}`}
             title={hasMore ? (expanded ? 'Collapse' : 'Show all videos') : undefined}
           >
+            <span className="kw-label block mb-1.5">Hall {hall}</span>
             <h2 className="h-md inline-flex items-center gap-1 group-hover:text-primary transition-colors">
               {cat}
               {hasMore && (
@@ -324,6 +331,7 @@ function VideoCard({ item, grad, concept, onPick, heart, grid = false }) {
           <span className="material-symbols-outlined text-5xl text-white/90 group-hover:scale-110 transition-transform">play_circle</span>
         </div>
       </div>
+      <div className="kw-ticket" aria-hidden="true" />
       <div className="p-5 flex flex-col gap-2.5 flex-1">
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-display text-base font-medium leading-snug group-hover:text-primary transition-colors line-clamp-1">{item.title}</h3>
@@ -335,11 +343,14 @@ function VideoCard({ item, grad, concept, onPick, heart, grid = false }) {
           </span>
         )}
         {item.summary && <p className="text-sm text-on-surface-variant leading-relaxed line-clamp-2">{item.summary}</p>}
-        {concept && (
-          <span className="mt-auto inline-flex items-center gap-1 text-xs text-secondary">
-            <span className="material-symbols-outlined text-sm">hub</span> {concept.title}
-          </span>
-        )}
+        <div className="mt-auto flex items-center justify-between gap-2">
+          {concept ? (
+            <span className="inline-flex items-center gap-1 text-xs text-secondary min-w-0 truncate">
+              <span className="material-symbols-outlined text-sm">hub</span> {concept.title}
+            </span>
+          ) : <span />}
+          <span className="text-[10.5px] font-bold tracking-[0.14em] text-[#ffd27a] shrink-0">TICKET</span>
+        </div>
       </div>
     </div>
   );

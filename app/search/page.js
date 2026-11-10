@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { searchAll } from '@/lib/content';
+import CityPage from '../components/city/CityPage';
 
 const FILTERS = [
   { key: 'all', label: 'All' },
@@ -65,18 +66,11 @@ function SearchInner() {
   const shown = filter === 'all' ? results : results.filter((r) => r._kind === filter);
 
   return (
-    <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
-      <header className="mb-10">
-        <div className="flex items-center gap-3 mb-4">
-          <span className="h-px w-12 bg-primary" />
-          <span className="label-sm text-secondary tracking-widest">Search the universe</span>
-        </div>
-        <h1 className="h-xl mb-6">Find anything</h1>
-        <p className="text-lg text-on-surface-variant max-w-2xl leading-relaxed">
-          Search across video case studies, student case studies, research papers and
-          Knowledge Hub concepts — all in one place.
-        </p>
-      </header>
+<CityPage
+      place="search"
+      title="Find anything"
+      subtitle="The information desk: search across video and student case studies, research papers and Knowledge Hub concepts — all in one place."
+    >
 
       <form onSubmit={onSubmit} className="mb-8">
         <div className="glass-card rounded-full flex items-center gap-3 px-5 py-3 focus-within:border-primary/50 transition-colors">
@@ -168,7 +162,7 @@ function SearchInner() {
           ))}
         </div>
       )}
-    </div>
+    </CityPage>
   );
 }
 

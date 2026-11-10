@@ -9,6 +9,8 @@ import {
   fetchConceptLinkedContent,
 } from '@/lib/content';
 import ConceptGraph from '../components/ConceptGraph';
+import CityPage from '../components/city/CityPage';
+import { lineColor } from '@/lib/metroLines';
 import { recordActivity } from '@/lib/engagement';
 
 // v24: concept đã mở trên trình duyệt này (chấm vàng trên bản đồ).
@@ -135,41 +137,28 @@ function KnowledgeHubInner() {
   }, [concepts, mapCat]);
 
   return (
-    <div className="pt-32 pb-24 max-w-container mx-auto px-5 md:px-16">
-      <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-3 mb-4">
-            <span className="h-px w-12 bg-primary" />
-            <span className="label-sm text-secondary tracking-widest">Connected Knowledge</span>
-          </div>
-          <h1 className="h-xl mb-6">Knowledge Hub</h1>
-          <p className="text-lg text-on-surface-variant max-w-2xl leading-relaxed">
-            A living map of key concepts and the bridges between them — plus step-by-step
-            frameworks like IMC planning and branding strategy.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <Link href="/knowledge-hub/import" className="inline-flex items-center gap-2 border border-primary/50 text-primary px-6 py-3 rounded-lg text-sm font-bold hover:scale-95 transition-transform whitespace-nowrap">
-            <span className="material-symbols-outlined text-base">upload_file</span> Import from slides / Excel
+    <CityPage
+      place="hub"
+      title="Knowledge Hub"
+      subtitle="Every concept is a station and every category a metro line. Hop on, follow the connections, and download frameworks like IMC planning and branding strategy."
+      actions={(
+        <>
+          <Link href="/knowledge-hub/import" className="kw-pill">
+            <span className="material-symbols-outlined text-base">upload_file</span>Import
           </Link>
-          <a href="/upload" className="inline-flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-lg text-sm font-bold hover:scale-95 transition-transform whitespace-nowrap">
-            <span className="material-symbols-outlined text-base">add</span> Add Concept / Framework
+          <a href="/upload" className="kw-pill is-accent">
+            <span className="material-symbols-outlined text-base">add</span>Add concept
           </a>
-        </div>
-      </header>
-
+        </>
+      )}
+    >
       {/* Tabs */}
       <div className="flex gap-2 mb-8">
         {[
           { id: 'map', label: 'Concept Map', icon: 'hub' },
           { id: 'frameworks', label: 'Frameworks', icon: 'folder_open' },
         ].map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={
-              tab === t.id
-                ? 'flex items-center gap-2 px-5 py-2 rounded-full text-sm bg-primary text-on-primary font-bold'
-                : 'flex items-center gap-2 px-5 py-2 rounded-full text-sm border border-white/10 text-on-surface-variant hover:border-primary/50 transition-colors'
-            }>
+          <button key={t.id} onClick={() => setTab(t.id)} className={`kw-chip ${tab === t.id ? 'is-on' : ''}`}>
             <span className="material-symbols-outlined text-base">{t.icon}</span>{t.label}
           </button>
         ))}
@@ -226,18 +215,13 @@ function KnowledgeHubInner() {
           {/* Category filter — each category is its own focused map */}
           {mapCategories.length > 1 && (
             <div className="lg:col-span-3 flex flex-wrap items-center gap-2 -mt-2">
-              <span className="material-symbols-outlined text-base text-on-surface-variant">filter_alt</span>
-              <button onClick={() => setMapCat('all')}
-                className={mapCat === 'all'
-                  ? 'px-3.5 py-1.5 rounded-full text-xs bg-primary text-on-primary font-bold'
-                  : 'px-3.5 py-1.5 rounded-full text-xs border border-white/10 text-on-surface-variant hover:border-primary/50 transition-colors'}>
-                All <span className="opacity-70">{concepts.length}</span>
+              <span className="kw-label mr-1">Lines</span>
+              <button onClick={() => setMapCat('all')} className={`kw-chip ${mapCat === 'all' ? 'is-on' : ''}`}>
+                All lines <span className="opacity-70">{concepts.length}</span>
               </button>
               {mapCategories.map(({ cat, count }) => (
-                <button key={cat} onClick={() => setMapCat(cat)}
-                  className={mapCat === cat
-                    ? 'px-3.5 py-1.5 rounded-full text-xs bg-primary text-on-primary font-bold'
-                    : 'px-3.5 py-1.5 rounded-full text-xs border border-white/10 text-on-surface-variant hover:border-primary/50 transition-colors'}>
+                <button key={cat} onClick={() => setMapCat(cat)} className={`kw-chip ${mapCat === cat ? 'is-on' : ''}`}>
+                  <span className="w-[18px] h-[4px] rounded-sm" style={{ background: lineColor(cat) }} />
                   {cat} <span className="opacity-70">{count}</span>
                 </button>
               ))}
@@ -249,8 +233,8 @@ function KnowledgeHubInner() {
             {concepts.length > 0 && (
               <p className="text-xs text-on-surface-variant mt-3">
                 {mapCat === 'all'
-                  ? 'Tip: hover a node to light up its connections · scroll to zoom · drag the background to pan.'
-                  : `Showing the “${mapCat}” map — ${mapNodes.length} concept${mapNodes.length === 1 ? '' : 's'}. Click a node to read it.`}
+                  ? 'Each colour is a line, white rings are interchange stations. Hover a station to light up its connections · scroll to zoom · drag to pan.'
+                  : `Riding the “${mapCat}” line — ${mapNodes.length} station${mapNodes.length === 1 ? "" : "s"}. Click a station to read it.`}
               </p>
             )}
           </div>
@@ -451,7 +435,7 @@ function KnowledgeHubInner() {
           </div>
         </div>
       )}
-    </div>
+    </CityPage>
   );
 }
 
