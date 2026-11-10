@@ -235,10 +235,12 @@ body {
 .kwt-drive-l, .kwt-walk-l { animation-name: kwt-l; }
 @keyframes kwt-r { from { transform: translateX(-110px); } to { transform: translateX(1390px); } }
 @keyframes kwt-l { from { transform: translateX(1390px); } to { transform: translateX(-110px); } }
+.kwt-wheel { animation: kwt-spin 24s linear infinite; }
+@keyframes kwt-spin { to { transform: rotate(360deg); } }
 .kwt-bob { animation: kwt-bob .5s ease-in-out infinite alternate; }
 @keyframes kwt-bob { from { transform: translateY(0); } to { transform: translateY(-.7px); } }
 .kwt-legs { transform-box: fill-box; transform-origin: 50% 0; animation: kwt-step .5s ease-in-out infinite alternate; }
 @keyframes kwt-step { from { transform: skewX(14deg); } to { transform: skewX(-14deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .kwt-drive-r, .kwt-drive-l, .kwt-walk-r, .kwt-walk-l, .kwt-bob, .kwt-legs { animation-play-state: paused; }
+  .kwt-drive-r, .kwt-drive-l, .kwt-walk-r, .kwt-walk-l, .kwt-bob, .kwt-legs, .kwt-wheel { animation-play-state: paused; }
 }

@@ -14,6 +14,7 @@ const DISTRICT = {
   profile: { name: 'Profile City', dot: '#ff9bd2' },
   admin: { name: 'Admin City', dot: '#7ee8ff' },
   island: { name: "Thinh's Island", dot: '#ffd27a' },
+  games: { name: 'Game Island', dot: '#5ee0a0' },
 };
 
 // key = khoá tòa nhà trên thành phố trang chủ (dùng cho /?b=key)
@@ -34,6 +35,7 @@ export const PLACES = {
   reviews: { district: 'admin', place: 'Feedback Office', hero: 'sign', label: 'Reviews', accent: '#ffd24d' },
   access: { district: 'admin', place: 'Key Office', hero: 'sign', label: 'Access', accent: '#7ee8ff', back: null },
   island: { district: 'island', place: 'Harbour Office', hero: 'island' },
+  games: { district: 'games', place: 'Harbour Arcade', hero: 'arcade' },
   import: { district: 'admin', place: 'Library Annex', hero: 'sign', label: 'Import', accent: '#b7f07e' },
 };
 

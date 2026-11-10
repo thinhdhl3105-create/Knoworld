@@ -34,12 +34,13 @@ const links = [
   { group: 'case-studies', label: 'Case Studies', dot: '#5ee0a0', children: CASE_STUDIES },
   { href: '/news', label: 'News', dot: '#ff8a8a' },
   { href: '/discussion', label: 'Discussion', dot: '#ff9bd2' },
+  { href: '/games', label: 'Game Island', dot: '#5ee0a0' },
   { group: 'admin', label: 'Admin', admin: true, dot: '#7ee8ff', lock: true, children: ADMIN_LINKS },
 ];
 
 const CITY_ROUTES = [
   '/news', '/knowledge-hub', '/videos', '/students', '/images', '/discussion', '/research', '/search',
-  '/journey', '/profile', '/upload', '/dashboard', '/admin', '/island',
+  '/journey', '/profile', '/upload', '/dashboard', '/admin', '/island', '/games',
 ];
 
 function Dot({ c }) {

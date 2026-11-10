@@ -171,6 +171,9 @@ export function createCity(root, opts = {}) {
       desc: 'The admin district, linked to Main City by the cable-stayed bridge. Only visible to the admin account.' },
     { id: 'profile', name: 'Profile City', cx: 57, cz: 0, n: 2, walk: '#625a5c', color: '#ff9bd2', size: 40,
       desc: 'Your own district: the Profile house, the Upload studio and the My Journey tower, linked to Main City by the arch bridge.' },
+    // v31: Game Island — đảo trò chơi công khai (đua thuyền, bốc thương hiệu). Nối Profile City bằng phà.
+    { id: 'games', name: 'Game Island', cx: 57, cz: 57, n: 1, walk: '#4f4a6a', color: '#5ee0a0', size: 24,
+      desc: 'The island of class games: the Harbour Cup boat race and the Billboard Draw. Reached by ferry from Profile City.' },
     // v30: đảo riêng của admin — lịch dạy, lịch họp, ngày quan trọng. Nối Profile City bằng phà.
     { id: 'island', name: "Thinh's Island", cx: 40, cz: 40, n: 1, walk: '#4f6a52', color: '#ffd27a', size: 24, lock: true,
       desc: 'Your private island, reached by ferry from Profile City: the Lecture Hall, the Lighthouse and your home. Only visible to the admin account.' },
@@ -272,7 +275,8 @@ export function createCity(root, opts = {}) {
   for (const k in BIOMES) { bio[k] = { g: new THREE.Group(), walkers: [], flocks: [], fish: [], h: () => 0 }; scene.add(bio[k].g); }
   scene.remove(water); bio.sea.g.add(water);
   const G0 = -1.4, HALF = SEA / 2 - 2.5;
-  const LOOPS = [{ cx: 56, cz: 56, rx: 12, rz: 10 }, { cx: 28, cz: 58, rx: 8, rz: 8 }, { cx: 58, cz: 28, rx: 9, rz: 7 }];
+  const LOOPS = [{ cx: 57, cz: 57, rx: 14, rz: 12 }, // v31: vòng quanh Game Island
+   { cx: 28, cz: 58, rx: 8, rz: 8 }, { cx: 58, cz: 28, rx: 9, rz: 7 }];
   function blocked(x, z, pad) {
     if (Math.abs(x - SEA_C) > HALF || Math.abs(z - SEA_C) > HALF) return true;
     for (const I of ISL) if (Math.abs(x - I.cx) < I.half + pad && Math.abs(z - I.cz) < I.half + pad) return true;
@@ -367,6 +371,7 @@ export function createCity(root, opts = {}) {
   // ---- Biển: sóng, thuyền buồm, hải âu, cá nhảy, hải đăng ----
   LOOPS.forEach((L, i) => { addWalker('sea', boat(['#ffffff', '#ffd27a', '#c6bfff'][i]), L, i * 2, i % 2 ? -2.2 : 2.4, true); });
   addWalker('sea', boat('#ff9bd2'), LOOPS[0], 3.4, 2.4, true);
+  addWalker('sea', boat('#5ee0a0'), { cx: 62, cz: 32, rx: 2, rz: 17.5 }, 1.2, 1.5, true); // v31: phà ra Game Island
   if (HAS_ADMIN) addWalker('sea', boat('#ffd27a'), { cx: 39.5, cz: 22, rx: 2.4, rz: 10.5 }, 0, 1.4, true); // phà ra đảo riêng
   addFlock('sea', '#f4f4f2', 5, 30, 30, 26, 16, 0.25, 1.2); addFlock('sea', '#f4f4f2', 3, 56, 52, 12, 11, -0.35, 1.2); addFlock('sea', '#e8e8e4', 4, -10, 40, 14, 14, 0.3, 1.1);
   scatter(8, 3, 1.5, (x, z) => { const f = new THREE.Mesh(boxG, mat(rand() < 0.5 ? '#ff9a3d' : '#ffd24d')); f.scale.set(0.55, 0.2, 0.16); f.visible = false; bio.sea.g.add(f); bio.sea.fish.push({ f, x, z, t: -rand() * 4, a: rand() * 6.28 }); });
@@ -525,6 +530,8 @@ export function createCity(root, opts = {}) {
       desc: 'The studio with the glowing arrow: publish new content.' },
     { key: 'journey', city: 'profile', name: 'My Journey', route: '/journey', dot: '#ff8a3d', cx: 64.5, cz: -7.5,
       desc: 'The tower with the streak flame: your journey, 12-week calendar and badges.' },
+    { key: 'games', city: 'games', name: 'Game Island', route: '/games', dot: '#5ee0a0', cx: 57, cz: 57,
+      desc: 'Harbour Cup boat race for the presenting order, and the Billboard Draw for brands. Tap to play.' },
     { key: 'island', city: 'island', name: "Thinh's Island", route: '/island', dot: '#ffd27a', cx: 40, cz: 40,
       desc: 'The Lecture Hall keeps your teaching timetable, City Hall your meetings, the Lighthouse the dates you must not miss.' },
   ];
@@ -621,6 +628,36 @@ export function createCity(root, opts = {}) {
         bl.position.set(cx - 3.6 + 7.2 * t, Y0 + 2.5 - Math.sin(t * Math.PI) * 0.5, cz + 1.4 + 0.2 * t); g.add(bl); fairy.push(bl);
       }
       b.top = Y0 + 3.6;
+    },
+    games(b, g, cx, cz) {
+      // Vòng đu quay
+      const wx = cx - 2.2, wz = cz - 1.8, wy = Y0 + 5.2, R = 3.6;
+      for (const s of [-1, 1]) {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 6, 6), mat('#e9e4f5'));
+        leg.position.set(wx + s * 1.3, Y0 + 2.6, wz); leg.rotation.z = s * 0.24; g.add(leg);
+      }
+      const wheel = new THREE.Group(); wheel.position.set(wx, wy, wz); g.add(wheel);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(R, 0.12, 6, 40), neonMat('#ff9bd2', '#c96fa3')); wheel.add(rim);
+      const cols = ['#c6bfff', '#ffd27a', '#5ee0a0', '#7ef0ff', '#ff8a6a', '#ff9bd2', '#ffb347', '#a8d8ff'];
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const sp = new THREE.Mesh(new THREE.BoxGeometry(0.08, R * 2, 0.08), mat('#e9e4f5')); sp.rotation.z = a; wheel.add(sp);
+        const cab = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.6, 0.6), mat(cols[i])); cab.position.set(Math.cos(a) * R, Math.sin(a) * R, 0); wheel.add(cab);
+      }
+      spinners.push({ o: wheel, ax: 'z', v: 0.35 });
+      // Bể đua thuyền
+      box(cx + 2.2, Y0, cz + 1.5, 4.8, 0.25, 6.6, '#2a5f7a', g);
+      for (let i = 0; i < 3; i++) {
+        box(cx + 0.9 + i * 1.3, Y0 + 0.25, cz + 1.2 - i * 0.9, 0.45, 0.3, 1.1, cols[i * 2], g);
+        box(cx + 0.9 + i * 1.3, Y0 + 0.55, cz + 1.3 - i * 0.9, 0.3, 0.25, 0.5, '#ece9f5', g);
+      }
+      for (let k = 0; k < 6; k++) box(cx + 2.2 + (k % 2 ? 0.25 : -0.25) * 0 - 2.2 + k * 0.8, Y0 + 0.26, cz + 4.6, 0.4, 0.04, 0.4, k % 2 ? '#ece9f5' : '#1a1720', g);
+      // Biển quảng cáo
+      cyl(cx + 3.6, Y0, cz - 3.8, 0.12, 3.2, '#4a4458', g, 6);
+      cyl(cx + 1.0, Y0, cz - 3.8, 0.12, 3.2, '#4a4458', g, 6);
+      box(cx + 2.3, Y0 + 3.1, cz - 3.8, 3.6, 1.8, 0.2, '#15121c', g);
+      neonBox(cx + 2.3, Y0 + 3.3, cz - 3.68, 3.2, 1.4, 0.04, '#7ef0ff', g, '#4a7f8a');
+      b.top = Y0 + 9.2;
     },
     island(b, g, cx, cz) {
       // Lecture Hall (mái dốc, cột)
@@ -819,7 +856,7 @@ export function createCity(root, opts = {}) {
     b.group = g; byKey[b.key] = b; used.add(b.cx + ',' + b.cz);
     g.traverse((o) => { if (o.isMesh) { o.userData.key = b.key; pickables.push(o); } });
     const helper = new THREE.BoxHelper(g, '#c6bfff'); helper.visible = false; scene.add(helper); b.helper = helper;
-    if (b.key === 'island') continue; // đảo riêng: chỉ có các công trình của đảo
+    if (b.key === 'island' || b.key === 'games') continue; // đảo: chỉ có các công trình của đảo
     filler(b.cx - 4.2, b.cz - 4.2, b.key === 'hub' ? 11 : 9);
     filler(b.cx + 4.2, b.cz - 4.2, 7);
     filler(b.cx - 4.2, b.cz + 4.2, 6);

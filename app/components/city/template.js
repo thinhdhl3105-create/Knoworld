@@ -9,6 +9,7 @@ export function cityTemplate(hasAdmin) {
   <button type="button" data-city="main"><span class="dot" style="background:#c6bfff"></span>Main City</button>
   ${hasAdmin ? '<button type="button" data-city="admin"><span class="dot" style="background:#7ee8ff"></span>Admin City 🔒</button>' : ''}
   <button type="button" data-city="profile"><span class="dot" style="background:#ff9bd2"></span>Profile City</button>
+  <button type="button" data-city="games"><span class="dot" style="background:#5ee0a0"></span>Game Island</button>
   ${hasAdmin ? '<button type="button" data-city="island"><span class="dot" style="background:#ffd27a"></span>Thinh\'s Island 🔒</button>' : ''}
   <button type="button" data-city="home">Overview</button>
 </div>

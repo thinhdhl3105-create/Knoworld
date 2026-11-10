@@ -143,6 +143,36 @@ function Hero({ kind, p, id, label, accent }) {
       </g>
     );
   }
+  if (kind === 'arcade') {
+    // v31: Game Island — vòng đu quay + biển quảng cáo
+    const wx = 1090; const wy = B - 82; const R = 64;
+    const cols = ['#c6bfff', '#ffd27a', '#5ee0a0', '#7ef0ff', '#ff8a6a', '#ff9bd2', '#ffb347', '#a8d8ff'];
+    return (
+      <g>
+        <path d={`M${wx - 30} ${B} L${wx} ${wy} L${wx + 30} ${B}`} stroke="#e9e4f5" strokeWidth="4" fill="none" />
+        <g className="kwt-wheel" style={{ transformOrigin: `${wx}px ${wy}px` }}>
+          <circle cx={wx} cy={wy} r={R} fill="none" stroke="#ff9bd2" strokeWidth="3" />
+          {cols.map((c, i) => {
+            const a = (i / 8) * Math.PI * 2;
+            return (
+              <g key={i}>
+                <line x1={wx} y1={wy} x2={wx + Math.cos(a) * R} y2={wy + Math.sin(a) * R} stroke="#e9e4f5" strokeOpacity=".6" strokeWidth="1.5" />
+                <rect x={wx + Math.cos(a) * R - 7} y={wy + Math.sin(a) * R - 6} width="14" height="12" rx="3" fill={c} />
+              </g>
+            );
+          })}
+        </g>
+        <circle cx={wx} cy={wy} r="6" fill="#ffd27a" />
+        <rect x="905" y={B - 112} width="5" height="112" fill="#4a4458" />
+        <rect x="985" y={B - 112} width="5" height="112" fill="#4a4458" />
+        <rect x="886" y={B - 150} width="124" height="62" rx="4" fill="#07070d" stroke="#7ef0ff" strokeWidth="2.5" />
+        <text x="948" y={B - 125} textAnchor="middle" fill="#7ef0ff" fontFamily="'Space Grotesk', sans-serif" fontWeight="700" fontSize="15" letterSpacing="2">GAME</text>
+        <text x="948" y={B - 105} textAnchor="middle" fill="#ffd27a" fontFamily="'Space Grotesk', sans-serif" fontWeight="700" fontSize="13" letterSpacing="3">ISLAND</text>
+        <rect x="880" y={B - 34} width="150" height="34" fill="#2a5f7a" />
+        <rect x="900" y={B - 24} width="20" height="6" fill="#ffd27a" /><rect x="950" y={B - 16} width="20" height="6" fill="#5ee0a0" /><rect x="990" y={B - 28} width="20" height="6" fill="#ff8a6a" />
+      </g>
+    );
+  }
   if (kind === 'island') {
     // v30: Thinh's Island — Lecture Hall + hải đăng
     const x = 930; const w = 150; const h = 70; const ty = B - h;
