@@ -13,6 +13,7 @@ const DISTRICT = {
   main: { name: 'Main City', dot: '#c6bfff' },
   profile: { name: 'Profile City', dot: '#ff9bd2' },
   admin: { name: 'Admin City', dot: '#7ee8ff' },
+  island: { name: "Thinh's Island", dot: '#ffd27a' },
 };
 
 // key = khoá tòa nhà trên thành phố trang chủ (dùng cho /?b=key)
@@ -32,6 +33,7 @@ export const PLACES = {
   visitors: { district: 'admin', place: 'Gatehouse', hero: 'sign', label: 'Visitors', accent: '#7ee8ff' },
   reviews: { district: 'admin', place: 'Feedback Office', hero: 'sign', label: 'Reviews', accent: '#ffd24d' },
   access: { district: 'admin', place: 'Key Office', hero: 'sign', label: 'Access', accent: '#7ee8ff', back: null },
+  island: { district: 'island', place: 'Harbour Office', hero: 'island' },
   import: { district: 'admin', place: 'Library Annex', hero: 'sign', label: 'Import', accent: '#b7f07e' },
 };
 
@@ -102,7 +104,7 @@ export default function CityPage({
         <div aria-hidden="true" className="kw-city-reflect">
           <div className="absolute -left-[10%] -right-[10%] top-0 h-[520px]"
             style={{ background: `linear-gradient(180deg, ${p.sky[2]} 0%, ${p.sky[1]} 35%, transparent 80%)`, opacity: p.haze, filter: 'blur(40px)' }} />
-          <Skyline phase={phase} hero={cfg.hero} label={cfg.label} accent={cfg.accent}
+          <Skyline phase={phase} hero={cfg.hero} label={cfg.label} accent={cfg.accent} traffic={false}
             className="kw-reflect-svg" style={{ filter: p.reflect }} />
           <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(19,18,27,.08) 0%, rgba(19,18,27,.5) 35%, #13121b 72%)' }} />
         </div>

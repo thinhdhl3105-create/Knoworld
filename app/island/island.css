@@ -1,0 +1,89 @@
+/* v30 — Thinh's Island */
+.kwi-grid { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 1024px) { .kwi-grid { grid-template-columns: 340px minmax(0, 1fr); } }
+.kwi-col { display: grid; gap: 18px; min-width: 0; }
+.kwi-panel { padding: 16px; min-width: 0; color: #ece9f5; }
+.kwi-h { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.kwi-h h2 { font: 600 16px/1.2 'Space Grotesk', Inter, sans-serif; margin: 0; }
+.kwi-h p { font-size: 12px; color: #a39db7; margin: 2px 0 0; }
+.kwi-h .grow { flex: 1; min-width: 0; }
+.kwi-h-wrap { flex-wrap: wrap; }
+.kwi-eyebrow { font: 700 10.5px/1 Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--c, #a39db7); }
+
+.kwi-banner { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 16px; padding: 12px 14px; border-radius: 12px; font-size: 13.5px; color: #ece9f5; background: rgba(255, 210, 122, .1); border: 1px solid rgba(255, 210, 122, .4); }
+.kwi-banner .material-symbols-outlined { color: #ffd27a; }
+.kwi-banner code { font-size: 12.5px; color: #ffd27a; }
+.kwi-banner.is-error { background: rgba(255, 138, 106, .1); border-color: rgba(255, 138, 106, .45); }
+
+.kwi-next { border-radius: 12px; padding: 14px; background: linear-gradient(135deg, color-mix(in srgb, var(--c) 22%, rgba(33,31,46,.9)), rgba(33,31,46,.9)); border: 1px solid color-mix(in srgb, var(--c) 40%, transparent); }
+.kwi-next h3 { font: 600 19px/1.25 'Space Grotesk', Inter, sans-serif; margin: 6px 0 4px; }
+.kwi-next p { font-size: 13px; color: #cfc9dd; margin: 0; }
+.kwi-count { display: inline-block; margin-top: 10px; font: 500 13px/1 ui-monospace, Menlo, monospace; color: var(--c); }
+
+.kwi-timeline { list-style: none; margin: 12px 0 0; padding: 0; }
+.kwi-timeline li { display: grid; grid-template-columns: 50px 12px 1fr; gap: 10px; padding: 8px 0; }
+.kwi-timeline li.past { opacity: .5; }
+.kwi-timeline .tm { font: 500 12px/1.3 ui-monospace, Menlo, monospace; color: #a39db7; font-variant-numeric: tabular-nums; }
+.kwi-timeline .pin { width: 10px; height: 10px; border-radius: 50%; background: var(--c); margin-top: 4px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 22%, transparent); }
+.kwi-timeline b { display: block; font-weight: 600; }
+.kwi-timeline .where { font-size: 12.5px; color: #a39db7; }
+.kwi-empty { display: block !important; color: #a39db7; font-size: 13px; padding: 8px 0 2px; }
+
+.kwi-dates { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.kwi-dates li { display: grid; grid-template-columns: 52px 1fr auto; gap: 12px; align-items: center; background: rgba(33,31,46,.75); border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 10px 12px; }
+.kwi-dates .cal { display: grid; text-align: center; border-radius: 9px; border: 1px solid rgba(255,155,210,.4); background: rgba(255,155,210,.1); padding: 5px 0 6px; }
+.kwi-dates .m { font: 700 9.5px/1 Inter, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #ff9bd2; }
+.kwi-dates .dd { font: 700 21px/1.1 'Space Grotesk', sans-serif; }
+.kwi-dates .txt { min-width: 0; }
+.kwi-dates .txt b { display: block; font-weight: 600; line-height: 1.3; }
+.kwi-dates .txt span { font-size: 12px; color: #a39db7; }
+.kwi-dates .days { font: 600 12px/1 ui-monospace, Menlo, monospace; color: #ff9bd2; white-space: nowrap; }
+.kwi-dates .days.soon { color: #ff8a6a; }
+
+.kwi-tools { display: flex; gap: 6px; flex-wrap: wrap; }
+.kwi-btn { border: 1px solid rgba(255,255,255,.12); background: rgba(33,31,46,.85); color: #ece9f5; border-radius: 10px; padding: 7px 12px; font-size: 13px; }
+.kwi-btn:hover { border-color: rgba(198,191,255,.45); }
+.kwi-btn.primary { background: #c6bfff; color: #1b1540; border-color: #c6bfff; font-weight: 600; }
+.kwi-btn:disabled { opacity: .5; }
+.kwi-legend { display: flex; flex-wrap: wrap; gap: 6px; }
+.kwi-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #ece9f5; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px; background: transparent; }
+.kwi-chip i, .kwi-types i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.kwi-chip[aria-pressed="false"] { opacity: .45; }
+
+.kwi-form { display: grid; gap: 10px; grid-template-columns: repeat(6, minmax(0, 1fr)); margin-top: 12px; padding: 14px; background: rgba(33,31,46,.85); border: 1px dashed rgba(198,191,255,.35); border-radius: 12px; }
+.kwi-form label, .kwi-flabel { display: grid; gap: 4px; font-size: 11.5px; color: #a39db7; font-weight: 600; min-width: 0; }
+.kwi-form .s1 { grid-column: span 1; } .kwi-form .s2 { grid-column: span 2; } .kwi-form .s3 { grid-column: span 3; }
+.kwi-form input, .kwi-form select { background: #0f0e17; color: #ece9f5; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 8px 10px; font-size: 13.5px; width: 100%; min-width: 0; color-scheme: dark; }
+.kwi-form input:focus, .kwi-form select:focus { outline: none; border-color: #c6bfff; }
+.kwi-types { display: flex; gap: 6px; flex-wrap: wrap; }
+.kwi-types button { display: inline-flex; gap: 6px; align-items: center; border: 1px solid rgba(255,255,255,.12); background: transparent; color: #ece9f5; border-radius: 999px; padding: 6px 11px; font-size: 12.5px; }
+.kwi-types button[aria-pressed="true"] { background: color-mix(in srgb, var(--c) 22%, transparent); border-color: var(--c); }
+.kwi-row { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: wrap; }
+.kwi-row .hint { margin-right: auto; font-size: 12px; color: #a39db7; }
+@media (max-width: 640px) {
+  .kwi-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kwi-form .s2, .kwi-form .s3 { grid-column: span 2; }
+}
+
+.kwi-week-scroll { overflow-x: auto; margin-top: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.1); }
+.kwi-week { display: grid; grid-template-columns: 46px repeat(7, minmax(92px, 1fr)); min-width: 720px; background: rgba(26,24,38,.9); }
+.kwi-week .wh { display: grid; justify-items: center; gap: 2px; padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,.1); border-left: 1px solid rgba(255,255,255,.1); }
+.kwi-week .wh:first-child { border-left: 0; }
+.kwi-week .dn { font: 700 10.5px/1 Inter, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #a39db7; }
+.kwi-week .dnum { font: 600 18px/1.2 'Space Grotesk', sans-serif; }
+.kwi-week .wh.today .dnum { color: #1b1540; background: #c6bfff; border-radius: 8px; padding: 0 8px; }
+.kwi-week .hours div { height: 44px; font: 500 10.5px/1 ui-monospace, Menlo, monospace; color: #a39db7; text-align: right; padding-right: 6px; transform: translateY(-5px); }
+.kwi-week .day { position: relative; border-left: 1px solid rgba(255,255,255,.1); background-image: repeating-linear-gradient(180deg, transparent 0 43px, rgba(255,255,255,.06) 43px 44px); }
+.kwi-week .day.today { background-color: rgba(198,191,255,.05); }
+.kwi-week .ev { position: absolute; left: 4px; right: 4px; display: block; text-align: left; overflow: hidden; border-radius: 8px; padding: 5px 7px; font-size: 11.5px; line-height: 1.25; color: #ece9f5; background: color-mix(in srgb, var(--c) 20%, #1a1826); border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); border-left: 3px solid var(--c); }
+.kwi-week .ev b { display: block; font-weight: 600; font-size: 12px; }
+.kwi-week .ev span { color: #cfc9dd; }
+.kwi-week .ev:hover, .kwi-week .ev.on { filter: brightness(1.2); }
+.kwi-week .now-line { position: absolute; left: 0; right: 0; height: 2px; background: #ff8a6a; z-index: 3; pointer-events: none; }
+
+.kwi-detail { margin-top: 12px; display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; background: rgba(33,31,46,.85); border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 12px 14px; }
+.kwi-detail .bar { width: 4px; align-self: stretch; border-radius: 4px; background: var(--c); }
+.kwi-detail .grow { flex: 1; min-width: 200px; }
+.kwi-detail h4 { margin: 4px 0 2px; font: 600 15px/1.3 'Space Grotesk', sans-serif; }
+.kwi-detail p { margin: 0; font-size: 13px; color: #cfc9dd; }
+.kwi-detail-actions { display: flex; gap: 6px; flex-wrap: wrap; }

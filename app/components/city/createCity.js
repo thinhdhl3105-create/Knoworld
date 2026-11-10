@@ -171,8 +171,11 @@ export function createCity(root, opts = {}) {
       desc: 'The admin district, linked to Main City by the cable-stayed bridge. Only visible to the admin account.' },
     { id: 'profile', name: 'Profile City', cx: 57, cz: 0, n: 2, walk: '#625a5c', color: '#ff9bd2', size: 40,
       desc: 'Your own district: the Profile house, the Upload studio and the My Journey tower, linked to Main City by the arch bridge.' },
+    // v30: đảo riêng của admin — lịch dạy, lịch họp, ngày quan trọng. Nối Profile City bằng phà.
+    { id: 'island', name: "Thinh's Island", cx: 40, cz: 40, n: 1, walk: '#4f6a52', color: '#ffd27a', size: 24, lock: true,
+      desc: 'Your private island, reached by ferry from Profile City: the Lecture Hall, the Lighthouse and your home. Only visible to the admin account.' },
   ];
-  const ISL = ISL_ALL.filter((I) => I.id !== 'admin' || HAS_ADMIN);
+  const ISL = ISL_ALL.filter((I) => !I.lock || HAS_ADMIN);
   for (const I of ISL) {
     I.off = Array.from({ length: I.n }, (_, i) => (i - (I.n - 1) / 2) * SP);
     I.roads = I.off.slice(1).map((o, i) => (o + I.off[i]) / 2);
@@ -364,6 +367,7 @@ export function createCity(root, opts = {}) {
   // ---- Biển: sóng, thuyền buồm, hải âu, cá nhảy, hải đăng ----
   LOOPS.forEach((L, i) => { addWalker('sea', boat(['#ffffff', '#ffd27a', '#c6bfff'][i]), L, i * 2, i % 2 ? -2.2 : 2.4, true); });
   addWalker('sea', boat('#ff9bd2'), LOOPS[0], 3.4, 2.4, true);
+  if (HAS_ADMIN) addWalker('sea', boat('#ffd27a'), { cx: 39.5, cz: 22, rx: 2.4, rz: 10.5 }, 0, 1.4, true); // phà ra đảo riêng
   addFlock('sea', '#f4f4f2', 5, 30, 30, 26, 16, 0.25, 1.2); addFlock('sea', '#f4f4f2', 3, 56, 52, 12, 11, -0.35, 1.2); addFlock('sea', '#e8e8e4', 4, -10, 40, 14, 14, 0.3, 1.1);
   scatter(8, 3, 1.5, (x, z) => { const f = new THREE.Mesh(boxG, mat(rand() < 0.5 ? '#ff9a3d' : '#ffd24d')); f.scale.set(0.55, 0.2, 0.16); f.visible = false; bio.sea.g.add(f); bio.sea.fish.push({ f, x, z, t: -rand() * 4, a: rand() * 6.28 }); });
   const beams = [];
@@ -397,7 +401,7 @@ export function createCity(root, opts = {}) {
     for (let i = 0; i < 5; i++) { const w = s * 2 * (1 - i / 5); box(px, gy('desert', px, pz) - 0.2 + i * s * 0.28, pz, w, s * 0.28, w, i % 2 ? '#d9b373' : '#cfa865', bio.desert.g); }
   }
   {
-    const ox = 40, oz = 40, y = gy('desert', ox, oz);
+    const ox = HAS_ADMIN ? 37 : 40, oz = HAS_ADMIN ? -25 : 40, y = gy('desert', ox, oz); // v30: nhường chỗ cho đảo riêng
     const pool = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 0.2, 18), neonMat('#3fb7d6', '#3a9cc0')); pool.position.set(ox, y + 0.05, oz); bio.desert.g.add(pool);
     for (const [dx, dz] of [[3.2, 0.5], [-2.6, 2], [0.8, -3.3], [-1.2, -2.8]]) {
       for (let i = 0; i < 5; i++) cyl(ox + dx + i * 0.1, y + i * 0.6, oz + dz, 0.12, 0.65, '#8a6a4c', bio.desert.g, 6);
@@ -444,7 +448,7 @@ export function createCity(root, opts = {}) {
     for (const m of [trunk, pine, round]) { m.castShadow = true; m.receiveShadow = true; bio.forest.g.add(m); }
   }
   {
-    const lx = 44, lz = 44, y = gy('forest', lx, lz);
+    const lx = HAS_ADMIN ? 37 : 44, lz = HAS_ADMIN ? -25 : 44, y = gy('forest', lx, lz);
     const lake = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.4, 0.2, 20), neonMat('#3f9ec0', '#3a88aa')); lake.position.set(lx, y + 0.02, lz); lake.scale.z = 0.7; bio.forest.g.add(lake);
   }
   addWalker('forest', deer(), LOOPS[0], 0, 1.2); addWalker('forest', deer(), LOOPS[0], -0.35, 1.2); addWalker('forest', deer(), LOOPS[2], 1, -1.1);
@@ -521,8 +525,11 @@ export function createCity(root, opts = {}) {
       desc: 'The studio with the glowing arrow: publish new content.' },
     { key: 'journey', city: 'profile', name: 'My Journey', route: '/journey', dot: '#ff8a3d', cx: 64.5, cz: -7.5,
       desc: 'The tower with the streak flame: your journey, 12-week calendar and badges.' },
+    { key: 'island', city: 'island', name: "Thinh's Island", route: '/island', dot: '#ffd27a', cx: 40, cz: 40,
+      desc: 'The Lecture Hall keeps your teaching timetable, City Hall your meetings, the Lighthouse the dates you must not miss.' },
   ];
-  const MAIN = MAIN_ALL.filter((b) => b.city !== 'admin' || HAS_ADMIN);
+  const LOCKED = new Set(ISL_ALL.filter((I) => I.lock).map((I) => I.id));
+  const MAIN = MAIN_ALL.filter((b) => !LOCKED.has(b.city) || HAS_ADMIN);
   const PARKS = [[22.5, -7.5], [-7.5, 7.5], [49.5, 7.5]];
   const byKey = {}; const pickables = [];
   const blinkers = [], flames = [], bulbs = [], flags = [], fairy = [], spinners = [], smoke = [], bobbers = [];
@@ -614,6 +621,35 @@ export function createCity(root, opts = {}) {
         bl.position.set(cx - 3.6 + 7.2 * t, Y0 + 2.5 - Math.sin(t * Math.PI) * 0.5, cz + 1.4 + 0.2 * t); g.add(bl); fairy.push(bl);
       }
       b.top = Y0 + 3.6;
+    },
+    island(b, g, cx, cz) {
+      // Lecture Hall (mái dốc, cột)
+      box(cx + 1.3, Y0, cz - 2.2, 5, 2.4, 3.2, '#3d3858', g);
+      windows(cx + 1.3, Y0, cz - 2.2, 5, 2.4, 3.2, { pal: 'warm', p: 0.6 });
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(3.4, 1.4, 4), mat('#5b5390'));
+      roof.rotation.y = Math.PI / 4; roof.scale.set(1.05, 1, 0.68); roof.position.set(cx + 1.3, Y0 + 3.1, cz - 2.2); roof.castShadow = true; g.add(roof);
+      for (let i = 0; i < 4; i++) box(cx - 0.6 + i * 1.25, Y0, cz - 0.5, 0.28, 2.3, 0.28, '#e9e4f5', g);
+      // Nhà riêng
+      box(cx + 2.2, Y0, cz + 2.4, 2.6, 1.7, 2.2, '#5a3a50', g);
+      neonBox(cx + 2.2, Y0 + 0.6, cz + 3.52, 1.6, 0.6, 0.04, '#ffd27a', g, '#8a6a50');
+      const hr = new THREE.Mesh(new THREE.ConeGeometry(1.9, 1.2, 4), mat('#ff9bd2'));
+      hr.rotation.y = Math.PI / 4; hr.position.set(cx + 2.2, Y0 + 2.3, cz + 2.4); hr.castShadow = true; g.add(hr);
+      // Hải đăng
+      const lx = cx - 2.6, lz = cz + 1.6;
+      cyl(lx, Y0, lz, 0.85, 7.5, '#f2efe8', g, 12, 0.55);
+      cyl(lx, Y0 + 2.2, lz, 0.75, 0.8, '#ff9bd2', g, 12, 0.68);
+      cyl(lx, Y0 + 4.8, lz, 0.66, 0.8, '#ff9bd2', g, 12, 0.6);
+      const lampM = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.8, 10), neonMat('#fff2b0', '#cfcab8')); lampM.position.set(lx, Y0 + 7.9, lz); g.add(lampM);
+      cyl(lx, Y0 + 8.3, lz, 0.68, 0.3, '#2a2930', g, 10);
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), neonMat('#ff4a5a', '#7a3a40')); tip.position.set(lx, Y0 + 8.75, lz); g.add(tip); blinkers.push(tip);
+      const pivot = new THREE.Group(); pivot.position.set(lx, Y0 + 7.9, lz); g.add(pivot);
+      const bm = new THREE.MeshBasicMaterial({ color: '#fff2b0', transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(1.2, 11, 14, 1, true), bm); cone.rotation.z = Math.PI / 2; cone.position.x = -5.5; pivot.add(cone);
+      spinners.push({ o: pivot, ax: 'y', v: 0.9 });
+      // Bến phà
+      box(cx - 1.5, -0.6, cz - 7.4, 1.4, 0.6, 3, '#6b5b4a', g);
+      for (const s of [-1, 1]) cyl(cx - 1.5 + s * 0.6, -1.4, cz - 8.6, 0.1, 1.5, '#4a3c30', g, 6);
+      b.top = Y0 + 9;
     },
     journey(b, g, cx, cz) {
       box(cx, Y0, cz, 4.2, 2, 4.2, '#4d4756', g);
@@ -783,6 +819,7 @@ export function createCity(root, opts = {}) {
     b.group = g; byKey[b.key] = b; used.add(b.cx + ',' + b.cz);
     g.traverse((o) => { if (o.isMesh) { o.userData.key = b.key; pickables.push(o); } });
     const helper = new THREE.BoxHelper(g, '#c6bfff'); helper.visible = false; scene.add(helper); b.helper = helper;
+    if (b.key === 'island') continue; // đảo riêng: chỉ có các công trình của đảo
     filler(b.cx - 4.2, b.cz - 4.2, b.key === 'hub' ? 11 : 9);
     filler(b.cx + 4.2, b.cz - 4.2, 7);
     filler(b.cx - 4.2, b.cz + 4.2, 6);
@@ -1117,7 +1154,7 @@ export function createCity(root, opts = {}) {
     const k = hit(e); setHover(k);
     if (k && !down) {
       const b = byKey[k];
-      tip.hidden = false; tip.innerHTML = `<b>${b.name}</b><br><span>${b.city === 'admin' ? 'Admin City · ' : b.city === 'profile' ? 'Profile City · ' : ''}Click to enter</span>`;
+      tip.hidden = false; tip.innerHTML = `<b>${b.name}</b><br><span>${b.city === 'main' ? '' : (cityOf(b.city)?.name || '') + ' · '}Click to enter</span>`;
       const rr = root.getBoundingClientRect();
       tip.style.left = Math.min(e.clientX - rr.left + 14, RW() - 190) + 'px'; tip.style.top = (e.clientY - rr.top + 14) + 'px';
     } else tip.hidden = true;

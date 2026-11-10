@@ -8,6 +8,7 @@ import {
   NOTICE_TAGS, tagMeta, fetchAnnouncements, addAnnouncement, deleteAnnouncement,
   setAnnouncementPinned, getBoardSeen, setBoardSeen,
 } from '@/lib/announcements';
+import { upcomingKeyNotices } from '@/lib/island';
 import { timeAgo } from '@/lib/discussion';
 import { toast } from '@/lib/engagement';
 
@@ -31,7 +32,10 @@ export default function CityNoticeBoard({ isAdmin = false, user = null, anchorRe
   const [top, setTop] = useState(null);
   const boxRef = useRef(null);
 
-  const load = () => fetchAnnouncements().then(({ data, source: s }) => { setItems(data || []); setSource(s); });
+  const load = () => Promise.all([
+    fetchAnnouncements(),
+    isAdmin ? upcomingKeyNotices(7).catch(() => []) : Promise.resolve([]),
+  ]).then(([{ data, source: s }, mine]) => { setItems([...mine, ...(data || [])]); setSource(s); });
 
   useEffect(() => {
     setSeenAt(getBoardSeen());

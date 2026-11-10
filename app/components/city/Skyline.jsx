@@ -143,6 +143,27 @@ function Hero({ kind, p, id, label, accent }) {
       </g>
     );
   }
+  if (kind === 'island') {
+    // v30: Thinh's Island — Lecture Hall + hải đăng
+    const x = 930; const w = 150; const h = 70; const ty = B - h;
+    const lx = 1130;
+    return (
+      <g>
+        <polygon points={`${lx + 6},${B - 120} ${lx - 220},${B - 150} ${lx - 220},${B - 112}`} fill="#fff2b0" opacity={p.wo > 0.7 ? 0.16 : 0.07} />
+        <Box x={x} w={w} h={h} c={['#3d3858', '#2a2640', '#5b5390']} />
+        <polygon points={`${x - 8},${ty} ${x + w / 2},${ty - 34} ${x + w + 8},${ty}`} fill="#5b5390" stroke="#c6bfff" strokeOpacity=".6" />
+        <text x={x + w / 2} y={ty - 8} textAnchor="middle" fill="#ece9f5" fontFamily="'Space Grotesk', sans-serif" fontWeight="700" fontSize="10" letterSpacing="2">LECTURE HALL</text>
+        {[0, 1, 2, 3, 4, 5].map((i) => <rect key={i} x={x + 10 + i * 24} y={ty + 8} width="8" height={h - 8} fill="#e9e4f5" opacity=".85" />)}
+        <rect x={x + w / 2 - 12} y={B - 36} width="24" height="36" fill="#ffd27a" opacity=".9" />
+        <path d={`M${lx - 12} ${B} L${lx - 7} ${B - 112} L${lx + 7} ${B - 112} L${lx + 12} ${B} Z`} fill="#f2efe8" />
+        <rect x={lx - 10} y={B - 78} width="20" height="12" fill="#ff9bd2" />
+        <rect x={lx - 11} y={B - 38} width="22" height="12" fill="#ff9bd2" />
+        <rect x={lx - 8} y={B - 128} width="16" height="16" fill="#fff2b5" />
+        <path d={`M${lx - 11} ${B - 128} L${lx} ${B - 142} L${lx + 11} ${B - 128} Z`} fill="#ff9bd2" />
+        <circle cx={lx} cy={B - 145} r="2.5" fill="#ff4a5a" />
+      </g>
+    );
+  }
   // Tòa có biển tên (City Hall, Archive, Post Office…)
   const x = 980; const w = 150; const h = 132; const ty = B - h;
   const a = accent || '#7ee8ff';
@@ -159,7 +180,99 @@ function Hero({ kind, p, id, label, accent }) {
   );
 }
 
-export default function Skyline({ phase = 'day', hero = 'sign', label = '', accent, className = '', style }) {
+
+// v30: Xe cộ và người đi đường trên con đường phía trước các tòa nhà.
+// Mỗi phương tiện chạy bằng CSS (city.css · .kwt-*), delay âm để rải đều ngay từ đầu.
+const CAR_COLORS = ['#ff8a6a', '#7ee8ff', '#ffd27a', '#c6bfff', '#5ee0a0', '#f2efe8', '#ff9bd2'];
+
+function Car({ c, night }) {
+  return (
+    <g>
+      {night && <polygon points="30,-6 70,-12 70,0 30,-3" fill="#fff2b0" opacity=".16" />}
+      <path d="M1 -2 V-7 Q1 -8 3 -8 H8 L11 -12 H21 L25 -8 H28 Q30 -8 30 -6 V-2 Z" fill={c} />
+      <path d="M12 -11 H17 V-8 H10 Z M18 -11 H20.5 L23.5 -8 H18 Z" fill="#1d2433" opacity=".75" />
+      <rect x="28" y="-7" width="2" height="2" fill={night ? '#fff2b0' : '#f6f2e0'} />
+      <rect x="0.5" y="-7" width="1.5" height="2" fill="#ff4a5a" />
+      <circle cx="7" cy="-1.8" r="2.4" fill="#1a1720" /><circle cx="23" cy="-1.8" r="2.4" fill="#1a1720" />
+      <circle cx="7" cy="-1.8" r="0.9" fill="#8b8794" /><circle cx="23" cy="-1.8" r="0.9" fill="#8b8794" />
+    </g>
+  );
+}
+
+function Bus({ night }) {
+  return (
+    <g>
+      {night && <polygon points="54,-8 96,-14 96,0 54,-3" fill="#fff2b0" opacity=".16" />}
+      <rect x="0" y="-15" width="54" height="13" rx="2.5" fill="#3fa36b" />
+      <rect x="0" y="-6" width="54" height="2" fill="#ffd27a" />
+      {[3, 12, 21, 30, 39].map((x) => <rect key={x} x={x} y="-13" width="7" height="5" fill={night ? '#ffe9a8' : '#1d2433'} opacity={night ? 0.9 : 0.7} />)}
+      <rect x="47" y="-13" width="5" height="8" fill="#1d2433" opacity=".8" />
+      <circle cx="10" cy="-1.8" r="2.6" fill="#1a1720" /><circle cx="44" cy="-1.8" r="2.6" fill="#1a1720" />
+    </g>
+  );
+}
+
+function Moto({ c, shirt, night }) {
+  return (
+    <g>
+      {night && <polygon points="15,-6 40,-10 40,-1 15,-4" fill="#fff2b0" opacity=".14" />}
+      <circle cx="3" cy="-2" r="2" fill="#1a1720" /><circle cx="14" cy="-2" r="2" fill="#1a1720" />
+      <path d="M2 -4 H11 L15 -7 L14 -4 Z" fill={c} />
+      <rect x="5" y="-12" width="4" height="7" rx="1.5" fill={shirt} />
+      <path d="M7 -5 L10 -2" stroke="#2a2440" strokeWidth="1.4" />
+      <circle cx="7.5" cy="-14" r="2.4" fill={c} />
+      <rect x="15" y="-6.5" width="1.4" height="1.4" fill={night ? '#fff2b0' : '#f6f2e0'} />
+    </g>
+  );
+}
+
+function Walker({ shirt, pants = '#2f2a45', hat }) {
+  return (
+    <g className="kwt-bob">
+      <circle cx="0" cy="-11.5" r="1.9" fill="#e8c4a0" />
+      {hat && <path d="M-3 -12.2 L0 -15 L3 -12.2 Z" fill={hat} />}
+      <rect x="-1.8" y="-9.4" width="3.6" height="5" rx="1" fill={shirt} />
+      <g className="kwt-legs"><rect x="-1.5" y="-4.6" width="1.2" height="4.6" fill={pants} /><rect x="0.3" y="-4.6" width="1.2" height="4.6" fill={pants} /></g>
+    </g>
+  );
+}
+
+// [loại, làn, thời gian chạy (s), delay âm (s), màu]
+const FLOW = [
+  ['car', 'r', 16, -2, 0], ['moto', 'r', 12, -5, 2], ['bus', 'r', 26, -14, 0], ['moto', 'r', 13, -9, 4], ['car', 'r', 17, -11, 3],
+  ['car', 'l', 15, -4, 1], ['moto', 'l', 11, -1, 6], ['car', 'l', 18, -10, 5], ['moto', 'l', 12, -7, 3], ['moto', 'l', 14, -12, 0],
+];
+const PEOPLE = [
+  ['r', 70, -10, '#ff8a6a', null], ['r', 84, -46, '#7ee8ff', '#ffd27a'], ['l', 76, -20, '#c6bfff', null],
+  ['l', 92, -60, '#5ee0a0', null], ['r', 66, -33, '#ff9bd2', null], ['l', 80, -5, '#ffd27a', '#f2efe8'],
+];
+
+function Traffic({ night }) {
+  return (
+    <g className="kwt">
+      {PEOPLE.map(([dir, dur, delay, shirt, hat], i) => (
+        <g key={`p${i}`} className={`kwt-${dir === 'r' ? 'walk-r' : 'walk-l'}`} style={{ animationDuration: `${dur}s`, animationDelay: `${delay}s` }}>
+          <g transform={`translate(0 ${B + 2.5}) ${dir === 'l' ? 'scale(-1 1)' : ''}`}>
+            <Walker shirt={shirt} hat={hat} />
+          </g>
+        </g>
+      ))}
+      {FLOW.map(([kind, lane, dur, delay, ci], i) => {
+        const y = lane === 'r' ? B + 15.5 : B + 7.5;
+        const c = CAR_COLORS[ci % CAR_COLORS.length];
+        const body = kind === 'bus' ? <Bus night={night} /> : kind === 'moto'
+          ? <Moto c={c} shirt={CAR_COLORS[(ci + 3) % CAR_COLORS.length]} night={night} /> : <Car c={c} night={night} />;
+        return (
+          <g key={`v${i}`} className={`kwt-${lane === 'r' ? 'drive-r' : 'drive-l'}`} style={{ animationDuration: `${dur}s`, animationDelay: `${delay}s` }}>
+            <g transform={`translate(0 ${y}) ${lane === 'l' ? 'scale(-1 1)' : ''}`}>{body}</g>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+export default function Skyline({ phase = 'day', hero = 'sign', label = '', accent, className = '', style, traffic = true }) {
   const p = PHASES[phase] || PHASES.day;
   const id = `kws${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const lo = 880; const hi = 1200; // chừa chỗ cho tòa nhà chính
@@ -178,6 +291,7 @@ export default function Skyline({ phase = 'day', hero = 'sign', label = '', acce
       <polygon points={`0,${B} 1280,${B} 1280,200 0,200`} fill={p.ground} />
       <rect x="0" y={B} width="1280" height="2" fill="#ffffff" opacity=".08" />
       {Array.from({ length: 20 }, (_, i) => <rect key={i} x={i * 64 + 12} y={B + 8} width="30" height="2" fill="#ffffff" opacity=".18" />)}
+      {traffic && <Traffic night={phase === 'night' || phase === 'dusk'} />}
     </svg>
   );
 }

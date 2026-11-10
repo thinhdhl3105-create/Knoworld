@@ -19,6 +19,7 @@ const CASE_STUDIES = [
 ];
 
 const ADMIN_LINKS = [
+  { href: '/island', label: "Thinh's Island", icon: 'sailing' },
   { href: '/admin/visitors', label: 'Visitors', icon: 'group' },
   { href: '/admin/reviews', label: 'Reviews', icon: 'reviews' },
   { href: '/admin/access', label: 'Access', icon: 'admin_panel_settings' },
@@ -38,7 +39,7 @@ const links = [
 
 const CITY_ROUTES = [
   '/news', '/knowledge-hub', '/videos', '/students', '/images', '/discussion', '/research', '/search',
-  '/journey', '/profile', '/upload', '/dashboard', '/admin',
+  '/journey', '/profile', '/upload', '/dashboard', '/admin', '/island',
 ];
 
 function Dot({ c }) {

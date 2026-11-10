@@ -228,3 +228,17 @@ body {
 .kw-door.is-next:hover { transform: translateY(-2px); }
 .kw-door.is-open { background: linear-gradient(180deg, rgba(255,210,122,.18), rgba(42,36,64,.7)); border-color: rgba(255,210,122,.5); }
 @media (prefers-reduced-motion: reduce) { .kw-led-run { animation: none; } }
+
+/* v30 — xe cộ & người đi đường trên các trang con (Skyline) */
+.kwt-drive-r, .kwt-drive-l, .kwt-walk-r, .kwt-walk-l { animation-timing-function: linear; animation-iteration-count: infinite; will-change: transform; }
+.kwt-drive-r, .kwt-walk-r { animation-name: kwt-r; }
+.kwt-drive-l, .kwt-walk-l { animation-name: kwt-l; }
+@keyframes kwt-r { from { transform: translateX(-110px); } to { transform: translateX(1390px); } }
+@keyframes kwt-l { from { transform: translateX(1390px); } to { transform: translateX(-110px); } }
+.kwt-bob { animation: kwt-bob .5s ease-in-out infinite alternate; }
+@keyframes kwt-bob { from { transform: translateY(0); } to { transform: translateY(-.7px); } }
+.kwt-legs { transform-box: fill-box; transform-origin: 50% 0; animation: kwt-step .5s ease-in-out infinite alternate; }
+@keyframes kwt-step { from { transform: skewX(14deg); } to { transform: skewX(-14deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .kwt-drive-r, .kwt-drive-l, .kwt-walk-r, .kwt-walk-l, .kwt-bob, .kwt-legs { animation-play-state: paused; }
+}
