@@ -132,6 +132,8 @@
 .kwb-actions { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12px; }
 .kwb-open { color: var(--kwb-accent); font-weight: 600; text-decoration: none; }
 .kwb-open:hover { text-decoration: underline; }
+.kwb-auto { display: flex; align-items: center; gap: 6px; margin: 6px 14px 2px; font-size: 11px; color: var(--kwb-muted); }
+.kwb-auto .material-symbols-outlined { font-size: 14px; }
 .kwb-admin { margin-left: auto; display: flex; gap: 10px; }
 .kwb-admin button { color: var(--kwb-muted); font-size: 11.5px; }
 .kwb-admin button:hover { color: var(--kwb-fg); }

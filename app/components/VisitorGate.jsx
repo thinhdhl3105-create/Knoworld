@@ -1,6 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+// v29: Cổng vào = "Văn phòng đăng ký công dân" của Knoworld City.
+// Sinh viên → Resident Permit (thẻ cư dân), Giảng viên → City Council Pass, Khách → Visitor Visa.
+// Logic giữ nguyên v25: kiểm tra MSSV, lưu site_visitors, đếm lượt ghé, chặn người bị tắt quyền.
+import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   FIELDS,
@@ -13,13 +16,43 @@ import {
 } from '@/lib/visitor';
 import { useAuth } from './AuthProvider';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
+import './gate.css';
 
 const CURRENT_YEAR = new Date().getFullYear();
-// Birth years: from age 16 to age 80.
 const BIRTH_YEARS = Array.from({ length: 65 }, (_, i) => CURRENT_YEAR - 16 - i);
-
-// Don't show the gate on admin / login routes.
 const SKIP_PREFIXES = ['/login', '/admin'];
+
+// Ba loại giấy cư trú.
+const PERMITS = {
+  student: {
+    icon: 'school', code: 'R', color: '#c6bfff',
+    title: 'Resident Permit', who: 'Students',
+    desc: 'Full access to every district. Your student ID (MSSV) is checked against the class list.',
+    perks: ['All case studies', 'My Journey & streak'],
+  },
+  lecturer: {
+    icon: 'account_balance', code: 'C', color: '#ffd27a',
+    title: 'City Council Pass', who: 'Lecturers',
+    desc: 'Sign in with your account to build, manage and contribute to the city.',
+    perks: ['Upload & manage', 'Admin City'],
+  },
+  stranger: {
+    icon: 'luggage', code: 'V', color: '#7ef0ff',
+    title: 'Visitor Visa', who: 'Guests',
+    desc: 'Just passing through? Register a few details and tour selected buildings.',
+    perks: ['Selected case studies', 'No ID needed'],
+  },
+};
+
+// Số công dân cố định theo email — cùng email luôn ra cùng số.
+function citizenNo(seed, code) {
+  let h = 2166136261;
+  for (const ch of (seed || 'knoworld').toLowerCase()) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  const n = String((h >>> 0) % 100000).padStart(5, '0');
+  return `KW-${String(CURRENT_YEAR).slice(2)}${code}-${n}`;
+}
+
+const today = () => new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
 export default function VisitorGate() {
   const pathname = usePathname();
@@ -29,22 +62,22 @@ export default function VisitorGate() {
   const [mounted, setMounted] = useState(false);
   const [registered, setRegistered] = useState(false);
   const [blocked, setBlocked] = useState(false);
-  const [step, setStep] = useState('role'); // role | student | stranger | lecturer
+  const [step, setStep] = useState('role'); // role | student | stranger | lecturer | issued
 
-  // Student / stranger form (dùng chung — student có thêm MSSV)
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [birthYear, setBirthYear] = useState('');
   const [field, setField] = useState('');
   const [otherField, setOtherField] = useState('');
   const [studentId, setStudentId] = useState('');
+  const [agree, setAgree] = useState(false);
 
-  // Lecturer sign-in
   const [loginEmail, setLoginEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [issuedRole, setIssuedRole] = useState('student');
 
   useEffect(() => {
     setMounted(true);
@@ -57,40 +90,25 @@ export default function VisitorGate() {
   // --- Ghi lần truy cập + đo thời lượng + ép đánh giá lần thứ 3 ---------------
   useEffect(() => {
     if (!mounted || skip || user || !registered) return;
-
     let active = true;
-    let acc = 0; // giây tích luỹ chưa gửi
-
+    let acc = 0;
     (async () => {
       const { blocked: b, visitCount } = await recordVisit();
       if (!active) return;
-      if (b) {
-        setBlocked(true);
-        return;
-      }
-      // v25: ReviewWidget hỏi server (tổng lượt ghé theo email + đã đánh giá chưa) rồi tự quyết định ép đánh giá.
+      if (b) { setBlocked(true); return; }
       window.dispatchEvent(new CustomEvent('kw-check-review', { detail: { visitCount } }));
     })();
-
-    const HEARTBEAT = 20; // giây
-    const flushNow = () => {
-      if (acc > 0) {
-        flushSessionDuration(acc);
-        acc = 0;
-      }
-    };
+    const HEARTBEAT = 20;
+    const flushNow = () => { if (acc > 0) { flushSessionDuration(acc); acc = 0; } };
     const timer = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         acc += HEARTBEAT;
         if (acc >= 60) flushNow();
       }
     }, HEARTBEAT * 1000);
-    const onVisibility = () => {
-      if (document.visibilityState === 'hidden') flushNow();
-    };
+    const onVisibility = () => { if (document.visibilityState === 'hidden') flushNow(); };
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('pagehide', flushNow);
-
     return () => {
       active = false;
       clearInterval(timer);
@@ -100,15 +118,19 @@ export default function VisitorGate() {
     };
   }, [mounted, skip, user, registered]);
 
-  // Người bị admin tắt quyền truy cập -> màn hình chặn (trừ /admin, /login).
+  const role = step === 'issued' ? issuedRole : step;
+  const permit = PERMITS[role] || PERMITS.student;
+  const resolvedField = field === 'Other' ? otherField.trim() : field;
+  const number = useMemo(() => citizenNo(email.trim() || fullName.trim(), permit.code), [email, fullName, permit.code]);
+
   if (blocked && !skip && !user) {
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/95 backdrop-blur-md">
-        <div className="relative w-full max-w-md glass-card rounded-card p-8 text-center">
-          <span className="material-symbols-outlined text-error text-4xl mb-3">block</span>
-          <h1 className="h-md mb-2">Access disabled</h1>
-          <p className="text-sm text-on-surface-variant">
-            Your access to Knoworld has been disabled by the administrator. If you think this
+      <div className="kwg">
+        <div className="kwg-card kwg-narrow" style={{ textAlign: 'center' }}>
+          <span className="material-symbols-outlined kwg-blocked-icon">gpp_bad</span>
+          <h1 className="kwg-h1">Permit revoked</h1>
+          <p className="kwg-sub">
+            Your access to Knoworld City has been disabled by the administrator. If you think this
             is a mistake, please contact us with the email you registered.
           </p>
         </div>
@@ -116,32 +138,27 @@ export default function VisitorGate() {
     );
   }
 
-  // Hide the gate for: unmounted, skipped routes, signed-in lecturers, or registered students.
   if (!mounted || skip || loading || user || registered) return null;
 
-  // ---- Student / stranger submit ---------------------------------------------
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const resolvedField = field === 'Other' ? otherField.trim() : field;
-  const baseValid = fullName.trim().length > 1 && emailOk && !!resolvedField && !busy;
-  const canSubmitStudent = baseValid && studentId.trim().length > 0;
-  const canSubmitStranger = baseValid;
+  const baseValid = fullName.trim().length > 1 && emailOk && !!resolvedField && agree && !busy;
+  const canSubmit = step === 'student' ? baseValid && studentId.trim().length > 0 : baseValid;
 
-  async function handleDetailsSubmit(e, role) {
+  async function handleDetailsSubmit(e) {
     e.preventDefault();
     setError('');
-    const canSubmit = role === 'student' ? canSubmitStudent : canSubmitStranger;
     if (!canSubmit) {
       setError(
-        role === 'student'
-          ? 'Please fill in your full name, student ID (MSSV), a valid email and your field.'
-          : 'Please fill in your full name, a valid email and your field.'
+        !agree
+          ? 'Please tick the citizen pledge to continue.'
+          : step === 'student'
+            ? 'Please fill in your full name, student ID (MSSV), a valid email and your district.'
+            : 'Please fill in your full name, a valid email and your district.',
       );
       return;
     }
     setBusy(true);
-
-    // Student: MSSV phải nằm trong danh sách được duyệt.
-    if (role === 'student') {
+    if (step === 'student') {
       const check = await checkStudentId(studentId);
       if (!check.ok) {
         setBusy(false);
@@ -149,213 +166,239 @@ export default function VisitorGate() {
         return;
       }
     }
-
     const res = await registerVisitor({
-      fullName,
-      email,
-      birthYear,
-      field: resolvedField,
-      role,
-      studentId: role === 'student' ? studentId : null,
+      fullName, email, birthYear, field: resolvedField, role: step,
+      studentId: step === 'student' ? studentId : null,
     });
     setBusy(false);
-    if (!res.ok) {
-      setError(res.error || "Couldn't save your details. Please try again.");
-      return;
-    }
-    setRegistered(true);
+    if (!res.ok) { setError(res.error || "Couldn't file your application. Please try again."); return; }
+    setIssuedRole(step);
+    setStep('issued');
   }
 
-  // ---- Lecturer sign-in -----------------------------------------------------
   async function handleLecturerSignIn(e) {
     e.preventDefault();
     setError('');
-    if (!isSupabaseConfigured) {
-      setError('Sign-in is not available (Supabase is not configured).');
-      return;
-    }
+    if (!isSupabaseConfigured) { setError('Sign-in is not available (Supabase is not configured).'); return; }
     setBusy(true);
-    const { error: err } = await supabase.auth.signInWithPassword({
-      email: loginEmail.trim(),
-      password,
-    });
+    const { error: err } = await supabase.auth.signInWithPassword({ email: loginEmail.trim(), password });
     setBusy(false);
-    if (err) {
-      setError(err.message);
-      return;
-    }
-    // On success the auth state updates and the gate hides automatically.
+    if (err) setError(err.message);
   }
 
-  const back = () => {
-    setError('');
-    setStep('role');
-  };
+  const go = (s) => { setError(''); setStep(s); };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/55 backdrop-blur-[3px] overflow-y-auto">
-      <div className="nebula w-[420px] h-[420px] -top-20 -right-20 hidden md:block pointer-events-none" />
-      <div className="relative w-full max-w-md glass-card rounded-card p-7 my-8">
-        <div className="flex items-center gap-2 mb-5">
-          <span className="material-symbols-outlined text-primary">blur_on</span>
-          <span className="font-display text-xl font-semibold">Knoworld</span>
-        </div>
+    <div className="kwg" role="dialog" aria-modal="true" aria-label="Knoworld City citizen registration">
+      <div className={`kwg-card ${step === 'student' || step === 'stranger' ? 'is-wide' : ''}`}>
+        <header className="kwg-head">
+          <CitySeal />
+          <div className="kwg-head-text">
+            <span className="kwg-kicker">Knoworld City · Civil Registry Office</span>
+            <span className="kwg-form-no">Form KW-01 · Application for residency</span>
+          </div>
+        </header>
 
-        {/* STEP 1 — choose role */}
         {step === 'role' && (
           <>
-            <h1 className="h-md mb-1">Welcome to Knoworld</h1>
-            <p className="text-sm text-on-surface-variant mb-6">
-              Tell us who you are to get started.
-            </p>
-            <div className="flex flex-col gap-3">
-              <RoleCard
-                icon="school"
-                title="I'm a Student"
-                desc="Enter your student ID (MSSV) to unlock all case studies."
-                onClick={() => { setError(''); setStep('student'); }}
+            <h1 className="kwg-h1">Become a citizen of Knoworld</h1>
+            <p className="kwg-sub">Choose the permit that fits you. It takes under a minute.</p>
+            <div className="kwg-permits">
+              {(['student', 'lecturer', 'stranger']).map((k) => {
+                const p = PERMITS[k];
+                return (
+                  <button key={k} type="button" className="kwg-permit" style={{ '--c': p.color }} onClick={() => go(k)}>
+                    <span className="kwg-permit-icon material-symbols-outlined" aria-hidden="true">{p.icon}</span>
+                    <span className="kwg-permit-body">
+                      <span className="kwg-permit-who">{p.who}</span>
+                      <span className="kwg-permit-title">{p.title}</span>
+                      <span className="kwg-permit-desc">{p.desc}</span>
+                      <span className="kwg-perks">{p.perks.map((x) => <span key={x}>{x}</span>)}</span>
+                    </span>
+                    <span className="kwg-permit-stub" aria-hidden="true">
+                      <span>{p.code}</span>
+                      <span className="material-symbols-outlined">arrow_forward</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="kwg-foot">Already a council member? Choose <b>City Council Pass</b> to sign in.</p>
+          </>
+        )}
+
+        {(step === 'student' || step === 'stranger') && (
+          <>
+            <BackBar onBack={() => go('role')} permit={permit} />
+            <div className="kwg-split">
+            <div className="kwg-split-aside">
+              <IdCard
+                permit={permit} number={number}
+                name={fullName} sid={step === 'student' ? studentId : null}
+                district={resolvedField} year={birthYear}
               />
-              <RoleCard
-                icon="co_present"
-                title="I'm a Lecturer"
-                desc="Sign in with your account to manage and contribute."
-                onClick={() => { setError(''); setStep('lecturer'); }}
-              />
-              <RoleCard
-                icon="waving_hand"
-                title="I'm a Guest"
-                desc="Just curious? Share a few details and preview selected case studies."
-                onClick={() => { setError(''); setStep('stranger'); }}
-              />
+              <p className="kwg-aside-note">Your citizen card fills in as you type. It is stamped once the registry approves your application.</p>
+            </div>
+            <form onSubmit={handleDetailsSubmit} className="kwg-form" noValidate>
+              <Section n="01" title="Identity">
+                <Field label="Full name" req>
+                  <input value={fullName} onChange={(e) => setFullName(e.target.value)} className="kwg-input" placeholder="Nguyen Van A" autoFocus autoComplete="name" />
+                </Field>
+                {step === 'student' && (
+                  <Field label="Student ID (MSSV)" req>
+                    <input value={studentId} onChange={(e) => setStudentId(e.target.value)} className="kwg-input" placeholder="e.g. 2153xxxx" inputMode="numeric" />
+                  </Field>
+                )}
+                <Field label="Year of birth">
+                  <select value={birthYear} onChange={(e) => setBirthYear(e.target.value)} className="kwg-input">
+                    <option value="">— Select —</option>
+                    {BIRTH_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </Field>
+              </Section>
+
+              <Section n="02" title="Contact address">
+                <Field label="Email" req>
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="kwg-input" placeholder="you@example.com" autoComplete="email" />
+                </Field>
+              </Section>
+
+              <Section n="03" title="Home district">
+                <p className="kwg-hint">Which field do you want to live in?</p>
+                <div className="kwg-districts" role="radiogroup" aria-label="Home district">
+                  {FIELDS.map((f) => (
+                    <button key={f} type="button" role="radio" aria-checked={field === f}
+                      className={field === f ? 'on' : ''} onClick={() => setField(f)}>{f}</button>
+                  ))}
+                </div>
+                {field === 'Other' && (
+                  <input value={otherField} onChange={(e) => setOtherField(e.target.value)} className="kwg-input mt" placeholder="Type your field" />
+                )}
+              </Section>
+
+              <label className="kwg-pledge">
+                <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
+                <span>I pledge to explore with curiosity, share what I learn, and keep the city kind.
+                  My details are used internally only, to improve the content.</span>
+              </label>
+
+              {error && <p className="kwg-error">{error}</p>}
+
+              <button type="submit" disabled={!canSubmit} className="kwg-submit" style={{ '--c': permit.color }}>
+                {busy ? (step === 'student' ? 'Checking the class list…' : 'Filing…') : `Issue my ${permit.title}`}
+                {!busy && <span className="material-symbols-outlined" aria-hidden="true">approval</span>}
+              </button>
+            </form>
             </div>
           </>
         )}
 
-        {/* STEP 2a — student / guest details (student needs MSSV) */}
-        {(step === 'student' || step === 'stranger') && (
+        {step === 'lecturer' && (
           <>
-            <button onClick={back} className="flex items-center gap-1 text-xs text-on-surface-variant hover:text-primary mb-3">
-              <span className="material-symbols-outlined text-base">arrow_back</span> Back
-            </button>
-            <h1 className="h-md mb-1">A few details</h1>
-            <p className="text-sm text-on-surface-variant mb-6">
-              {step === 'student'
-                ? 'Your student ID is checked against the class list to unlock full access.'
-                : "This helps us understand who's interested. As a guest you can preview a selection of case studies."}
-            </p>
-
-            <form onSubmit={(e) => handleDetailsSubmit(e, step)} className="flex flex-col gap-4">
-              <Field label="Full name *">
-                <input value={fullName} onChange={(e) => setFullName(e.target.value)}
-                  className={inputCls} placeholder="Jane Doe" autoFocus />
-              </Field>
-              {step === 'student' && (
-                <Field label="Student ID (MSSV) *">
-                  <input value={studentId} onChange={(e) => setStudentId(e.target.value)}
-                    className={inputCls} placeholder="e.g. 2153xxxx" />
+            <BackBar onBack={() => go('role')} permit={permit} />
+            <h1 className="kwg-h1">Council sign-in</h1>
+            <p className="kwg-sub">Show your pass to enter City Hall.</p>
+            <form onSubmit={handleLecturerSignIn} className="kwg-form">
+              <Section n="01" title="Credentials">
+                <Field label="Email">
+                  <input type="email" required value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} className="kwg-input" placeholder="you@example.com" autoFocus autoComplete="email" />
                 </Field>
-              )}
-              <Field label="Email *">
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                  className={inputCls} placeholder="you@example.com" />
-              </Field>
-              <Field label="Year of birth">
-                <select value={birthYear} onChange={(e) => setBirthYear(e.target.value)} className={inputCls}>
-                  <option value="">— Select year —</option>
-                  {BIRTH_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </Field>
-              <Field label="Field of interest *">
-                <select value={field} onChange={(e) => setField(e.target.value)} className={inputCls}>
-                  <option value="">— Select a field —</option>
-                  {FIELDS.map((f) => <option key={f} value={f}>{f}</option>)}
-                </select>
-              </Field>
-              {field === 'Other' && (
-                <Field label="Other field">
-                  <input value={otherField} onChange={(e) => setOtherField(e.target.value)}
-                    className={inputCls} placeholder="Type your field" />
+                <Field label="Password">
+                  <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className="kwg-input" placeholder="••••••••" autoComplete="current-password" />
                 </Field>
-              )}
-
-              {error && <p className="text-sm text-error">{error}</p>}
-
-              <button type="submit" disabled={step === 'student' ? !canSubmitStudent : !canSubmitStranger}
-                className="mt-1 bg-primary text-on-primary py-3 rounded-lg text-sm font-bold hover:scale-[0.98] transition-transform disabled:opacity-40 disabled:hover:scale-100">
-                {busy ? (step === 'student' ? 'Checking…' : 'Saving…') : 'Start exploring'}
+              </Section>
+              {error && <p className="kwg-error">{error}</p>}
+              <button type="submit" disabled={busy} className="kwg-submit" style={{ '--c': permit.color }}>
+                {busy ? 'Checking your pass…' : 'Enter City Hall'}
+                {!busy && <span className="material-symbols-outlined" aria-hidden="true">key</span>}
               </button>
-              <p className="text-xs text-on-surface-variant/70 text-center">
-                Your details are used internally only, to improve the content.
+              <p className="kwg-foot">
+                No council pass yet?{' '}
+                <button type="button" onClick={() => router.push('/login')} className="kwg-link">Request one</button>
               </p>
             </form>
           </>
         )}
 
-        {/* STEP 2b — lecturer sign-in */}
-        {step === 'lecturer' && (
-          <>
-            <button onClick={back} className="flex items-center gap-1 text-xs text-on-surface-variant hover:text-primary mb-3">
-              <span className="material-symbols-outlined text-base">arrow_back</span> Back
-            </button>
-            <h1 className="h-md mb-1">Lecturer sign-in</h1>
-            <p className="text-sm text-on-surface-variant mb-6">
-              Sign in to manage and contribute to the universe.
+        {step === 'issued' && (
+          <div className="kwg-issued">
+            <IdCard permit={permit} number={number} name={fullName} sid={issuedRole === 'student' ? studentId : null} district={resolvedField} year={birthYear} stamped />
+            <h1 className="kwg-h1">Welcome, citizen!</h1>
+            <p className="kwg-sub">
+              Your {permit.title} <b>{number}</b> has been issued. Every building in the city is now open
+              {issuedRole === 'stranger' ? ' for your tour.' : ' to you.'}
             </p>
-
-            <form onSubmit={handleLecturerSignIn} className="flex flex-col gap-4">
-              <Field label="Email">
-                <input type="email" required value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)}
-                  className={inputCls} placeholder="you@example.com" autoFocus />
-              </Field>
-              <Field label="Password">
-                <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)}
-                  className={inputCls} placeholder="••••••••" />
-              </Field>
-
-              {error && <p className="text-sm text-error">{error}</p>}
-
-              <button type="submit" disabled={busy}
-                className="mt-1 bg-primary text-on-primary py-3 rounded-lg text-sm font-bold hover:scale-[0.98] transition-transform disabled:opacity-50">
-                {busy ? 'Signing in…' : 'Sign In'}
-              </button>
-              <p className="text-xs text-on-surface-variant text-center">
-                Don't have an account?{' '}
-                <button type="button" onClick={() => router.push('/login')} className="text-primary font-bold">
-                  Sign up
-                </button>
-              </p>
-            </form>
-          </>
+            <button type="button" className="kwg-submit" style={{ '--c': permit.color }} onClick={() => setRegistered(true)}>
+              Enter the city <span className="material-symbols-outlined" aria-hidden="true">location_city</span>
+            </button>
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-const inputCls =
-  'w-full bg-surface-container-lowest border border-white/10 rounded-lg px-4 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40';
-
-function Field({ label, children }) {
+function BackBar({ onBack, permit }) {
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="label-sm text-on-surface-variant">{label}</span>
+    <div className="kwg-backbar">
+      <button type="button" onClick={onBack} className="kwg-back">
+        <span className="material-symbols-outlined" aria-hidden="true">arrow_back</span> Permits
+      </button>
+      <span className="kwg-chip" style={{ '--c': permit.color }}>{permit.title}</span>
+    </div>
+  );
+}
+
+function IdCard({ permit, number, name, sid, district, year, stamped = false }) {
+  return (
+    <div className={`kwg-id ${stamped ? 'is-stamped' : ''}`} style={{ '--c': permit.color }}>
+      <div className="kwg-id-top">
+        <span>Knoworld City</span>
+        <span>{permit.title}</span>
+      </div>
+      <div className="kwg-id-main">
+        <div className="kwg-id-photo" aria-hidden="true">
+          {name.trim() ? name.trim().split(/\s+/).slice(-1)[0].slice(0, 1).toUpperCase() : <span className="material-symbols-outlined">person</span>}
+        </div>
+        <dl className="kwg-id-fields">
+          <div className="wide"><dt>Name</dt><dd>{name.trim() || '—'}</dd></div>
+          {sid !== null && <div><dt>MSSV</dt><dd>{sid?.trim() || '—'}</dd></div>}
+          <div><dt>District</dt><dd>{district || '—'}</dd></div>
+          <div><dt>Born</dt><dd>{year || '—'}</dd></div>
+          <div><dt>Issued</dt><dd>{today()}</dd></div>
+        </dl>
+      </div>
+      <div className="kwg-id-mrz">{number} &lt;&lt;&lt; {(name || 'CITIZEN').toUpperCase().replace(/[^A-Z ]/g, '').replace(/\s+/g, '<').slice(0, 22)}</div>
+      {stamped && <div className="kwg-stamp" aria-hidden="true">Approved</div>}
+    </div>
+  );
+}
+
+function Section({ n, title, children }) {
+  return (
+    <fieldset className="kwg-section">
+      <legend><span>{n}</span>{title}</legend>
+      {children}
+    </fieldset>
+  );
+}
+
+function Field({ label, req, children }) {
+  return (
+    <label className="kwg-field">
+      <span className="kwg-label">{label}{req && <i> *</i>}</span>
       {children}
     </label>
   );
 }
 
-function RoleCard({ icon, title, desc, onClick }) {
+function CitySeal() {
   return (
-    <button
-      onClick={onClick}
-      className="group text-left glass-card rounded-card p-5 flex items-center gap-4 hover:border-primary/50 transition-colors"
-    >
-      <span className="material-symbols-outlined text-primary text-3xl">{icon}</span>
-      <span className="flex-1">
-        <span className="block font-display text-lg font-medium group-hover:text-primary transition-colors">{title}</span>
-        <span className="block text-xs text-on-surface-variant mt-0.5">{desc}</span>
-      </span>
-      <span className="material-symbols-outlined text-outline group-hover:text-primary group-hover:translate-x-1 transition-all">chevron_right</span>
-    </button>
+    <svg className="kwg-seal" viewBox="0 0 48 48" aria-hidden="true">
+      <circle cx="24" cy="24" r="22" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="24" cy="24" r="17.5" fill="none" stroke="currentColor" strokeWidth=".8" strokeDasharray="1.5 2" />
+      <path d="M13 31h22M15 31V22h4v9M21 31V16h6v15M29 31V20h4v11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <circle cx="24" cy="12" r="1.4" fill="currentColor" />
+    </svg>
   );
 }

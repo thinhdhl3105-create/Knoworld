@@ -129,10 +129,10 @@ export default function CityNoticeBoard({ isAdmin = false, user = null, anchorRe
                     <b>{n.title}</b>
                     {n.body && <span className={isOpen ? '' : 'clamp'}>{n.body}</span>}
                   </button>
-                  {(n.link || canEdit) && (
+                  {(n.link || (canEdit && !n.auto)) && (
                     <div className="kwb-actions">
                       <NoticeLink href={n.link} />
-                      {canEdit && (
+                      {canEdit && !n.auto && (
                         <span className="kwb-admin">
                           <button type="button" onClick={() => togglePin(n)}>{n.pinned ? 'Unpin' : 'Pin'}</button>
                           <button type="button" onClick={() => remove(n.id)}>Remove</button>
@@ -144,6 +144,8 @@ export default function CityNoticeBoard({ isAdmin = false, user = null, anchorRe
               );
             })}
           </ul>
+
+          <p className="kwb-auto"><span className="material-symbols-outlined" aria-hidden="true">autorenew</span>New features and new content are posted here automatically.</p>
 
           {isAdmin && (
             source !== 'supabase' ? (
