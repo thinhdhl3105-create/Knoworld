@@ -5,12 +5,16 @@ import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../AuthProvider';
 import { fetchNews } from '@/lib/news';
+import CityNoticeBoard from './CityNoticeBoard';
 import './city.css';
 
 const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
 
-export default function KnoworldCity({ mode = 'hero', className = '' }) {
+// v27: underNav — the site menu floats over the city, so the city's own controls sit lower.
+//      board — show the City Notice Board (home page).
+export default function KnoworldCity({ mode = 'hero', className = '', underNav = false, board = false }) {
   const ref = useRef(null);
+  const wrap = useRef(null);
   const api = useRef(null);
   const news = useRef([]);
   const router = useRouter();
@@ -48,5 +52,12 @@ export default function KnoworldCity({ mode = 'hero', className = '' }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, isAdmin, loading]);
 
-  return <div ref={ref} className={`kwc ${mode === 'backdrop' ? 'kwc-backdrop' : ''} ${className}`} />;
+  const cls = `kwc ${mode === 'backdrop' ? 'kwc-backdrop' : ''} ${underNav ? 'kwc-under-nav' : ''}`;
+  if (!board) return <div ref={ref} className={`${cls} ${className}`} />;
+  return (
+    <div ref={wrap} className={`kwc-wrap ${underNav ? 'kwc-under-nav' : ''} ${className}`}>
+      <div ref={ref} className={`${cls} absolute inset-0`} />
+      {!loading && <CityNoticeBoard isAdmin={isAdmin} user={user} anchorRef={wrap} />}
+    </div>
+  );
 }

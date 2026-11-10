@@ -1,6 +1,12 @@
-import Link from 'next/link';
+'use client';
 
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+
+// v27: trang chủ là thành phố toàn màn hình — không hiện footer.
 export default function Footer() {
+  const pathname = usePathname();
+  if (pathname === '/') return null;
   return (
     <footer className="border-t border-white/10 mt-24">
       <div className="max-w-container mx-auto px-5 md:px-16 py-12 flex flex-col md:flex-row justify-between gap-6">

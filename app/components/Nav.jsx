@@ -1,50 +1,87 @@
 'use client';
 
-// v17: Case Studies dropdown (Video / Student / Image) + tighter search box
-// v25: Visitors + Reviews gom vào menu Admin; menu đầy đủ chỉ hiện từ xl để không đè ô Search
+// v27: Thanh menu kiểu "Knoworld City" — các nút bo tròn nền tối mờ có chấm màu,
+// nổi trên thành phố ở trang chủ. Bên phải: bảng số liệu thành phố (🔥 streak · 👥 số người tham gia),
+// tìm kiếm, tài khoản, Upload. Màn hình < 1280px dùng nút ☰.
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthProvider';
 import useProgress from './useProgress';
+import { publicVisitorCount } from '@/lib/visitor';
 
 const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
 
-// Case Studies is a grouped menu: one entry on the bar, three destinations.
 const CASE_STUDIES = [
   { href: '/videos', label: 'Video Case Studies', icon: 'play_circle' },
   { href: '/students', label: 'Student Case Studies', icon: 'school' },
   { href: '/images', label: 'Image Case Studies', icon: 'image' },
 ];
 
-// v25: trang quản trị gom vào 1 menu để thanh điều hướng không chật.
 const ADMIN_LINKS = [
   { href: '/admin/visitors', label: 'Visitors', icon: 'group' },
   { href: '/admin/reviews', label: 'Reviews', icon: 'reviews' },
+  { href: '/admin/access', label: 'Access', icon: 'admin_panel_settings' },
+  { href: '/knowledge-hub/import', label: 'Concept Import', icon: 'upload_file' },
 ];
 
+// Mỗi khu có một màu chấm riêng, giống các quận của thành phố.
 const links = [
-  { href: '/dashboard', label: 'Dashboard', auth: true },
-  { href: '/research', label: 'Research Archive', auth: true },
-  { href: '/knowledge-hub', label: 'Knowledge Hub' }, // v21: công khai
-  { group: 'case-studies', label: 'Case Studies', children: CASE_STUDIES },
-  { href: '/news', label: 'News' },
-  { href: '/discussion', label: 'Discussion' },
-  { group: 'admin', label: 'Admin', admin: true, children: ADMIN_LINKS },
+  { href: '/dashboard', label: 'Dashboard', auth: true, dot: '#7ee8ff' },
+  { href: '/research', label: 'Research', auth: true, dot: '#ffd27a' },
+  { href: '/knowledge-hub', label: 'Knowledge Hub', dot: '#c6bfff' },
+  { group: 'case-studies', label: 'Case Studies', dot: '#5ee0a0', children: CASE_STUDIES },
+  { href: '/news', label: 'News', dot: '#ff8a8a' },
+  { href: '/discussion', label: 'Discussion', dot: '#ff9bd2' },
+  { group: 'admin', label: 'Admin', admin: true, dot: '#7ee8ff', lock: true, children: ADMIN_LINKS },
 ];
+
+function Dot({ c }) {
+  return <span className="kw-dot" style={{ background: c }} aria-hidden="true" />;
+}
+
+// "Bảng số liệu thành phố": streak của bạn + số người đã tham gia.
+function CityStats({ progress, streak, explorers, compact = false }) {
+  const showStreak = progress?.available;
+  if (!showStreak && explorers == null) return null;
+  return (
+    <Link
+      href="/journey"
+      className="kw-pill kw-stats"
+      title={`${showStreak ? `${streak.current}-day streak (best ${streak.best}) · ` : ''}${explorers ?? '–'} explorers have joined Knoworld`}
+    >
+      {showStreak && (
+        <span className={`kw-stat ${streak.activeToday ? 'is-hot' : ''}`}>
+          <span className="material-symbols-outlined" style={streak.activeToday ? { fontVariationSettings: "'FILL' 1" } : undefined}>local_fire_department</span>
+          <span className="tabular-nums">{streak.current}</span>
+          {!compact && <span className="kw-stat-lbl">day{streak.current === 1 ? '' : 's'}</span>}
+        </span>
+      )}
+      {showStreak && explorers != null && <span className="kw-stat-sep" aria-hidden="true" />}
+      {explorers != null && (
+        <span className="kw-stat">
+          <span className="material-symbols-outlined">groups</span>
+          <span className="tabular-nums">{explorers}</span>
+          {!compact && <span className="kw-stat-lbl">explorers</span>}
+        </span>
+      )}
+    </Link>
+  );
+}
 
 export default function Nav() {
-  const pathname = usePathname();
+  const pathname = usePathname() || '/';
   const router = useRouter();
   const { user, signOut } = useAuth();
   const [open, setOpen] = useState(false);
-  const [openGroup, setOpenGroup] = useState(null); // desktop dropdown đang mở (case-studies | admin)
+  const [openGroup, setOpenGroup] = useState(null); // case-studies | admin | account
   const [q, setQ] = useState('');
-  const groupsRef = useRef(null);
+  const [explorers, setExplorers] = useState(null);
+  const barRef = useRef(null);
   const { progress, streak } = useProgress();
+  const isHome = pathname === '/';
   const openPalette = () => { setOpen(false); window.dispatchEvent(new CustomEvent('kw-open-palette')); };
 
-  // Research Archive is members-only; admin pages are admin-only. (v21: Knowledge Hub is public.)
   const isAdmin = user?.email === ADMIN_EMAIL;
   const visibleLinks = links.filter((l) => {
     if (l.admin) return isAdmin;
@@ -52,13 +89,22 @@ export default function Nav() {
     return true;
   });
 
-  // Close the dropdown when clicking outside it.
+  useEffect(() => {
+    let alive = true;
+    publicVisitorCount().then((n) => { if (alive && typeof n === 'number') setExplorers(n); });
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => { setOpen(false); setOpenGroup(null); }, [pathname]);
+
   useEffect(() => {
     const onDoc = (e) => {
-      if (groupsRef.current && !groupsRef.current.contains(e.target)) setOpenGroup(null);
+      if (barRef.current && !barRef.current.contains(e.target)) { setOpenGroup(null); setOpen(false); }
     };
+    const onKey = (e) => { if (e.key === 'Escape') { setOpenGroup(null); setOpen(false); } };
     document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
   }, []);
 
   const submitSearch = (e) => {
@@ -68,170 +114,136 @@ export default function Nav() {
     router.push(term ? `/search?q=${encodeURIComponent(term)}` : '/search');
   };
 
+  const toggle = (g) => setOpenGroup((x) => (x === g ? null : g));
+
   return (
-    <nav className="fixed top-0 w-full z-50 bg-background/80 nav-blur border-b border-white/10">
-      <div className="flex justify-between items-center gap-6 px-5 md:px-10 2xl:px-16 h-20 w-full max-w-container mx-auto">
-        <div className="flex items-center gap-8 min-w-0">
-          <Link href="/" className="flex items-center gap-2 shrink-0">
-            <span className="material-symbols-outlined text-primary">blur_on</span>
-            <span className="font-display text-xl font-semibold tracking-tight">Knoworld</span>
+    <nav ref={barRef} className={`kw-nav ${isHome ? 'is-home' : ''}`} aria-label="Main">
+      <div className="kw-nav-row">
+        {/* Left: brand + districts */}
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Link href="/" className="kw-pill kw-brand" aria-label="Knoworld City — home">
+            <span className="material-symbols-outlined text-[18px] text-primary">location_city</span>
+            <span className="font-display text-[15px] font-semibold tracking-tight">Knoworld</span>
           </Link>
-          <div ref={groupsRef} className="hidden xl:flex items-center gap-5">
+          <div className="hidden xl:flex items-center gap-1.5">
             {visibleLinks.map((l) => {
               if (l.children) {
                 const isOpen = openGroup === l.group;
                 const groupActive = l.children.some((c) => pathname === c.href);
                 return (
                   <div key={l.group} className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setOpenGroup((g) => (g === l.group ? null : l.group))}
-                      className={
-                        (groupActive
-                          ? 'text-primary font-bold '
-                          : 'text-on-surface-variant hover:text-on-surface ') +
-                        'text-sm whitespace-nowrap inline-flex items-center gap-1 transition-colors'
-                      }
-                    >
-                      {l.label}
-                      <span className={`material-symbols-outlined text-base transition-transform ${isOpen ? 'rotate-180' : ''}`}>
-                        expand_more
-                      </span>
+                    <button type="button" onClick={() => toggle(l.group)} aria-expanded={isOpen}
+                      className={`kw-pill ${groupActive ? 'is-on' : ''}`}>
+                      <Dot c={l.dot} />{l.label}{l.lock ? ' 🔒' : ''}
+                      <span className={`material-symbols-outlined text-[16px] -mr-1 transition-transform ${isOpen ? 'rotate-180' : ''}`}>expand_more</span>
                     </button>
                     {isOpen && (
-                      <div className="absolute left-0 top-full mt-3 w-56 glass-card rounded-card p-1.5 shadow-xl border border-white/10">
-                        {l.children.map((c) => {
-                          const active = pathname === c.href;
-                          return (
-                            <Link
-                              key={c.href}
-                              href={c.href}
-                              onClick={() => setOpenGroup(null)}
-                              className={
-                                (active ? 'text-primary bg-white/[0.04] ' : 'text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04] ') +
-                                'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors'
-                              }
-                            >
-                              <span className="material-symbols-outlined text-lg">{c.icon}</span>
-                              {c.label}
-                            </Link>
-                          );
-                        })}
+                      <div className="kw-menu left-0 w-60">
+                        {l.children.map((c) => (
+                          <Link key={c.href} href={c.href} className={`kw-menu-item ${pathname === c.href ? 'is-on' : ''}`}>
+                            <span className="material-symbols-outlined text-lg">{c.icon}</span>{c.label}
+                          </Link>
+                        ))}
                       </div>
                     )}
                   </div>
                 );
               }
-              const active = pathname === l.href;
+              const active = pathname === l.href || (l.href !== '/' && pathname.startsWith(`${l.href}/`));
               return (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  className={
-                    active
-                      ? 'text-sm whitespace-nowrap text-primary font-bold border-b-2 border-primary pb-1'
-                      : 'text-sm whitespace-nowrap text-on-surface-variant hover:text-on-surface transition-colors'
-                  }
-                >
-                  {l.label}
+                <Link key={l.href} href={l.href} className={`kw-pill ${active ? 'is-on' : ''}`}>
+                  <Dot c={l.dot} />{l.label}
                 </Link>
               );
             })}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-4 shrink-0">
-          <button type="button" onClick={openPalette}
-            className="hidden lg:flex items-center gap-1.5 glass-card rounded-full pl-2.5 pr-2 py-1.5 hover:border-primary/50 transition-colors text-on-surface-variant"
-            aria-label="Search (Ctrl+K)">
-            <span className="material-symbols-outlined text-lg">search</span>
-            <span className="text-sm w-14 xl:w-20 text-left opacity-70">Search…</span>
-            <kbd className="text-[10px] border border-white/15 rounded px-1 py-0.5 opacity-70">Ctrl K</kbd>
+        {/* Right: city stats board + search + account */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="hidden 2xl:block"><CityStats progress={progress} streak={streak} explorers={explorers} /></div>
+          <div className="2xl:hidden"><CityStats progress={progress} streak={streak} explorers={explorers} compact /></div>
+
+          <button type="button" onClick={openPalette} className="kw-pill hidden 2xl:inline-flex" aria-label="Search (Ctrl+K)">
+            <span className="material-symbols-outlined text-[18px]">search</span>
+            <span className="opacity-70 font-medium">Search</span>
+            <kbd className="text-[10px] border border-white/15 rounded px-1 py-0.5 opacity-60 font-normal">Ctrl K</kbd>
           </button>
-          <button type="button" onClick={openPalette} className="lg:hidden material-symbols-outlined text-on-surface-variant hover:text-primary" aria-label="Search">
-            search
+          <button type="button" onClick={openPalette} className="kw-pill kw-icon 2xl:hidden" aria-label="Search (Ctrl+K)" title="Search (Ctrl+K)">
+            <span className="material-symbols-outlined text-[18px]">search</span>
           </button>
 
-          {progress?.available && (
-            <Link href="/journey" title={`${streak.current}-day streak · My Journey`}
-              className={`hidden sm:inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-bold border transition-colors ${
-                streak.activeToday ? 'border-[#ff8a3d]/50 text-[#ffb27a] bg-[#ff8a3d]/10' : 'border-white/10 text-on-surface-variant hover:border-[#ff8a3d]/40'
-              }`}>
-              <span className="material-symbols-outlined text-lg" style={streak.activeToday ? { fontVariationSettings: "'FILL' 1" } : undefined}>local_fire_department</span>
-              <span className="tabular-nums">{streak.current}</span>
-            </Link>
-          )}
+          <div className="relative hidden sm:block">
+            {user ? (
+              <>
+                <button type="button" onClick={() => toggle('account')} aria-expanded={openGroup === 'account'}
+                  className={`kw-pill ${pathname === '/profile' || pathname === '/journey' ? 'is-on' : ''}`}>
+                  <Dot c="#ff9bd2" /><span className="hidden 2xl:inline">Profile</span>
+                  <span className="material-symbols-outlined text-[18px] 2xl:hidden" aria-label="Profile">person</span>
+                  <span className={`material-symbols-outlined text-[16px] -mr-1 transition-transform ${openGroup === 'account' ? 'rotate-180' : ''}`}>expand_more</span>
+                </button>
+                {openGroup === 'account' && (
+                  <div className="kw-menu right-0 w-52">
+                    <Link href="/profile" className="kw-menu-item"><span className="material-symbols-outlined text-lg">person</span>My Profile</Link>
+                    <Link href="/journey" className="kw-menu-item"><span className="material-symbols-outlined text-lg">local_fire_department</span>My Journey</Link>
+                    <button type="button" onClick={() => { setOpenGroup(null); signOut(); }} className="kw-menu-item w-full">
+                      <span className="material-symbols-outlined text-lg">logout</span>Sign Out
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <Link href="/login" className="kw-pill"><Dot c="#ff9bd2" />Sign In</Link>
+            )}
+          </div>
 
-          {user ? (
-            <>
-              <Link href="/profile" className="hidden sm:inline whitespace-nowrap text-sm text-on-surface-variant hover:text-primary transition-colors">
-                Profile
-              </Link>
-              <button onClick={signOut} className="whitespace-nowrap text-sm text-on-surface-variant hover:text-primary transition-colors">
-                Sign Out
-              </button>
-              <Link href="/upload" className="whitespace-nowrap bg-primary text-on-primary px-5 py-2 rounded-full text-sm font-bold hover:scale-95 transition-transform">
-                Upload
-              </Link>
-            </>
-          ) : (
-            <>
-              <Link href="/profile" className="hidden sm:inline whitespace-nowrap text-sm text-on-surface-variant hover:text-primary transition-colors">
-                Profile
-              </Link>
-              <Link href="/login" className="whitespace-nowrap text-sm text-on-surface-variant hover:text-primary transition-colors">
-                Sign In
-              </Link>
-              <Link href="/login" className="whitespace-nowrap bg-primary text-on-primary px-5 py-2 rounded-full text-sm font-bold hover:scale-95 transition-transform">
-                Upload
-              </Link>
-            </>
-          )}
-          <button className="xl:hidden material-symbols-outlined" onClick={() => setOpen(!open)}>
-            {open ? 'close' : 'menu'}
+          <Link href={user ? '/upload' : '/login'} className="kw-pill is-accent hidden sm:inline-flex" title="Upload">
+            <span className="material-symbols-outlined text-[18px]">upload</span><span className="hidden 2xl:inline">Upload</span>
+          </Link>
+
+          <button type="button" className="kw-pill kw-icon xl:hidden" onClick={() => setOpen(!open)} aria-expanded={open} aria-label="Menu">
+            <span className="material-symbols-outlined text-[20px]">{open ? 'close' : 'menu'}</span>
           </button>
         </div>
       </div>
 
       {open && (
-        <div className="xl:hidden border-t border-white/10 bg-background/95 px-5 py-4 flex flex-col gap-4">
-          <form onSubmit={submitSearch} className="flex items-center gap-2 glass-card rounded-full px-3 py-2 mb-1">
+        <div className="xl:hidden kw-menu kw-menu-sheet">
+          <form onSubmit={submitSearch} className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 mb-2">
             <span className="material-symbols-outlined text-on-surface-variant text-xl">search</span>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search everything…"
-              className="flex-1 bg-transparent outline-none text-sm text-on-surface placeholder:text-on-surface-variant/60"
-            />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search everything…"
+              className="flex-1 bg-transparent outline-none text-sm text-on-surface placeholder:text-on-surface-variant/60" />
           </form>
-          {visibleLinks.map((l) => {
-            if (l.children) {
-              return (
-                <div key={l.group} className="flex flex-col gap-1">
-                  <span className="text-xs uppercase tracking-wide text-secondary font-bold">{l.label}</span>
-                  {l.children.map((c) => (
-                    <Link
-                      key={c.href}
-                      href={c.href}
-                      onClick={() => setOpen(false)}
-                      className="flex items-center gap-2 pl-2 py-1 text-on-surface-variant hover:text-on-surface"
-                    >
-                      <span className="material-symbols-outlined text-lg">{c.icon}</span>
-                      {c.label}
-                    </Link>
-                  ))}
-                </div>
-              );
-            }
-            return (
-              <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="text-on-surface-variant hover:text-on-surface">
-                {l.label}
-              </Link>
-            );
-          })}
-          <Link href="/profile" onClick={() => setOpen(false)} className="text-on-surface-variant hover:text-on-surface">
-            Profile
-          </Link>
+          {visibleLinks.map((l) => (l.children ? (
+            <div key={l.group} className="mt-1">
+              <div className="kw-menu-label"><Dot c={l.dot} />{l.label}</div>
+              {l.children.map((c) => (
+                <Link key={c.href} href={c.href} className={`kw-menu-item pl-6 ${pathname === c.href ? 'is-on' : ''}`}>
+                  <span className="material-symbols-outlined text-lg">{c.icon}</span>{c.label}
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <Link key={l.href} href={l.href} className={`kw-menu-item ${pathname === l.href ? 'is-on' : ''}`}>
+              <Dot c={l.dot} />{l.label}
+            </Link>
+          )))}
+          <div className="border-t border-white/10 my-2" />
+          {user ? (
+            <>
+              <Link href="/profile" className="kw-menu-item"><span className="material-symbols-outlined text-lg">person</span>My Profile</Link>
+              <Link href="/journey" className="kw-menu-item"><span className="material-symbols-outlined text-lg">local_fire_department</span>My Journey</Link>
+              <Link href="/upload" className="kw-menu-item"><span className="material-symbols-outlined text-lg">upload</span>Upload</Link>
+              <button type="button" onClick={() => { setOpen(false); signOut(); }} className="kw-menu-item w-full">
+                <span className="material-symbols-outlined text-lg">logout</span>Sign Out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/profile" className="kw-menu-item"><span className="material-symbols-outlined text-lg">person</span>Profile</Link>
+              <Link href="/login" className="kw-menu-item"><span className="material-symbols-outlined text-lg">login</span>Sign In · Upload</Link>
+            </>
+          )}
         </div>
       )}
     </nav>
