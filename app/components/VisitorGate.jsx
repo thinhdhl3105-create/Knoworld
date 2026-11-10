@@ -10,9 +10,7 @@ import {
   recordVisit,
   flushSessionDuration,
   isBlocked,
-  MANDATORY_REVIEW_VISIT,
 } from '@/lib/visitor';
-import { hasReviewed } from '@/lib/reviews';
 import { useAuth } from './AuthProvider';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 
@@ -70,10 +68,8 @@ export default function VisitorGate() {
         setBlocked(true);
         return;
       }
-      // Đủ số lần truy cập -> bắt buộc đánh giá (chặn cứng).
-      if (visitCount >= MANDATORY_REVIEW_VISIT && !hasReviewed()) {
-        window.dispatchEvent(new CustomEvent('kw-force-review'));
-      }
+      // v25: ReviewWidget hỏi server (tổng lượt ghé theo email + đã đánh giá chưa) rồi tự quyết định ép đánh giá.
+      window.dispatchEvent(new CustomEvent('kw-check-review', { detail: { visitCount } }));
     })();
 
     const HEARTBEAT = 20; // giây

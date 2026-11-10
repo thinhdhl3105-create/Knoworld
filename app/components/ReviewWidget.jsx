@@ -1,14 +1,21 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import {
   shouldPromptReview,
   hasReviewed,
   snoozeReview,
   submitReview,
+  fetchReviewStatus,
   MIN_COMMENT_LENGTH,
 } from '@/lib/reviews';
-import { getServerVisitCount, MANDATORY_REVIEW_VISIT } from '@/lib/visitor';
+import { getServerVisitCount, hasRegistered, MANDATORY_REVIEW_VISIT } from '@/lib/visitor';
+import { useAuth } from './AuthProvider';
+
+// v25: từ lần ghé thứ 3 (tính trên server, gộp theo email) mà chưa đánh giá
+// -> bảng đánh giá CHẶN toàn màn hình, không đóng / thu gọn được cho tới khi gửi.
+const SKIP_PREFIXES = ['/login', '/admin'];
 
 const RATING_LABELS = ['', 'Poor', 'Fair', 'Average', 'Good', 'Excellent'];
 
@@ -61,8 +68,10 @@ export default function ReviewWidget() {
   const [vals, setVals] = useState({ convenience: 0, content: 0, overall: 0 });
   const [comment, setComment] = useState('');
   const [thankYou, setThankYou] = useState(false);
-  const [mandatory, setMandatory] = useState(false); // bắt buộc đánh giá (v24: không chặn màn hình)
-  const [minimized, setMinimized] = useState(false); // v24: thu gọn bảng bắt buộc
+  const [mandatory, setMandatory] = useState(false); // v25: bắt buộc đánh giá -> chặn toàn màn hình
+  const pathname = usePathname();
+  const { user } = useAuth();
+  const skip = !!user || SKIP_PREFIXES.some((p) => pathname?.startsWith(p));
 
   // Mở form (từ toast hoặc nút nổi).
   const openForm = useCallback(() => {
@@ -72,10 +81,7 @@ export default function ReviewWidget() {
 
   useEffect(() => {
     setMounted(true);
-    if (hasReviewed()) {
-      setDone(true);
-      return;
-    }
+    if (hasReviewed()) setDone(true);
 
     // Ép đánh giá khi đã truy cập đủ số lần quy định (chặn cứng).
     const forceReview = () => {
@@ -83,7 +89,25 @@ export default function ReviewWidget() {
       setToast(false);
       setOpen(true);
     };
-    if (getServerVisitCount() >= MANDATORY_REVIEW_VISIT) forceReview();
+
+    // v25: luôn hỏi server — người đã ghé 7–8 lần chưa đánh giá cũng bị yêu cầu ngay.
+    let alive = true;
+    const check = async () => {
+      if (!hasRegistered()) return;
+      const st = await fetchReviewStatus();
+      if (!alive) return;
+      if (st.hasReviewed) {
+        setDone(true);
+        setMandatory(false);
+        return;
+      }
+      setDone(false);
+      if (st.visits >= MANDATORY_REVIEW_VISIT) forceReview();
+    };
+    // Hiện ngay theo số liệu cục bộ (không chờ mạng), rồi xác nhận với server.
+    if (!hasReviewed() && hasRegistered() && getServerVisitCount() >= MANDATORY_REVIEW_VISIT) forceReview();
+    check();
+    window.addEventListener('kw-check-review', check);
     window.addEventListener('kw-force-review', forceReview);
 
     // Lần vào lại: nếu đã đủ điều kiện thì mời luôn.
@@ -95,7 +119,9 @@ export default function ReviewWidget() {
     };
     window.addEventListener('kw-content-view', onView);
     return () => {
+      alive = false;
       window.removeEventListener('kw-content-view', onView);
+      window.removeEventListener('kw-check-review', check);
       window.removeEventListener('kw-force-review', forceReview);
     };
   }, []);
@@ -108,6 +134,9 @@ export default function ReviewWidget() {
   }, [thankYou]);
 
   if (!mounted) return null;
+  // Giảng viên đã đăng nhập / trang admin, login: không ép đánh giá.
+  const blocking = mandatory && !done && !skip;
+  const showForm = blocking || (open && !(mandatory && !skip && !done));
 
   const setRating = (key, n) => setVals((v) => ({ ...v, [key]: n }));
   const noteLen = comment.trim().length;
@@ -148,7 +177,7 @@ export default function ReviewWidget() {
   return (
     <>
       {/* Nút nổi luôn hiện (trừ khi đang mở form) */}
-      {!open && (
+      {!showForm && (
         <button
           onClick={openForm}
           className="fixed bottom-20 md:bottom-5 right-4 md:right-5 z-[55] flex items-center gap-2 bg-primary text-on-primary px-4 py-3 rounded-full shadow-lg shadow-black/40 text-sm font-bold hover:scale-95 transition-transform"
@@ -160,7 +189,7 @@ export default function ReviewWidget() {
       )}
 
       {/* Toast mời đánh giá (không chặn màn hình) */}
-      {toast && !open && (
+      {toast && !showForm && (
         <div className="fixed bottom-36 md:bottom-20 right-4 md:right-5 z-[55] w-72 glass-card rounded-card p-4 shadow-xl shadow-black/40 animate-[kwSlideUp_.3s_ease]">
           <button
             onClick={dismissToast}
@@ -193,41 +222,22 @@ export default function ReviewWidget() {
       )}
 
       {/* Modal form đầy đủ */}
-      {/* v24: bảng bắt buộc thu gọn thành nút nhắc, vẫn duyệt web bình thường */}
-      {open && mandatory && minimized && (
-        <button
-          onClick={() => setMinimized(false)}
-          className="fixed bottom-20 md:bottom-5 right-4 md:right-5 z-[60] flex items-center gap-2 bg-secondary text-on-secondary px-4 py-3 rounded-full shadow-lg shadow-black/40 text-sm font-bold animate-pulse"
-        >
-          <span className="material-symbols-outlined text-xl">rate_review</span>
-          Rate us (15s) to keep exploring
-        </button>
-      )}
-
-      {open && !(mandatory && minimized) && (
+      {showForm && (
         <div
-          className={mandatory
-            ? 'fixed z-[60] bottom-20 md:bottom-5 right-4 md:right-5 left-4 md:left-auto pointer-events-none flex justify-end'
+          className={blocking
+            ? 'fixed inset-0 z-[90] flex items-center justify-center p-4 bg-background/95 backdrop-blur-md overflow-y-auto'
             : 'fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm'}
-          onClick={() => { if (!mandatory) setOpen(false); }}
+          onClick={() => { if (!blocking) setOpen(false); }}
+          role="dialog"
+          aria-modal="true"
         >
           <div
-            className={`w-full max-w-md glass-card rounded-card p-6 pointer-events-auto ${mandatory ? 'shadow-2xl shadow-black/60 max-h-[75vh] overflow-y-auto animate-[kwSlideUp_.3s_ease]' : ''}`}
+            className={`w-full max-w-md glass-card rounded-card p-6 my-8 ${blocking ? 'shadow-2xl shadow-black/60 animate-[kwSlideUp_.3s_ease]' : ''}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between mb-1">
               <h2 className="font-display text-lg font-medium">Rate your experience</h2>
-              {mandatory && (
-                <button
-                  onClick={() => setMinimized(true)}
-                  className="material-symbols-outlined text-on-surface-variant hover:text-primary"
-                  aria-label="Minimize"
-                  title="Minimize — you can keep browsing"
-                >
-                  remove
-                </button>
-              )}
-              {!mandatory && (
+              {!blocking && (
                 <button
                   onClick={() => setOpen(false)}
                   className="material-symbols-outlined text-on-surface-variant hover:text-primary"
@@ -238,8 +248,8 @@ export default function ReviewWidget() {
               )}
             </div>
             <p className="text-xs text-on-surface-variant mb-4">
-              {mandatory
-                ? 'You have visited a few times — a quick rating helps us improve. Feel free to keep browsing; it stays here until you submit.'
+              {blocking
+                ? "You've visited Knoworld several times — please take 15 seconds to rate your experience before you continue exploring."
                 : 'Rate from 1 (Poor) to 5 (Excellent).'}
             </p>
 
@@ -278,7 +288,7 @@ export default function ReviewWidget() {
             {error && <p className="text-error text-xs mt-2">{error}</p>}
 
             <div className="flex items-center gap-3 mt-4">
-              {!mandatory && (
+              {!blocking && (
                 <button
                   onClick={() => setOpen(false)}
                   className="flex-1 py-2.5 rounded-lg text-sm font-bold border border-white/10 text-on-surface-variant hover:border-primary/40 transition-colors"
