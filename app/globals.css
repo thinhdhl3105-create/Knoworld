@@ -145,6 +145,8 @@ body {
    v28: City subpages — sky header, reflected city, glass cards
    --------------------------------------------------------------------------- */
 .kw-city-head { min-height: 340px; padding-bottom: 120px; box-sizing: border-box; }
+/* v35: màn hình hẹp — chừa chỗ để tòa nhà chính không nằm sau thẻ tiêu đề */
+@media (max-width: 959px) { .kw-city-head { padding-bottom: 205px; } }
 .kw-title-card {
   max-width: 560px; display: flex; flex-direction: column; gap: 10px; padding: 18px 20px;
   background: rgba(19,17,28,.86); border: 1px solid rgba(255,255,255,.11); border-radius: 14px;

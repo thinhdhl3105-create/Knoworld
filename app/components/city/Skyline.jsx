@@ -302,12 +302,14 @@ function Traffic({ night }) {
   );
 }
 
-export default function Skyline({ phase = 'day', hero = 'sign', label = '', accent, className = '', style, traffic = true }) {
+// v35: khung vẽ cao thêm 70 đơn vị phía trên (chóp tháp, ăng-ten không bị cắt);
+//      màn hình hẹp neo bên phải để tòa nhà chính luôn hiện ra.
+export default function Skyline({ phase = 'day', hero = 'sign', label = '', accent, className = '', style, traffic = true, wide = false }) {
   const p = PHASES[phase] || PHASES.day;
   const id = `kws${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const lo = 880; const hi = 1200; // chừa chỗ cho tòa nhà chính
   return (
-    <svg viewBox="0 0 1280 200" preserveAspectRatio="xMidYMax slice" className={className} style={style} aria-hidden="true">
+    <svg viewBox="0 -70 1280 270" preserveAspectRatio={wide ? 'xMidYMax slice' : 'xMaxYMax slice'} className={className} style={style} aria-hidden="true">
       <defs>
         <pattern id={`${id}w`} width="11" height="15" patternUnits="userSpaceOnUse"><rect x="2" y="3" width="6" height="8" fill={p.win} /></pattern>
         <pattern id={`${id}s`} width="8" height="15" patternUnits="userSpaceOnUse" patternTransform="skewY(-29)"><rect x="2" y="3" width="4" height="8" fill={p.win} /></pattern>

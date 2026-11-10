@@ -77,7 +77,7 @@ export default function CityPage({
           }}
         />
         <Skyline phase={phase} hero={cfg.hero} label={cfg.label} accent={cfg.accent}
-          className="absolute left-0 bottom-0 w-full h-[200px]" />
+          className="absolute left-0 bottom-0 w-full" style={{ height: 'clamp(240px, 21.1vw, 420px)' }} />
 
         <div className={`relative z-[2] ${width} mx-auto px-4 md:px-8 pt-[76px] md:pt-[84px]`}>
           <div className="kw-title-card">
@@ -106,7 +106,7 @@ export default function CityPage({
         <div aria-hidden="true" className="kw-city-reflect">
           <div className="absolute -left-[10%] -right-[10%] top-0 h-[520px]"
             style={{ background: `linear-gradient(180deg, ${p.sky[2]} 0%, ${p.sky[1]} 35%, transparent 80%)`, opacity: p.haze, filter: 'blur(40px)' }} />
-          <Skyline phase={phase} hero={cfg.hero} label={cfg.label} accent={cfg.accent} traffic={false}
+          <Skyline phase={phase} hero={cfg.hero} label={cfg.label} accent={cfg.accent} traffic={false} wide
             className="kw-reflect-svg" style={{ filter: p.reflect }} />
           <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(19,18,27,.08) 0%, rgba(19,18,27,.5) 35%, #13121b 72%)' }} />
         </div>
