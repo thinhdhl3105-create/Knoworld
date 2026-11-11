@@ -1,4 +1,4 @@
-/* v36: Knoworld Temple — mọi style gói trong .kwtp */
+/* v36: Knoworld Temple — mọi style gói trong .kwtp (v38: thêm sân luyện võ) */
 .kwtp{--tp-panel:#1c1b23;--tp-panel2:#2a2932;--tp-line:#3a3842;--tp-ink:#e5e0ed;--tp-muted:#c8c4d7;--tp-gold:#ffd27a;--tp-lav:#c6bfff;color:var(--tp-ink)}
 .kwtp *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 .kwtp .gold{color:var(--tp-gold)}
@@ -134,4 +134,28 @@
   .kwtp .tp-inv{gap:6px}
   .kwtp .tp-shop{grid-template-columns:1fr}
   .kwtp .tp-dlg .txt{font-size:21px}
+}
+
+/* v38: sân luyện võ */
+.kwtp .tp-vo-chip{border-color:rgba(198,191,255,.35)}
+.kwtp .tp-vo{display:flex;gap:16px;align-items:center;background:#24232c;border:1px solid var(--tp-line);border-radius:14px;padding:14px}
+.kwtp .tp-vo canvas{width:96px;height:120px;image-rendering:pixelated;flex:none;background:radial-gradient(circle at 50% 70%,#e8d3a0 0 45%,transparent 46%)}
+.kwtp .tp-vo-r{flex:1;min-width:0}
+.kwtp .tp-vo .seq{display:flex;flex-wrap:wrap;gap:6px;min-height:44px}
+.kwtp .tp-vo .seq span{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;background:#16151d;border:2px solid var(--tp-line);font-size:22px;font-weight:700;color:var(--tp-muted)}
+.kwtp .tp-vo .seq span.cur{border-color:var(--tp-gold);color:var(--tp-gold);transform:translateY(-3px)}
+.kwtp .tp-vo .seq span.ok{background:#3a6b3a;border-color:#7cc25e;color:#fff}
+.kwtp .tp-vo .tbar{height:8px;border-radius:9px;background:#35343d;overflow:hidden;margin-top:10px}
+.kwtp .tp-vo .tbar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#e2463a,#ffd27a)}
+.kwtp .tp-vo .tp-momsg{text-align:left}
+.kwtp .tp-vo-keys{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.kwtp .tp-vo-keys button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border-radius:12px;border:1px solid var(--tp-line);background:var(--tp-panel2);color:var(--tp-ink);font:inherit;cursor:pointer;touch-action:manipulation;user-select:none}
+.kwtp .tp-vo-keys button:active{border-color:var(--tp-gold);background:#3a3842}
+.kwtp .tp-vo-keys b{font-size:22px;line-height:1}
+.kwtp .tp-vo-keys small{font-size:11.5px;color:var(--tp-muted)}
+@media (max-width:760px){
+  .kwtp .tp-vo-chip{display:none}
+  .kwtp .tp-vo{gap:10px;padding:10px}
+  .kwtp .tp-vo canvas{width:64px;height:80px}
+  .kwtp .tp-vo .seq span{width:32px;height:32px;font-size:18px}
 }

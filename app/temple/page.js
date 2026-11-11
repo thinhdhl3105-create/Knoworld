@@ -2,6 +2,7 @@
 
 // v36: Knoworld Temple — đảo chùa nối Game Island bằng phà.
 // Game pixel đi vòng quanh chùa: gõ mõ tích công đức, mua nhang ở quầy, xin xăm, hỏi Thầy Phán.
+// v38: chùa mở rộng — khách thập phương, lạy Phật, sân luyện võ, quét lá đa.
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import CityPage from '../components/city/CityPage';
@@ -30,7 +31,7 @@ export default function TemplePage() {
     <CityPage
       place="temple"
       title="Knoworld Temple"
-      subtitle="Walk around the temple grounds: tap the wooden fish for merit, trade it for incense at the gate stall, then draw a fortune stick or ask Thầy Phán a question."
+      subtitle="Walk around the temple grounds: bow before the main hall, tap the wooden fish, train kung fu with the master or sweep banyan leaves for merit, trade it for incense at the gate stall, then draw a fortune stick or ask Thầy Phán a question."
     >
       <div className="kwtp" ref={ref} />
     </CityPage>
