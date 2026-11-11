@@ -1,0 +1,183 @@
+/* v40: Knoworld Museum — mọi style gói trong .kwmu (dựa trên temple.css) */
+.kwmu{--mu-panel:#1c1b23;--mu-panel2:#2a2932;--mu-line:#3a3842;--mu-ink:#e5e0ed;--mu-muted:#c8c4d7;--mu-gold:#ffd27a;--mu-lav:#c6bfff;color:var(--mu-ink)}
+.kwmu *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+.kwmu .gold{color:var(--mu-gold)}
+
+/* HUD */
+.kwmu .mu-hud{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:10px}
+.kwmu .mu-sp{flex:1}
+.kwmu .mu-chip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;background:rgba(42,41,50,.75);border:1px solid var(--mu-line);font-size:13px;white-space:nowrap}
+.kwmu .mu-chip b{color:var(--mu-gold);font-weight:700}
+.kwmu .mu-cd{border-color:rgba(255,210,122,.45)}
+.kwmu .mu-bar{width:54px;height:6px;border-radius:9px;background:#35343d;overflow:hidden}
+.kwmu .mu-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#f2b84b,#ffd27a)}
+.kwmu .mu-inv{gap:10px}
+.kwmu .mu-inv span{display:inline-flex;align-items:center;gap:4px}
+.kwmu .mu-inv svg{width:16px;height:16px}
+.kwmu .mu-ic{height:32px;min-width:32px;padding:0 10px;border-radius:999px;border:1px solid var(--mu-line);background:rgba(42,41,50,.75);color:var(--mu-ink);font:inherit;font-size:13px;cursor:pointer}
+.kwmu .mu-ic:hover{border-color:var(--mu-gold)}
+
+/* stage */
+.kwmu .mu-stage{position:relative;height:min(74vh,720px);min-height:420px;border-radius:16px;overflow:hidden;border:1px solid var(--mu-line);background:#0e0d16;outline:none;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.kwmu .mu-stage:focus-visible{border-color:var(--mu-gold)}
+.kwmu canvas[data-id="cv"]{display:block;width:100%;height:100%;image-rendering:pixelated;touch-action:none}
+.kwmu .mu-hint{position:absolute;left:12px;top:10px;font-size:12px;color:#fff;background:rgba(19,18,27,.65);padding:5px 10px;border-radius:8px;pointer-events:none}
+.kwmu .mu-sleep{position:absolute;inset:0;display:grid;place-items:center;background:rgba(10,9,16,.35);cursor:pointer;z-index:3}
+.kwmu .mu-sleep[hidden]{display:none}
+.kwmu .mu-sleep span{background:rgba(19,18,27,.9);border:1px solid var(--mu-gold);border-radius:10px;padding:8px 14px;font-size:13.5px}
+
+/* dialog */
+.kwmu .mu-dlg{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:min(760px,calc(100% - 24px));background:rgba(19,18,27,.94);border:3px solid var(--mu-gold);border-radius:10px;box-shadow:0 0 0 3px #13121b,0 10px 30px rgba(0,0,0,.5);padding:12px 16px 14px;display:none;z-index:5}
+.kwmu .mu-dlg .who{position:absolute;top:-16px;left:14px;background:var(--mu-gold);color:#13121b;font-family:'VT323',monospace;font-size:20px;line-height:1;padding:4px 10px;border-radius:6px}
+.kwmu .mu-dlg .txt{font-family:'VT323',monospace;font-size:24px;line-height:1.2;min-height:58px;white-space:pre-line;color:#f7f0e2}
+.kwmu .mu-dlg .more{position:absolute;right:14px;bottom:8px;color:var(--mu-gold);font-family:'VT323',monospace;font-size:20px;animation:muBlink 1s steps(2) infinite}
+.kwmu .mu-dlg .choices{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.kwmu .mu-dlg .choices button{all:unset;cursor:pointer;font-family:'VT323',monospace;font-size:23px;padding:2px 8px 2px 26px;border-radius:6px;position:relative;color:#f7f0e2}
+.kwmu .mu-dlg .choices button.on{background:rgba(255,210,122,.14);color:var(--mu-gold)}
+.kwmu .mu-dlg .choices button.on::before{content:'▶';position:absolute;left:8px;font-size:16px;top:5px}
+@keyframes muBlink{50%{opacity:0}}
+
+/* modal */
+.kwmu .mu-modal{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(10,9,16,.55);z-index:6;padding:14px}
+.kwmu .mu-panel{width:min(600px,100%);max-height:100%;overflow:auto;background:rgba(28,27,35,.97);border:1px solid rgba(255,210,122,.4);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.6);padding:18px 18px 16px;position:relative}
+.kwmu .mu-panel h2{margin:0 0 2px;font-size:19px;font-weight:700}
+.kwmu .mu-panel .sub{color:var(--mu-muted);font-size:13px;margin:0 0 14px}
+.kwmu .mu-panel .x{position:absolute;right:12px;top:12px;width:32px;height:32px;border-radius:50%;border:1px solid var(--mu-line);background:var(--mu-panel2);color:var(--mu-ink);cursor:pointer;font-size:16px}
+.kwmu .mu-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:38px;padding:0 16px;border-radius:10px;border:1px solid var(--mu-line);background:var(--mu-panel2);color:var(--mu-ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.kwmu .mu-btn.gold{background:var(--mu-gold);border-color:var(--mu-gold);color:#1b1408}
+.kwmu .mu-btn:disabled{opacity:.4;cursor:not-allowed}
+.kwmu .mu-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px}
+.kwmu .mu-help{margin:0 0 10px 18px;padding:0;line-height:1.7;font-size:14px}
+
+/* toast */
+.kwmu .mu-toast{position:absolute;top:12px;left:50%;transform:translateX(-50%) translateY(-80px);background:rgba(19,18,27,.95);border:1px solid var(--mu-gold);padding:8px 14px;border-radius:10px;font-size:13.5px;transition:transform .25s;z-index:7;max-width:calc(100% - 24px);text-align:center}
+.kwmu .mu-toast.on{transform:translateX(-50%) translateY(0)}
+
+/* phím ảo */
+.kwmu .mu-pad{display:none}
+.kwmu.touch .mu-pad{display:block}
+.kwmu .dpad{position:absolute;left:12px;bottom:12px;width:132px;height:132px;opacity:.85;z-index:4}
+.kwmu .dpad button,.kwmu .ab button{position:absolute;width:44px;height:44px;border-radius:10px;border:2px solid rgba(255,255,255,.25);background:rgba(19,18,27,.6);color:#fff;font-size:18px;touch-action:none;user-select:none;-webkit-user-select:none}
+.kwmu .dpad [data-d=up]{left:44px;top:0}.kwmu .dpad [data-d=down]{left:44px;bottom:0}.kwmu .dpad [data-d=left]{left:0;top:44px}.kwmu .dpad [data-d=right]{right:0;top:44px}
+.kwmu .ab{position:absolute;right:14px;bottom:18px;width:120px;height:100px;z-index:4}
+.kwmu .ab button{border-radius:50%;width:54px;height:54px;font-family:'VT323',monospace;font-size:24px}
+.kwmu .ab .a{right:0;top:0;background:rgba(255,210,122,.85);color:#13121b;border-color:#ffe7b0}
+.kwmu .ab .b{left:0;bottom:0}
+.kwmu.touch .mu-hint{display:none}
+.kwmu.touch .mu-dlg{bottom:160px}
+
+@media (max-width:760px){
+  .kwmu .mu-stage{height:72vh;min-height:380px;border-radius:12px}
+  .kwmu .mu-chip{height:28px;padding:0 9px;font-size:12px}
+  .kwmu .mu-bar,.kwmu .mu-day{display:none}
+  .kwmu .mu-ic{height:28px;font-size:12px;padding:0 8px}
+  .kwmu .mu-inv{gap:6px}
+  .kwmu .mu-shop{grid-template-columns:1fr}
+  .kwmu .mu-dlg .txt{font-size:21px}
+}
+
+/* v39: nhiều người chơi */
+.kwmu .mu-on{cursor:pointer;color:var(--mu-ink);font:inherit;font-size:13px;border-color:rgba(110,231,160,.5)}
+.kwmu .mu-on[hidden],.kwmu .mu-ic[hidden]{display:none}
+.kwmu .mu-on i{width:8px;height:8px;border-radius:50%;background:#6ee7a0;box-shadow:0 0 0 3px rgba(110,231,160,.2);animation:muPulse 2s ease-in-out infinite}
+.kwmu .mu-on b{color:#6ee7a0}
+@keyframes muPulse{50%{box-shadow:0 0 0 6px rgba(110,231,160,0)}}
+
+/* v40: riêng bảo tàng */
+.kwmu{--mu-pink:#ff8fb1;--mu-cyan:#7ee8ff}
+.kwmu .mu-loc{border-color:rgba(126,232,255,.4)}
+.kwmu .mu-pts,.kwmu .mu-duck{cursor:pointer;color:var(--mu-ink);font:inherit;font-size:13px}
+.kwmu .mu-pts{border-color:rgba(255,210,122,.45)}
+.kwmu .mu-pts span{color:var(--mu-muted);font-size:12px}
+.kwmu .mu-duck{border-color:rgba(255,255,255,.3)}
+.kwmu .mu-admin{display:inline-flex;align-items:center;text-decoration:none;border-color:rgba(255,210,122,.6);color:var(--mu-gold)}
+.kwmu .mu-admin[hidden]{display:none}
+.kwmu .mu-btn{text-decoration:none}
+.kwmu .mu-btn.pink{background:var(--mu-pink);border-color:var(--mu-pink);color:#2a0d18}
+.kwmu .mu-panel.wide{width:min(820px,100%)}
+.kwmu .mu-panel.love{border-color:rgba(255,143,177,.55);background:rgba(36,24,34,.97)}
+.kwmu .mu-panel .note{font-size:12px;color:var(--mu-muted);margin:12px 0 0;border-top:1px dashed var(--mu-line);padding-top:10px}
+.kwmu .mu-help{margin:0 0 10px 18px;padding:0;line-height:1.7;font-size:14px}
+.kwmu .mu-banner{position:absolute;top:44px;left:50%;transform:translate(-50%,-8px);text-align:center;pointer-events:none;opacity:0;transition:opacity .45s,transform .45s;z-index:3;white-space:nowrap}
+.kwmu .mu-banner.on{opacity:1;transform:translate(-50%,0)}
+.kwmu .mu-banner b{display:block;font-family:'VT323',monospace;font-weight:400;font-size:38px;line-height:1;letter-spacing:2px;text-shadow:0 3px 0 #13121b,0 0 18px rgba(0,0,0,.6)}
+.kwmu .mu-banner span{display:inline-block;margin-top:4px;font-size:13px;color:#fff;background:rgba(19,18,27,.7);padding:3px 10px;border-radius:99px}
+/* lightbox */
+.kwmu .lb-top{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--mu-muted);margin:0 40px 10px 0;letter-spacing:.4px;text-transform:uppercase}
+.kwmu .lb-top .room{font-weight:700}
+.kwmu .lb-top .tag{margin-left:auto;text-transform:none;letter-spacing:0;background:#2a2932;border:1px solid var(--mu-line);padding:2px 8px;border-radius:99px}
+.kwmu .lb-img{position:relative;width:min(100%,calc(50vh * 4 / 3));margin:0 auto;border-radius:12px;overflow:hidden;background:#0e0d16;border:6px solid #c99a3a;box-shadow:inset 0 0 0 2px #7a5a24,0 10px 30px rgba(0,0,0,.45);aspect-ratio:4/3;display:grid;place-items:center}
+.kwmu .love .lb-img{border-color:#f39ab5;box-shadow:inset 0 0 0 2px #b4577a,0 10px 30px rgba(0,0,0,.45)}
+.kwmu .lb-img img{width:100%;height:100%;object-fit:contain;display:block;background:#0e0d16}
+.kwmu .lb-img img.pix{image-rendering:pixelated;object-fit:cover}
+.kwmu .lb-img .ribbon{position:absolute;left:10px;top:10px;font-size:11px;font-weight:700;background:rgba(19,18,27,.8);color:var(--mu-gold);border:1px solid rgba(255,210,122,.5);padding:3px 8px;border-radius:99px}
+.kwmu .lb-img .nav{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(19,18,27,.7);color:#fff;font-size:22px;cursor:pointer;line-height:1}
+.kwmu .lb-img .nav:hover{border-color:var(--mu-gold)}
+.kwmu .lb-img .nav.l{left:10px}.kwmu .lb-img .nav.r{right:10px}
+.kwmu .lb-body h3{margin:14px 0 2px;font-size:20px}
+.kwmu .lb-body .meta{font-size:13px;color:var(--mu-gold)}
+.kwmu .love .lb-body .meta{color:var(--mu-pink)}
+.kwmu .lb-body p{margin:8px 0 0;font-size:14.5px;line-height:1.6;color:#ddd8e8;white-space:pre-line}
+.kwmu .lb-dots{display:flex;gap:5px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+.kwmu .lb-dots i{width:7px;height:7px;border-radius:50%;background:#45434f}
+.kwmu .lb-dots i.seen{background:#7d7a8a}
+.kwmu .lb-dots i.on{background:var(--mu-gold)}
+/* album */
+.kwmu .mu-album{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.kwmu .mu-al{all:unset;cursor:pointer;position:relative;display:flex;flex-direction:column;gap:4px;background:#24232c;border:1px solid var(--mu-line);border-radius:10px;padding:6px;font-size:12px;color:var(--mu-ink)}
+.kwmu .mu-al:hover{border-color:var(--mu-gold)}
+.kwmu .mu-al img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;background:#16151d}
+.kwmu .mu-al img.pix{image-rendering:pixelated}
+.kwmu .mu-al span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kwmu .mu-al em{position:absolute;right:10px;top:10px;font-style:normal;font-size:10.5px;font-weight:700;background:rgba(19,18,27,.85);color:var(--mu-cyan);padding:2px 6px;border-radius:99px}
+.kwmu .mu-al.seen::after{content:'✓';position:absolute;left:10px;top:10px;width:18px;height:18px;border-radius:50%;background:#3a6b3a;color:#fff;font-size:11px;display:grid;place-items:center}
+/* sổ lưu bút */
+.kwmu .gb-list{display:flex;flex-direction:column;gap:8px;max-height:260px;overflow:auto;margin-bottom:12px}
+.kwmu .gb{background:#f6ecd4;color:#3b2a1e;border-radius:4px;padding:10px 12px;font-size:14px;line-height:1.45;box-shadow:0 3px 0 #c9b48a;word-break:break-word}
+.kwmu .gb b{font-weight:700}.kwmu .gb small{color:#8a6f52;margin-left:6px}
+.kwmu .gb-form{display:flex;flex-direction:column;gap:8px}
+.kwmu .gb-form input,.kwmu .gb-form textarea,.kwmu .mu-pass input{font:inherit;font-size:14px;color:var(--mu-ink);background:#16151d;border:1px solid var(--mu-line);border-radius:10px;padding:9px 11px;resize:none}
+.kwmu .gb-form input:focus,.kwmu .gb-form textarea:focus,.kwmu .mu-pass input:focus{outline:none;border-color:var(--mu-gold)}
+/* sơ đồ */
+.kwmu .mu-dir{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:6px}
+.kwmu .mu-dir div{border-radius:10px;padding:10px;font-size:13px;line-height:1.35;border:1px solid var(--mu-line);background:#24232c;min-height:62px}
+.kwmu .mu-dir div b{display:block;font-size:13.5px;margin-bottom:2px}
+.kwmu .mu-dir div span{color:var(--mu-muted);font-size:12px}
+.kwmu .mu-dir .here{outline:2px solid var(--mu-cyan);outline-offset:1px}
+.kwmu .mu-dir .award{grid-column:2;grid-row:1/3}
+.kwmu .mu-dir .class{grid-column:1;grid-row:2/4}.kwmu .mu-dir .event{grid-column:3;grid-row:2/4}
+.kwmu .mu-dir .lobby{grid-column:2;grid-row:3}
+/* Phòng Riêng */
+.kwmu .lock-art{display:grid;place-items:center;margin:4px 0 6px}
+.kwmu .mu-pass{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.kwmu .mu-pass input{width:min(260px,100%);text-align:center;letter-spacing:2px}
+.kwmu .mu-pass.bad{animation:muShk .35s}
+@keyframes muShk{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.kwmu .mu-err{text-align:center;color:var(--mu-pink);font-size:13px;min-height:18px;margin:10px 0 0}
+/* vịt */
+.kwmu .mu-ducks{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.kwmu .mu-dk{display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;background:#24232c;border:1px solid var(--mu-line);border-radius:12px;padding:8px 4px}
+.kwmu .mu-dk img{width:48px;height:54px;image-rendering:pixelated;filter:brightness(0) opacity(.35)}
+.kwmu .mu-dk.ok{border-color:rgba(255,210,122,.6)}
+.kwmu .mu-dk.ok img{filter:none}
+.kwmu .mu-dk b{font-size:12.5px}
+.kwmu .mu-dk small{font-size:11px;color:var(--mu-muted)}
+/* xếp hạng */
+.kwmu .mu-me{background:#24232c;border:1px solid rgba(255,210,122,.45);border-radius:12px;padding:10px 12px;margin:8px 0 12px;font-size:14px}
+.kwmu .mu-me b{color:var(--mu-gold);font-size:20px}
+.kwmu .mu-me small{display:block;color:var(--mu-muted);font-size:12px;margin-top:2px}
+.kwmu .mu-rank{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.kwmu .mu-rank li{display:flex;align-items:center;gap:10px;background:#24232c;border-radius:10px;padding:8px 12px;font-size:14px}
+.kwmu .mu-rank li .n{width:24px;height:24px;border-radius:50%;background:#35343d;display:grid;place-items:center;font-size:12px;font-weight:700}
+.kwmu .mu-rank li:nth-child(1) .n{background:#ffd27a;color:#2a1a06}
+.kwmu .mu-rank li:nth-child(2) .n{background:#d6d3e0;color:#2a2932}
+.kwmu .mu-rank li:nth-child(3) .n{background:#d0905a;color:#2a1a06}
+.kwmu .mu-rank li .p{margin-left:auto;color:var(--mu-gold);font-weight:700}
+.kwmu .mu-rank li.empty{color:var(--mu-muted);font-size:13px}
+@media (max-width:760px){
+  .kwmu .mu-pts span{display:none}
+  .kwmu .mu-ducks{grid-template-columns:repeat(3,1fr)}
+  .kwmu .mu-dir{grid-template-columns:1fr 1fr}
+  .kwmu .mu-dir div{grid-column:auto!important;grid-row:auto!important}
+  .kwmu .mu-banner b{font-size:30px}
+}

@@ -1,0 +1,46 @@
+/* v40: trang quản trị Knoworld Museum */
+.kwma{display:flex;flex-direction:column;gap:16px;color:#e5e0ed}
+.kwma .ma-tabs{display:flex;flex-wrap:wrap;gap:8px}
+.kwma .ma-tabs button{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:999px;border:1px solid #3a3842;background:rgba(30,26,44,.82);color:#e5e0ed;font:inherit;font-size:14px;cursor:pointer}
+.kwma .ma-tabs button i{width:9px;height:9px;border-radius:50%}
+.kwma .ma-tabs button small{color:#a6a0ba;font-size:12px}
+.kwma .ma-tabs button.on{border-color:var(--c);box-shadow:0 0 0 1px var(--c) inset}
+.kwma .ma-card{background:rgba(30,26,44,.82);border:1px solid #3a3842;border-radius:18px;padding:18px}
+.kwma .ma-card.love{border-color:rgba(255,143,177,.5)}
+.kwma .ma-card h2{margin:0 0 4px;font-size:18px;font-weight:700}
+.kwma .ma-card h2 small{color:#a6a0ba;font-weight:400;font-size:13px}
+.kwma .ma-sub{margin:0 0 12px;color:#c8c4d7;font-size:13.5px;line-height:1.5}
+.kwma .ma-drop{display:flex;flex-direction:column;align-items:center;gap:4px;padding:26px 16px;border:2px dashed #5b5670;border-radius:14px;cursor:pointer;text-align:center;font-size:14px;color:#c8c4d7}
+.kwma .ma-drop:hover,.kwma .ma-drop:focus-visible{border-color:#ffd27a;outline:none}
+.kwma .ma-drop b{color:#ffd27a}
+.kwma .ma-drop small{color:#a6a0ba;font-size:12px}
+.kwma .ma-queue,.kwma .ma-list{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.kwma .ma-item{position:relative;display:flex;gap:12px;background:#24232c;border:1px solid #3a3842;border-radius:14px;padding:10px}
+.kwma .ma-item img{width:150px;height:112px;object-fit:cover;border-radius:10px;background:#16151d;flex:none}
+.kwma .ma-fields{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.kwma .ma-2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.kwma input,.kwma textarea{font:inherit;font-size:13.5px;color:#e5e0ed;background:#16151d;border:1px solid #3a3842;border-radius:9px;padding:7px 10px;resize:vertical;min-width:0}
+.kwma input:focus,.kwma textarea:focus{outline:none;border-color:#ffd27a}
+.kwma .ma-x{position:absolute;right:8px;top:8px;width:28px;height:28px;border-radius:50%;border:1px solid #3a3842;background:#2a2932;color:#e5e0ed;cursor:pointer}
+.kwma .ma-item .ma-fields > input:first-child,.kwma .ma-queue .ma-fields > input:first-child{padding-right:36px}
+.kwma .ma-st{font-size:12.5px;color:#6ee7a0}.kwma .ma-st.err{color:#ff8a8a}
+.kwma .ma-slot{align-self:flex-start;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:#3d3560;color:#c6bfff}
+.kwma .ma-slot.al{background:#1f3a44;color:#7ee8ff}
+.kwma .ma-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:12px}
+.kwma .ma-row.left{justify-content:flex-start;margin-top:2px}
+.kwma .ma-btn{display:inline-flex;align-items:center;justify-content:center;height:38px;padding:0 16px;border-radius:10px;border:1px solid #3a3842;background:#2a2932;color:#e5e0ed;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.kwma .ma-btn.sm{height:30px;padding:0 10px;font-size:12.5px}
+.kwma .ma-btn.gold{background:#ffd27a;border-color:#ffd27a;color:#1b1408}
+.kwma .ma-btn.pink{background:#ff8fb1;border-color:#ff8fb1;color:#2a0d18}
+.kwma .ma-btn.danger{color:#ff8a8a;border-color:rgba(255,138,138,.4)}
+.kwma .ma-btn:disabled{opacity:.4;cursor:not-allowed}
+.kwma .ma-msg{margin:10px 0 0;font-size:13.5px;color:#ffd27a}
+.kwma .ma-gb{display:flex;flex-direction:column;gap:8px;max-height:420px;overflow:auto}
+.kwma .ma-gb > div{background:#24232c;border-radius:10px;padding:10px 12px;font-size:13.5px}
+.kwma .ma-gb small{color:#a6a0ba}
+.kwma .ma-gb p{margin:4px 0 6px;word-break:break-word}
+@media (max-width:640px){
+  .kwma .ma-item{flex-direction:column}
+  .kwma .ma-item img{width:100%;height:180px}
+  .kwma .ma-2{grid-template-columns:1fr}
+}

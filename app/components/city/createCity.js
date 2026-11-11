@@ -180,6 +180,9 @@ export function createCity(root, opts = {}) {
     // v36: đảo chùa — gõ mõ, quầy nhang, xin xăm, hỏi Thầy Phán. Nối Game Island bằng phà.
     { id: 'temple', name: 'Temple Isle', cx: 28, cz: 58, n: 1, walk: '#5a5048', color: '#ffb347', size: 24,
       desc: 'A quiet temple island, reached by ferry from Game Island: tap the wooden fish for merit, buy incense at the gate, draw a fortune stick or ask Thầy Phán.' },
+    // v40: đảo bảo tàng — giữa Main City và Temple Isle, nối cả hai bằng cầu.
+    { id: 'museum', name: 'Museum Isle', cx: 26, cz: 40, n: 1, walk: '#5a4e66', color: '#e9a8ff', size: 24,
+      desc: 'The museum island between Main City and Temple Isle, linked to both by bridges: galleries of classes, student programmes, milestones and photos, plus 10 hidden ducks a day.' },
   ];
   const ISL = ISL_ALL.filter((I) => !I.lock || HAS_ADMIN);
   for (const I of ISL) {
@@ -260,6 +263,17 @@ export function createCity(root, opts = {}) {
     scene.add(new THREE.LineSegments(g, cableMat));
   }
 
+  { // v40: Cầu Ký Ức (Main City -> Museum Isle) + cầu Museum Isle -> Temple Isle
+    const MU = ISL.find((I) => I.id === 'museum'), TE = ISL.find((I) => I.id === 'temple');
+    if (MU) {
+      bridgeDeck(MU.cx, M.half, MU.cx, MU.cz - MU.half);
+      if (TE) bridgeDeck(MU.cx, MU.cz + MU.half, MU.cx, TE.cz - TE.half);
+      for (const z of [M.half + 0.6, MU.cz - MU.half - 0.6, MU.cz + MU.half + 0.6, (TE ? TE.cz - TE.half : MU.cz + MU.half + 5) - 0.6]) {
+        for (const sx of [-1, 1]) { cyl(MU.cx + sx * 2.6, 0, z, 0.16, 1.6, '#3a3942', null, 8); neonBox(MU.cx + sx * 2.6, 1.6, z, 0.34, 0.34, 0.34, '#e9a8ff', null, '#8d8a80'); }
+      }
+    }
+  }
+
   // ================= water =================
   const SEA = 112, SEA_C = 21;
   const waterGeo = new THREE.PlaneGeometry(SEA, SEA, small ? 36 : 56, small ? 36 : 56);
@@ -279,12 +293,13 @@ export function createCity(root, opts = {}) {
   scene.remove(water); bio.sea.g.add(water);
   const G0 = -1.4, HALF = SEA / 2 - 2.5;
   const LOOPS = [{ cx: 57, cz: 57, rx: 14, rz: 12 }, // v31: vòng quanh Game Island
-   { cx: 28, cz: 58, rx: 12.5, rz: 11.5 }, { cx: 58, cz: 28, rx: 9, rz: 7 }]; // v36: vòng 2 đi quanh Temple Isle
+   { cx: 30, cz: 68.5, rx: 10, rz: 2.6 }, { cx: 58, cz: 28, rx: 9, rz: 7 }]; // v40: vòng 2 dời xuống nam Temple Isle (nhường chỗ cầu sang Museum Isle)
   function blocked(x, z, pad) {
     if (Math.abs(x - SEA_C) > HALF || Math.abs(z - SEA_C) > HALF) return true;
     for (const I of ISL) if (Math.abs(x - I.cx) < I.half + pad && Math.abs(z - I.cz) < I.half + pad) return true;
     if (Math.abs(x) < 3 + pad && z > 27 && z < 45) return true;
     if (Math.abs(z) < 3 + pad && x > 27 && x < 45) return true;
+    if (Math.abs(x - 26) < 3 + pad && ((z > 27 && z < 35) || (z > 45 && z < 53))) return true; // v40: cầu Museum Isle
     return false;
   }
   const nearLoop = (x, z, pad) => LOOPS.some((L) => Math.abs(Math.hypot((x - L.cx) / L.rx, (z - L.cz) / L.rz) - 1) * Math.min(L.rx, L.rz) < pad);
@@ -540,6 +555,8 @@ export function createCity(root, opts = {}) {
       desc: 'The Lecture Hall keeps your teaching timetable, City Hall your meetings, the Lighthouse the dates you must not miss.' },
     { key: 'temple', city: 'temple', name: 'Knoworld Temple', route: '/temple', dot: '#ffb347', cx: 28, cz: 58,
       desc: 'Walk around the temple: tap the wooden fish for merit, buy incense at the gate stall, then draw a fortune stick or ask Thầy Phán.' },
+    { key: 'museum', city: 'museum', name: 'Knoworld Museum', route: '/museum', dot: '#e9a8ff', cx: 26, cz: 40,
+      desc: 'Walk through the galleries with everyone inside: classes, student programmes, milestones and photos. Earn exploration points and find the 10 hidden ducks.' },
   ];
   const LOCKED = new Set(ISL_ALL.filter((I) => I.lock).map((I) => I.id));
   const MAIN = MAIN_ALL.filter((b) => !LOCKED.has(b.city) || HAS_ADMIN);
@@ -754,6 +771,30 @@ export function createCity(root, opts = {}) {
       for (const s of [-1, 1]) cyl(cx + 8.3, -1.4, cz - 0.5 + s * 0.55, 0.1, 1.5, '#4a3c30', g, 6);
       b.top = Y0 + 6;
     },
+    museum(b, g, cx, cz) {
+      // v40: bảo tàng kiểu đền cổ — bậc thềm, 6 cột, trán tường tam giác, biểu ngữ 4 phòng, đài phun nước
+      const mx = cx - 0.6, mz = cz - 1.2;
+      box(mx, Y0, mz, 8.6, 0.32, 6.0, '#cfc6b4', g);
+      box(mx, Y0 + 0.32, mz, 8.0, 0.3, 5.5, '#e0d8c6', g);
+      box(mx, Y0 + 0.62, mz - 0.45, 6.6, 2.8, 4.0, '#efe7d6', g);
+      neonBox(mx, Y0 + 0.62, mz + 1.57, 1.25, 1.75, 0.06, '#ffd27a', g, '#6a5030');
+      for (let i = 0; i < 6; i++) cyl(mx - 3.3 + i * 1.32, Y0 + 0.62, mz + 2.25, 0.21, 2.8, '#f6f1e6', g, 10);
+      [['#a99cff', -2.64], ['#5ee0a0', -1.32], ['#ffd27a', 1.32], ['#7ee8ff', 2.64]].forEach(([c, x]) => neonBox(mx + x, Y0 + 1.5, mz + 1.6, 0.55, 1.2, 0.05, c, g, c));
+      box(mx, Y0 + 3.42, mz, 8.0, 0.5, 5.5, '#e6dfd0', g);
+      sign('KNOWORLD MUSEUM', mx, Y0 + 3.67, mz + 2.76, 5.8, 0.4, 'z', g, { fg: '#5b4a3a', bg: '#efe7d6', day: '#ffffff' });
+      const sh = new THREE.Shape(); sh.moveTo(-4.05, 0); sh.lineTo(4.05, 0); sh.lineTo(0, 1.35); sh.closePath();
+      const ped = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 5.5, bevelEnabled: false }), mat('#e9e2d2'));
+      ped.position.set(mx, Y0 + 3.92, mz - 2.75); ped.castShadow = true; ped.receiveShadow = true; g.add(ped);
+      neonBox(mx, Y0 + 4.2, mz + 2.77, 0.8, 0.5, 0.05, '#e9a8ff', g, '#8a7a9a');
+      // đài phun nước + một em vịt
+      const fx = cx + 3.3, fz = cz + 1.9;
+      cyl(fx, Y0, fz, 1.0, 0.32, '#d6cfc0', g, 16);
+      const pool = new THREE.Mesh(new THREE.CylinderGeometry(0.82, 0.82, 0.06, 16), neonMat('#4fc3e0', '#3a9cc0')); pool.position.set(fx, Y0 + 0.33, fz); g.add(pool);
+      cyl(fx, Y0 + 0.3, fz, 0.14, 0.8, '#e6dfd0', g, 8);
+      box(fx + 0.45, Y0 + 0.36, fz + 0.3, 0.26, 0.2, 0.18, '#ffffff', g); box(fx + 0.58, Y0 + 0.5, fz + 0.3, 0.14, 0.14, 0.14, '#ffffff', g); box(fx + 0.7, Y0 + 0.52, fz + 0.3, 0.1, 0.05, 0.07, '#f08a1c', g);
+      tree(cx - 4.7, cz + 3.4, g); tree(cx + 4.6, cz - 4.2, g); tree(cx - 4.6, cz - 4.4, g);
+      b.top = Y0 + 6.2;
+    },
     journey(b, g, cx, cz) {
       box(cx, Y0, cz, 4.2, 2, 4.2, '#4d4756', g);
       box(cx, Y0 + 2, cz, 2.7, 11, 2.7, '#5a5263', g);
@@ -922,7 +963,7 @@ export function createCity(root, opts = {}) {
     b.group = g; byKey[b.key] = b; used.add(b.cx + ',' + b.cz);
     g.traverse((o) => { if (o.isMesh) { o.userData.key = b.key; pickables.push(o); } });
     const helper = new THREE.BoxHelper(g, '#c6bfff'); helper.visible = false; scene.add(helper); b.helper = helper;
-    if (b.key === 'island' || b.key === 'games' || b.key === 'temple') continue; // đảo: chỉ có các công trình của đảo
+    if (b.key === 'island' || b.key === 'games' || b.key === 'temple' || b.key === 'museum') continue; // đảo: chỉ có các công trình của đảo
     filler(b.cx - 4.2, b.cz - 4.2, b.key === 'hub' ? 11 : 9);
     filler(b.cx + 4.2, b.cz - 4.2, 7);
     filler(b.cx - 4.2, b.cz + 4.2, 6);
