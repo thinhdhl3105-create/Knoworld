@@ -159,3 +159,10 @@
   .kwtp .tp-vo canvas{width:64px;height:80px}
   .kwtp .tp-vo .seq span{width:32px;height:32px;font-size:18px}
 }
+
+/* v39: nhiều người chơi */
+.kwtp .tp-on{cursor:pointer;color:var(--tp-ink);font:inherit;font-size:13px;border-color:rgba(110,231,160,.5)}
+.kwtp .tp-on[hidden],.kwtp .tp-ic[hidden]{display:none}
+.kwtp .tp-on i{width:8px;height:8px;border-radius:50%;background:#6ee7a0;box-shadow:0 0 0 3px rgba(110,231,160,.2);animation:tpPulse 2s ease-in-out infinite}
+.kwtp .tp-on b{color:#6ee7a0}
+@keyframes tpPulse{50%{box-shadow:0 0 0 6px rgba(110,231,160,0)}}
