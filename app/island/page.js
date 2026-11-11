@@ -2,7 +2,7 @@
 
 // v30: Thinh's Island — đảo riêng của admin: Lecture Hall (lịch dạy), City Hall (lịch họp),
 // Lighthouse (ngày quan trọng). Dữ liệu ở bảng private_events (RLS: chỉ admin).
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import RequireAuth from '../components/RequireAuth';
 import { useAuth } from '../components/AuthProvider';
 import CityPage from '../components/city/CityPage';
@@ -10,6 +10,7 @@ import {
   KINDS, vnNow, ymd, parseYmd, addDays, mondayOf, toMin,
   fetchEvents, addEvents, deleteEvent, deleteSeriesFrom,
   WEEKDAYS, SCHOOLS, MAX_SESSIONS, datesOnWeekdays, cancelEvent, restoreEvent, addMakeup,
+  fromMin, updateEvent, updateSeriesFrom,
 } from '@/lib/island';
 import { toast } from '@/lib/engagement';
 import './island.css';
@@ -79,6 +80,11 @@ function Island() {
   const [showCancelled, setShowCancelled] = useState(true);
   const [mode, setMode] = useState(null); // 'cancel' | 'makeup' — form nhỏ trong ô chi tiết
   const [mk, setMk] = useState(EMPTY_MK);
+  const [ed, setEd] = useState(null); // form sửa thông tin
+  const [drag, setDrag] = useState(null); // { id, date, start, dur } khi đang kéo
+  const dragRef = useRef(null);
+  const suppressClick = useRef(false);
+  const commitRef = useRef(null);
   const [selectedId, setSelectedId] = useState(null);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -171,6 +177,120 @@ function Island() {
     toast(all ? 'Removed this and the following sessions' : 'Removed from the island', 'delete');
     setSelectedId(null);
     load();
+  };
+
+  // ---- v38: sửa thông tin ----
+  const startEdit = () => {
+    if (!selected) return;
+    setEd({
+      title: selected.title, kind: selected.kind, date: selected.date, start: selected.start, end: selected.end,
+      school: selected.school || '', place: selected.place || '', note: selected.note || '', scope: 'one',
+    });
+    setMode('edit');
+  };
+
+  const saveEdit = async (ev) => {
+    ev.preventDefault();
+    if (!selected || !ed) return;
+    const fields = { title: ed.title, kind: ed.kind, start: ed.start, end: ed.end, place: ed.place, note: ed.note };
+    if (ed.kind === 'teach') { if (ed.school !== (selected.school || '')) fields.school = ed.school; }
+    else if (selected.school) fields.school = '';
+    setBusy(true);
+    let res;
+    if (ed.scope === 'later' && selected.series_id) {
+      const shift = Math.round((parseYmd(ed.date) - parseYmd(selected.date)) / 86400000);
+      res = await updateSeriesFrom(selected.series_id, selected.date, fields, shift);
+    } else {
+      res = await updateEvent(selected.id, { ...fields, date: ed.date });
+    }
+    setBusy(false);
+    if (!res.ok) { toast(res.error || 'Could not save', 'error'); load(); return; }
+    toast(res.count > 1 ? `Updated ${res.count} sessions` : 'Class updated', 'edit_calendar');
+    setMode(null);
+    if (ed.date !== selected.date) setWeekStart(mondayOf(parseYmd(ed.date)));
+    load();
+  };
+
+  // ---- v38: kéo-thả buổi học sang ngày / giờ khác ----
+  commitRef.current = async (e, date, start, dur) => {
+    if (date === e.date && start === toMin(e.start)) return;
+    const s0 = fromMin(start); const s1 = fromMin(Math.min(start + dur, 24 * 60 - 1));
+    setEvents((list) => list.map((x) => (x.id === e.id ? { ...x, date, event_date: date, start: s0, end: s1 } : x)));
+    setSelectedId(e.id);
+    const res = await updateEvent(e.id, { date, start: s0, end: s1 });
+    if (!res.ok) toast(res.error || 'Could not move', 'error');
+    else toast(`Moved to ${fmtDay(parseYmd(date))}, ${s0}–${s1}`, 'open_with');
+    load();
+  };
+
+  useEffect(() => {
+    const target = (x, y, st) => {
+      const hit = document.elementFromPoint(x, y);
+      const col = hit && hit.closest ? hit.closest('.kwi-week .day[data-date]') : null;
+      if (!col) return null;
+      const r = col.getBoundingClientRect();
+      const raw = H0 * 60 + ((y - st.grab - r.top) / PX) * 60;
+      const snapped = Math.round(raw / 15) * 15;
+      const latest = H1 * 60 - Math.min(st.dur, (H1 - H0) * 60);
+      return { date: col.dataset.date, start: Math.min(Math.max(snapped, H0 * 60), latest) };
+    };
+    const move = (ev) => {
+      const st = dragRef.current;
+      if (!st || ev.pointerId !== st.pointerId) return;
+      const dist = Math.hypot(ev.clientX - st.x0, ev.clientY - st.y0);
+      if (!st.active) {
+        if (st.touch) { if (dist > 8) { clearTimeout(st.timer); dragRef.current = null; } return; }
+        if (dist < 5) return;
+        st.active = true;
+      }
+      const t = target(ev.clientX, ev.clientY, st);
+      if (t) { st.last = t; setDrag({ id: st.e.id, date: t.date, start: t.start, dur: st.dur }); }
+    };
+    const up = (ev) => {
+      const st = dragRef.current;
+      if (!st || ev.pointerId !== st.pointerId) return;
+      clearTimeout(st.timer);
+      dragRef.current = null;
+      if (!st.active) return;
+      setDrag(null);
+      suppressClick.current = true;
+      setTimeout(() => { suppressClick.current = false; }, 50);
+      const t = ev.type === 'pointerup' ? target(ev.clientX, ev.clientY, st) || st.last : null;
+      if (t && commitRef.current) commitRef.current(st.e, t.date, t.start, st.dur);
+    };
+    const touchMove = (ev) => { if (dragRef.current && dragRef.current.active) ev.preventDefault(); };
+    const key = (ev) => { if (ev.key === 'Escape' && dragRef.current) { dragRef.current = null; setDrag(null); } };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    window.addEventListener('touchmove', touchMove, { passive: false });
+    window.addEventListener('keydown', key);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      window.removeEventListener('touchmove', touchMove);
+      window.removeEventListener('keydown', key);
+    };
+  }, []);
+
+  const onEvPointerDown = (ev, e) => {
+    if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+    const r = ev.currentTarget.getBoundingClientRect();
+    const st = {
+      e, pointerId: ev.pointerId, x0: ev.clientX, y0: ev.clientY, grab: ev.clientY - r.top,
+      dur: Math.max(15, toMin(e.end) - toMin(e.start)), touch: ev.pointerType !== 'mouse', active: false, timer: null, last: null,
+    };
+    dragRef.current = st;
+    if (st.touch) {
+      // Điện thoại: giữ ngón tay ~0,35 giây rồi kéo (vuốt bình thường vẫn cuộn lịch).
+      st.timer = setTimeout(() => {
+        if (dragRef.current !== st) return;
+        st.active = true;
+        setDrag({ id: e.id, date: e.date, start: toMin(e.start), dur: st.dur });
+        if (navigator.vibrate) navigator.vibrate(15);
+      }, 350);
+    }
   };
 
   const startMode = (m) => {
@@ -373,7 +493,6 @@ function Island() {
               {form.kind === 'teach' && (
                 <label className="s2">School
                   <input value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} list="kwiSchools" maxLength={60} placeholder="HSU" />
-                  <datalist id="kwiSchools">{schoolOptions.map((x) => <option key={x} value={x} />)}</datalist>
                 </label>
               )}
               <label className={form.kind === 'teach' ? 's2' : 's3'}>Where <input value={form.place} onChange={(e) => setForm({ ...form, place: e.target.value })} placeholder="Room B402" /></label>
@@ -386,6 +505,7 @@ function Island() {
             </form>
           )}
 
+          <datalist id="kwiSchools">{schoolOptions.map((x) => <option key={x} value={x} />)}</datalist>
           <div className="kwi-week-scroll">
             <div className="kwi-week">
               <div className="wh" />
@@ -398,19 +518,28 @@ function Island() {
               {days.map((d) => {
                 const key = ymd(d);
                 const list = events.filter((e) => e.date === key && visible[e.kind] && (showCancelled || e.status !== 'cancelled'));
+                const ghost = drag && drag.date === key ? events.find((x) => x.id === drag.id) : null;
                 return (
-                  <div key={key} className={`day ${key === todayKey ? 'today' : ''}`} style={{ height: (H1 - H0) * PX }}>
+                  <div key={key} data-date={key} className={`day ${key === todayKey ? 'today' : ''} ${ghost ? 'drop' : ''}`} style={{ height: (H1 - H0) * PX }}>
                     {list.map((e) => {
                       const top = Math.max(0, ((toMin(e.start) - H0 * 60) / 60) * PX);
                       const h = Math.max(24, ((toMin(e.end) - toMin(e.start)) / 60) * PX - 2);
                       return (
-                        <button key={e.id} type="button" className={`ev ${e.status} ${selectedId === e.id ? 'on' : ''}`} style={{ '--c': KINDS[e.kind].color, top, height: h }}
-                          onClick={() => setSelectedId(e.id)} title={STATUS_TAG[e.status] ? `${STATUS_TAG[e.status]}: ${e.title}` : e.title}>
+                        <button key={e.id} type="button" className={`ev ${e.status} ${selectedId === e.id ? 'on' : ''} ${drag && drag.id === e.id ? 'drag-src' : ''}`} style={{ '--c': KINDS[e.kind].color, top, height: h }}
+                          onPointerDown={(ev) => onEvPointerDown(ev, e)}
+                          onContextMenu={(ev) => { if (dragRef.current) ev.preventDefault(); }}
+                          onClick={() => { if (!suppressClick.current) setSelectedId(e.id); }} title={STATUS_TAG[e.status] ? `${STATUS_TAG[e.status]}: ${e.title}` : e.title}>
                           {STATUS_TAG[e.status] && <em className="tag">{STATUS_TAG[e.status]}</em>}
                           <b>{e.title}</b><span>{e.start}–{e.end}{e.school ? ` · ${e.school}` : ''}</span>
                         </button>
                       );
                     })}
+                    {ghost && (
+                      <div className={`ev dragging ${ghost.status}`} aria-hidden="true"
+                        style={{ '--c': KINDS[ghost.kind].color, top: ((drag.start - H0 * 60) / 60) * PX, height: Math.max(24, (drag.dur / 60) * PX - 2) }}>
+                        <b>{ghost.title}</b><span>{fromMin(drag.start)}–{fromMin(drag.start + drag.dur)}</span>
+                      </div>
+                    )}
                     {key === todayKey && nowMin >= H0 * 60 && nowMin <= H1 * 60 && (
                       <div className="now-line" style={{ top: ((nowMin - H0 * 60) / 60) * PX }} aria-hidden="true" />
                     )}
@@ -419,6 +548,11 @@ function Island() {
               })}
             </div>
           </div>
+
+          <p className="kwi-tip">
+            <span className="material-symbols-outlined" aria-hidden="true">open_with</span>
+            Drag a class to another day or time to move it (on a phone: press and hold, then drag). Click a class to edit, cancel or add a make-up.
+          </p>
 
           {selected && (
             <div className={`kwi-detail ${selected.status}`} style={{ '--c': KINDS[selected.kind].color }}>
@@ -457,6 +591,9 @@ function Island() {
                 {selected.note && <p>{selected.note}</p>}
               </div>
               <div className="kwi-detail-actions">
+                <button type="button" className="kwi-btn" aria-pressed={mode === 'edit'} onClick={() => (mode === 'edit' ? setMode(null) : startEdit())}>
+                  Edit
+                </button>
                 {selected.status !== 'cancelled' && (
                   <button type="button" className="kwi-btn" aria-pressed={mode === 'cancel'} onClick={() => (mode === 'cancel' ? setMode(null) : startMode('cancel'))}>
                     {selected.kind === 'teach' ? 'Cancel class' : 'Cancel'}
@@ -471,7 +608,53 @@ function Island() {
                 <button type="button" className="kwi-btn" aria-label="Close" onClick={() => setSelectedId(null)}>✕</button>
               </div>
 
-              {mode && (
+              {mode === 'edit' && ed && (
+                <form className="kwi-form kwi-subform" onSubmit={saveEdit}>
+                  <label className="s3">What
+                    <input value={ed.title} onChange={(e) => setEd({ ...ed, title: e.target.value })} required maxLength={100} autoFocus />
+                  </label>
+                  <div className="s3 kwi-flabel">Building
+                    <div className="kwi-types">
+                      {Object.entries(KINDS).map(([k, t]) => (
+                        <button key={k} type="button" aria-pressed={ed.kind === k} style={{ '--c': t.color }} onClick={() => setEd({ ...ed, kind: k })}><i />{t.short}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="s2">Date
+                    <input type="date" value={ed.date} onChange={(e) => setEd({ ...ed, date: e.target.value })} required />
+                  </label>
+                  <label className="s1">Start <input type="time" value={ed.start} onChange={(e) => setEd({ ...ed, start: e.target.value })} required /></label>
+                  <label className="s1">End <input type="time" value={ed.end} onChange={(e) => setEd({ ...ed, end: e.target.value })} required /></label>
+                  {selected.series_id ? (
+                    <label className="s2">Apply to
+                      <select value={ed.scope} onChange={(e) => setEd({ ...ed, scope: e.target.value })}>
+                        <option value="one">Only this session</option>
+                        <option value="later">This &amp; all later sessions</option>
+                      </select>
+                    </label>
+                  ) : <span className="s2" />}
+                  {ed.kind === 'teach' && (
+                    <label className="s2">School
+                      <input value={ed.school} onChange={(e) => setEd({ ...ed, school: e.target.value })} list="kwiSchools" maxLength={60} placeholder="HSU" />
+                    </label>
+                  )}
+                  <label className={ed.kind === 'teach' ? 's2' : 's3'}>Where <input value={ed.place} onChange={(e) => setEd({ ...ed, place: e.target.value })} /></label>
+                  <label className={ed.kind === 'teach' ? 's2' : 's3'}>Note <input value={ed.note} onChange={(e) => setEd({ ...ed, note: e.target.value })} /></label>
+                  <div className="kwi-row">
+                    <span className="hint">
+                      {ed.scope === 'later' && selected.series_id
+                        ? (ed.date !== selected.date
+                          ? `All later sessions also move ${Math.round((parseYmd(ed.date) - parseYmd(selected.date)) / 86400000)} day(s).`
+                          : 'Name, building, time, school, room and note change for this and every later session.')
+                        : 'Only this session changes.'}
+                    </span>
+                    <button type="button" className="kwi-btn" onClick={() => setMode(null)}>Back</button>
+                    <button type="submit" className="kwi-btn primary" disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</button>
+                  </div>
+                </form>
+              )}
+
+              {(mode === 'cancel' || mode === 'makeup') && (
                 <form className="kwi-form kwi-subform" onSubmit={confirmMode}>
                   {mode === 'cancel' && (
                     <>
