@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import RequireAuth from '../components/RequireAuth';
 import { useAuth } from '../components/AuthProvider';
 import CityPage from '../components/city/CityPage';
+import ClassStats from '../components/ClassStats';
 import {
   KINDS, vnNow, ymd, parseYmd, addDays, mondayOf, toMin,
   fetchEvents, addEvents, deleteEvent, deleteSeriesFrom,
@@ -693,6 +694,10 @@ function Island() {
             </div>
           )}
         </section>
+      </div>
+
+      <div className="mt-8">
+        <ClassStats key={events.length} />
       </div>
     </CityPage>
   );

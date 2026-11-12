@@ -12,6 +12,10 @@ import RequireAuth from '../components/RequireAuth';
 import { fetchViewStats } from '@/lib/views';
 import { fetchHeartMap } from '@/lib/hearts';
 import CityPage from '../components/city/CityPage';
+import ClassStats from '../components/ClassStats';
+import { useAuth } from '../components/AuthProvider';
+
+const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
 
 const RANGES = [
   { days: 7, label: '7 days' },
@@ -26,6 +30,8 @@ function contentHref(x) {
 }
 
 function DashboardInner() {
+  const { user } = useAuth();
+  const isAdmin = user?.email === ADMIN_EMAIL;
   const [research, setResearch] = useState([]);
   const [videos, setVideos] = useState([]);
   const [students, setStudents] = useState([]);
@@ -198,6 +204,9 @@ function DashboardInner() {
               </Link>
             ))}
           </section>
+
+          {/* v43: Classes by school (chỉ admin) */}
+          {isAdmin && <ClassStats showIslandLink />}
 
           {/* v22: Most viewed */}
           <section className="mb-6">
