@@ -6,12 +6,14 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../AuthProvider';
 import { fetchNews } from '@/lib/news';
 import CityNoticeBoard from './CityNoticeBoard';
+import CityAgendaBoard from './CityAgendaBoard';
 import './city.css';
 
 const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
 
 // v27: underNav — the site menu floats over the city, so the city's own controls sit lower.
 //      board — show the City Notice Board (home page).
+// v42: admin also gets Today's Schedule on the left (from the Harbour board on /island).
 export default function KnoworldCity({ mode = 'hero', className = '', underNav = false, board = false }) {
   const ref = useRef(null);
   const wrap = useRef(null);
@@ -59,6 +61,7 @@ export default function KnoworldCity({ mode = 'hero', className = '', underNav =
     <div ref={wrap} className={`kwc-wrap ${underNav ? 'kwc-under-nav' : ''} ${className}`}>
       <div ref={ref} className={`${cls} absolute inset-0`} />
       {!loading && <CityNoticeBoard isAdmin={isAdmin} user={user} anchorRef={wrap} />}
+      {!loading && isAdmin && <CityAgendaBoard anchorRef={wrap} />}
     </div>
   );
 }

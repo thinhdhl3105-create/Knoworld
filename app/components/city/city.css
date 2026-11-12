@@ -165,3 +165,59 @@
   .kwb:not(.is-open) .kwb-head { padding: 8px 8px 8px 10px; gap: 6px; }
 }
 
+
+/* ---------------------------------------------------------------------------
+   v42: Today's Schedule — bảng lịch hằng ngày, góc trái (chỉ admin)
+   Dùng lại giao diện .kwb của City Notice Board, chỉ đổi vị trí + phần riêng.
+   --------------------------------------------------------------------------- */
+.kwb.kwa { left: 16px; right: auto; top: var(--kwa-top, 124px); width: 288px; max-height: calc(100% - var(--kwa-top, 124px) - 24px); transition: opacity .2s, transform .2s; }
+.kwb.kwa.is-away { opacity: 0; transform: translateX(-12px); pointer-events: none; }
+.kwa-icon { color: #7ee8ff; }
+.kwa-badge { background: #7ee8ff; color: #06222b; }
+.kwa-nav { display: flex; align-items: center; gap: 4px; padding: 8px 10px 4px; }
+.kwa-nav button { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 999px; color: var(--kwb-muted); }
+.kwa-nav button:hover { background: rgba(255,255,255,.07); color: var(--kwb-fg); }
+.kwa-nav .material-symbols-outlined { font-size: 20px; }
+.kwa-day { flex: 1; display: grid; text-align: center; gap: 2px; }
+.kwa-day b { font: 600 14px/1.1 'Space Grotesk', Inter, sans-serif; }
+.kwa-day span { font-size: 11.5px; color: var(--kwb-muted); }
+.kwa-back { display: block; margin: 0 auto 2px; font-size: 11.5px !important; color: var(--kwb-accent) !important; font-weight: 600 !important; }
+.kwa-sum { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; padding: 4px 14px 8px; font-size: 11.5px; color: var(--kwb-muted); border-bottom: 1px solid var(--kwb-line); }
+.kwa-sum span { display: inline-flex; align-items: center; gap: 5px; }
+.kwa-sum i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.kwa-item { position: relative; }
+.kwa-item.is-now { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 14%, transparent), transparent 85%); }
+.kwa-item.is-now::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--c); }
+.kwa-item.is-done { opacity: .55; }
+.kwa-item.is-off { opacity: .5; }
+.kwa-item.is-off .kwb-text b, .kwa-item.is-off .kwa-time { text-decoration: line-through; }
+.kwa-row { display: flex; gap: 10px; align-items: flex-start; }
+.kwa-time { flex: none; width: 42px; display: grid; gap: 1px; font: 600 13px/1.25 'Space Grotesk', Inter, sans-serif; font-variant-numeric: tabular-nums; color: var(--kwb-fg); }
+.kwa-time em { font-style: normal; font-weight: 500; font-size: 11.5px; color: var(--kwb-muted); }
+.kwa-where { display: flex; align-items: center; gap: 3px; font-size: 12px !important; }
+.kwa-where .material-symbols-outlined { font-size: 13px; color: var(--kwb-muted); }
+.kwa-note { font-size: 12px !important; color: var(--kwb-muted) !important; }
+.kwa-note.clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.kwa-flag { font: 700 9px/1 Inter, sans-serif; letter-spacing: .08em; color: #ffd27a; border: 1px dashed rgba(255,210,122,.6); padding: 2px 5px; border-radius: 999px; }
+.kwa-state { margin-left: auto; font-size: 11px; color: var(--kwb-muted); white-space: nowrap; }
+.kwa-state.now { color: #5ee0a0; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
+.kwa-state.now::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #5ee0a0; animation: kwa-pulse 1.6s ease-in-out infinite; }
+.kwa-state.soon { color: #ffd27a; }
+.kwa-state.off { color: #ff9b9b; }
+@keyframes kwa-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(94,224,160,.6); } 50% { box-shadow: 0 0 0 5px rgba(94,224,160,0); } }
+@media (prefers-reduced-motion: reduce) { .kwa-state.now::before { animation: none; } .kwb.kwa { transition: none; } }
+.kwa-next { display: flex; align-items: flex-start; gap: 6px; margin: 8px 14px 0; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.04); font-size: 12px; line-height: 1.45; color: #cfcadd; }
+.kwa-next .material-symbols-outlined { font-size: 15px; color: #ffd27a; margin-top: 1px; }
+.kwa-next b { color: var(--kwb-fg); }
+.kwa-open { display: flex; align-items: center; justify-content: center; gap: 5px; margin: 8px 14px 0; padding: 8px; border: 1px dashed rgba(126,232,255,.4); border-radius: 999px; color: #7ee8ff; font: 600 12.5px Inter, sans-serif; text-decoration: none; }
+.kwa-open:hover { background: rgba(126,232,255,.08); }
+.kwa-open .material-symbols-outlined { font-size: 17px; }
+
+/* Điện thoại: nút gọn ngay dưới nút Notices; mở ra thì phủ ngang màn hình. */
+@media (max-width: 640px) {
+  .kwb.kwa { top: 116px; left: 12px; right: auto; width: auto; max-width: calc(100% - 190px); max-height: calc(100% - 190px); }
+  .kwb.kwa.is-open { right: 12px; max-width: none; z-index: 9; }
+  .kwb.kwa:not(.is-open) .kwb-title { display: none; }
+  .kwb.kwa:not(.is-open) .kwb-badge .full { display: none; }
+  .kwb.kwa:not(.is-open) .kwb-head { padding: 8px 8px 8px 10px; gap: 6px; }
+}
