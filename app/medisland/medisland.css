@@ -1,0 +1,9 @@
+/* v44: Medisland — khung iframe */
+.kwmd{display:flex;flex-direction:column;gap:8px}
+.kwmd-bar{display:flex;align-items:center;gap:10px;justify-content:space-between;font-size:12.5px;color:#c8c4d7}
+.kwmd-bar button{height:30px;padding:0 12px;border-radius:999px;border:1px solid #3a3842;background:rgba(42,41,50,.75);color:#e5e0ed;font:inherit;font-size:12.5px;cursor:pointer}
+.kwmd-bar button:hover{border-color:#ffd27a}
+.kwmd-frame{width:100%;height:min(86vh,900px);min-height:560px;border:1px solid #3a3842;border-radius:16px;background:#13121b;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.kwmd.full{position:fixed;inset:0;z-index:1000;background:#13121b;padding:8px}
+.kwmd.full .kwmd-frame{flex:1;height:auto;min-height:0;border-radius:10px}
+@media (max-width:760px){.kwmd-bar span{display:none}.kwmd-frame{height:82vh;min-height:480px}}

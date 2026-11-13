@@ -17,6 +17,7 @@ const DISTRICT = {
   games: { name: 'Game Island', dot: '#5ee0a0' },
   temple: { name: 'Temple Isle', dot: '#ffb347' },
   museum: { name: 'Museum Isle', dot: '#e9a8ff' },
+  medisland: { name: 'Medisland', dot: '#ff8f6b' },
 };
 
 // key = khoá tòa nhà trên thành phố trang chủ (dùng cho /?b=key)
@@ -40,6 +41,7 @@ export const PLACES = {
   games: { district: 'games', place: 'Harbour Arcade', hero: 'arcade' },
   temple: { district: 'temple', place: 'Knoworld Temple', hero: 'sign', label: 'Temple', accent: '#ffb347' },
   museum: { district: 'museum', place: 'Knoworld Museum', hero: 'sign', label: 'Museum', accent: '#e9a8ff' },
+  medisland: { district: 'medisland', place: 'Agency Hub', hero: 'sign', label: 'Medisland', accent: '#ff8f6b' },
   import: { district: 'admin', place: 'Library Annex', hero: 'sign', label: 'Import', accent: '#b7f07e' },
 };
 

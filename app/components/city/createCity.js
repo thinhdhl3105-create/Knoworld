@@ -183,6 +183,9 @@ export function createCity(root, opts = {}) {
     // v40: đảo bảo tàng — giữa Main City và Temple Isle, nối cả hai bằng cầu.
     { id: 'museum', name: 'Museum Isle', cx: 26, cz: 40, n: 1, walk: '#5a4e66', color: '#e9a8ff', size: 24,
       desc: 'The museum island between Main City and Temple Isle, linked to both by bridges: galleries of classes, student programmes, milestones and photos, plus 10 hidden ducks a day.' },
+    // v44: Medisland — đảo mô phỏng chiến dịch truyền thông (Media Strategy & Tactics), đảo riêng ở phía tây nam.
+    { id: 'medisland', name: 'Medisland', cx: -24, cz: 50, n: 1, walk: '#4a5566', color: '#ff8f6b', size: 24,
+      desc: 'The media island for Media Strategy & Tactics: each student agency gets its own island, a brand and four weeks to run TV, OOH, social, KOL, search and activation campaigns.' },
   ];
   const ISL = ISL_ALL.filter((I) => !I.lock || HAS_ADMIN);
   for (const I of ISL) {
@@ -557,6 +560,8 @@ export function createCity(root, opts = {}) {
       desc: 'Walk around the temple: tap the wooden fish for merit, buy incense at the gate stall, then draw a fortune stick or ask Thầy Phán.' },
     { key: 'museum', city: 'museum', name: 'Knoworld Museum', route: '/museum', dot: '#e9a8ff', cx: 26, cz: 40,
       desc: 'Walk through the galleries with everyone inside: classes, student programmes, milestones and photos. Earn exploration points and find the 10 hidden ducks.' },
+    { key: 'medisland', city: 'medisland', name: 'Medisland', route: '/medisland', dot: '#ff8f6b', cx: -24, cz: 50,
+      desc: 'Your agency office, the brand client and four districts of customers. Plan, vote and lock a weekly media plan, then watch how the city reacts.' },
   ];
   const LOCKED = new Set(ISL_ALL.filter((I) => I.lock).map((I) => I.id));
   const MAIN = MAIN_ALL.filter((b) => !LOCKED.has(b.city) || HAS_ADMIN);
@@ -795,6 +800,22 @@ export function createCity(root, opts = {}) {
       tree(cx - 4.7, cz + 3.4, g); tree(cx + 4.6, cz - 4.2, g); tree(cx - 4.6, cz - 4.4, g);
       b.top = Y0 + 6.2;
     },
+    medisland(b, g, cx, cz) {
+      // v44: thành phố truyền thông thu nhỏ — Agency Hub tím, 2 tháp có biển quảng cáo, đài truyền hình, cọ
+      box(cx - 1.6, Y0, cz - 1.4, 5.0, 3.2, 3.6, '#5b4a8e', g);
+      box(cx - 1.6, Y0 + 3.2, cz - 1.4, 5.2, 0.3, 3.8, '#2b2348', g);
+      neonBox(cx - 1.6, Y0 + 2.1, cz + 0.42, 3.4, 0.6, 0.06, '#ffd27a', g, '#6a5030');
+      sign('AGENCY HUB', cx - 1.6, Y0 + 2.4, cz + 0.48, 3.2, 0.45, 'z', g, { fg: '#2b2348', bg: '#ffd27a', day: '#ffe7b0' });
+      box(cx + 2.6, Y0, cz - 2.6, 2.2, 6.4, 2.2, '#6f86b8', g);
+      neonBox(cx + 2.6, Y0 + 4.2, cz - 1.47, 1.8, 1.0, 0.06, '#ff8f6b', g, '#ff8f6b');
+      box(cx + 2.9, Y0, cz + 1.6, 1.8, 4.4, 1.8, '#5f9aa8', g);
+      neonBox(cx + 2.9, Y0 + 3.0, cz + 2.53, 1.5, 0.8, 0.06, '#7ee8ff', g, '#7ee8ff');
+      for (let i = 0; i < 6; i++) { cyl(cx - 4.4, Y0 + i * 0.9, cz + 2.6, 0.12 - i * 0.012, 0.9, i % 2 ? '#e8e3ea' : '#e0473a', g, 6); }
+      neonBox(cx - 4.4, Y0 + 5.5, cz + 2.6, 0.22, 0.22, 0.22, '#ff3b3b', g, '#ff3b3b');
+      box(cx - 1.0, Y0, cz + 3.2, 3.2, 0.7, 1.0, '#ff8fb1', g); box(cx - 1.0, Y0 + 0.7, cz + 3.2, 3.4, 0.12, 1.2, '#ffffff', g);
+      tree(cx + 4.8, cz + 4.6, g); tree(cx - 4.8, cz - 4.6, g); tree(cx + 0.4, cz - 4.8, g);
+      b.top = Y0 + 7;
+    },
     journey(b, g, cx, cz) {
       box(cx, Y0, cz, 4.2, 2, 4.2, '#4d4756', g);
       box(cx, Y0 + 2, cz, 2.7, 11, 2.7, '#5a5263', g);
@@ -963,7 +984,7 @@ export function createCity(root, opts = {}) {
     b.group = g; byKey[b.key] = b; used.add(b.cx + ',' + b.cz);
     g.traverse((o) => { if (o.isMesh) { o.userData.key = b.key; pickables.push(o); } });
     const helper = new THREE.BoxHelper(g, '#c6bfff'); helper.visible = false; scene.add(helper); b.helper = helper;
-    if (b.key === 'island' || b.key === 'games' || b.key === 'temple' || b.key === 'museum') continue; // đảo: chỉ có các công trình của đảo
+    if (b.key === 'island' || b.key === 'games' || b.key === 'temple' || b.key === 'museum' || b.key === 'medisland') continue; // đảo: chỉ có các công trình của đảo
     filler(b.cx - 4.2, b.cz - 4.2, b.key === 'hub' ? 11 : 9);
     filler(b.cx + 4.2, b.cz - 4.2, 7);
     filler(b.cx - 4.2, b.cz + 4.2, 6);
