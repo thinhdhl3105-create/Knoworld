@@ -12,6 +12,7 @@ export function createMetro(K) {
   const { THREE, box, cyl, sign, neonMat, neonBox, mat, HAS_ADMIN, islands } = K;
   const root = new THREE.Group();
   const levels = {}, pickables = [], stations = [], trains = [], blink = [], walkers = [];
+  const adSlots = []; // v50: hộp đèn quảng cáo trên tường sau của mỗi ga
   const sleeperG = new THREE.BoxGeometry(1, 1, 1);
 
   const tag = (g, key) => g.traverse((o) => { if (o.isMesh) { o.userData.key = key; pickables.push(o); } });
@@ -164,14 +165,26 @@ export function createMetro(K) {
       for (const t of [-3, 3]) B(t, s * 3.5, 1.4, 0.4, 0.35, y + 0.72, '#8a6a4c');   // ghế
     }
     B(0, -ST_HALF_W, ST_LEN, 0.3, 3.4, y, '#e8e2d6');                          // tường sau (xa camera)
-    B(0, -ST_HALF_W + 0.17, ST_LEN, 0.04, 0.22, y + 3.0, neonMat(line.color, '#6a6478'), { shadow: false });
+    B(0, -ST_HALF_W + 0.17, ST_LEN, 0.04, 0.1, y + 3.28, neonMat(line.color, '#6a6478'), { shadow: false });
     B(0, ST_HALF_W, ST_LEN, 0.3, 0.95, y, '#cfc9be');                          // lan can phía camera
     // biển tên ga
     const [sx, sz] = P(-1.4, -ST_HALF_W + 0.17);
-    sign(st.name.toUpperCase(), sx, y + 2.05, sz, 7.2, 1.0, alongX ? 'z' : 'x', g, { fg: '#ffffff', bg: '#15121c', border: line.color, day: '#ece7f2' });
+    sign(st.name.toUpperCase(), sx, y + 2.8, sz, 7.2, 0.86, alongX ? 'z' : 'x', g, { fg: '#ffffff', bg: '#15121c', border: line.color, day: '#ece7f2' });
+    // v50: Metro Ad Wall — 2 hộp đèn poster giữa các cột, nội dung xoay vòng (admin quản lý ở /metro/ads)
+    for (const t of [-2.5, 2.5]) {
+      const [fx, fz] = P(t, -ST_HALF_W + 0.16);
+      B(t, -ST_HALF_W + 0.17, 2.5, 0.05, 1.46, y + 0.68, '#1a1722', { shadow: false });
+      const cv = document.createElement('canvas'); cv.width = 512; cv.height = 300;
+      const tex = new THREE.CanvasTexture(cv);
+      const pm = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 1.32), new THREE.MeshBasicMaterial({ map: tex }));
+      const [qx, qz] = P(t, -ST_HALF_W + 0.21);
+      pm.position.set(qx, y + 1.42, qz); if (!alongX) pm.rotation.y = Math.PI / 2; g.add(pm);
+      neonBox(fx, y + 2.1, fz, alongX ? 2.5 : 0.06, 0.05, alongX ? 0.06 : 2.5, line.color, g, '#8a8498');
+      adSlots.push({ cv, ctx: cv.getContext('2d'), tex, k: adSlots.length, shown: -2, color: line.color });
+    }
     const [rx, rz] = P(4.4, -ST_HALF_W + 0.2);
-    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.08, 20), neonMat(line.color, '#7a7090'));
-    disc.rotation[alongX ? 'x' : 'z'] = Math.PI / 2; disc.position.set(rx, y + 2.05, rz); g.add(disc);
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.08, 20), neonMat(line.color, '#7a7090'));
+    disc.rotation[alongX ? 'x' : 'z'] = Math.PI / 2; disc.position.set(rx, y + 2.8, rz); g.add(disc);
     // thang cuốn + giếng ánh sáng lên tầng trên
     for (let i = 0; i < 6; i++) B(-ST_LEN / 2 + 0.6 + i * 0.5, -3.4, 0.5, 1.1, 0.72 + i * 0.32, y, '#9c96a8');
     const [ex, ez] = P(-ST_LEN / 2 + 0.6, -3.4);
@@ -271,6 +284,48 @@ export function createMetro(K) {
     shaft.position.set(-2, y2 + (y1 - 5 - y2) / 2, -22); levels.b2.g.add(shaft);
   }
 
+  // ---------- v50: Metro Ad Wall ----------
+  let ads = [], adEvery = 9, adClock = 0, adCycle = 0;
+  const imgs = {};
+  function imgOf(a) {
+    if (imgs[a.url]) return imgs[a.url];
+    const im = new Image(); im.crossOrigin = 'anonymous'; im.decoding = 'async';
+    im.onload = () => { for (const s of adSlots) s.shown = -2; }; // vẽ lại khi ảnh về
+    im.src = a.url; imgs[a.url] = im; return im;
+  }
+  function drawSlot(s) {
+    const c = s.ctx, W = 512, H = 300;
+    c.fillStyle = '#0e0c14'; c.fillRect(0, 0, W, H);
+    const n = ads.length;
+    if (!n) { // chưa có poster: biển trống mời "thuê chỗ"
+      const gr = c.createLinearGradient(0, 0, W, H); gr.addColorStop(0, s.color); gr.addColorStop(1, '#1b1540');
+      c.fillStyle = gr; c.globalAlpha = 0.55; c.fillRect(0, 0, W, H); c.globalAlpha = 1;
+      c.fillStyle = '#ffffff'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.font = '700 40px Space Grotesk, Inter, sans-serif'; c.fillText('YOUR CAMPAIGN HERE', W / 2, H / 2 - 18);
+      c.font = '500 20px Inter, sans-serif'; c.fillStyle = '#ece9f5'; c.fillText('Metro Ad Wall · best student work', W / 2, H / 2 + 26);
+      s.tex.needsUpdate = true; return;
+    }
+    const a = ads[(s.k + adCycle) % n], im = imgOf(a), capH = 44;
+    if (im.complete && im.naturalWidth) {
+      const k = Math.min(W / im.naturalWidth, (H - capH) / im.naturalHeight), w = im.naturalWidth * k, h = im.naturalHeight * k;
+      c.globalAlpha = 0.35; c.drawImage(im, -20, -20, W + 40, H + 40); c.globalAlpha = 1; // nền mờ từ chính poster
+      c.fillStyle = 'rgba(8,7,12,.45)'; c.fillRect(0, 0, W, H);
+      c.drawImage(im, (W - w) / 2, (H - capH - h) / 2, w, h);
+    } else { c.fillStyle = '#ece9f5'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '500 20px Inter, sans-serif'; c.fillText('Loading…', W / 2, (H - capH) / 2); }
+    c.fillStyle = '#15121c'; c.fillRect(0, H - capH, W, capH);
+    c.fillStyle = s.color; c.fillRect(0, H - capH, 6, capH);
+    c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillStyle = '#ffffff'; c.font = '600 19px Inter, sans-serif';
+    const cap = [a.title, a.team].filter(Boolean).join(' · ') || 'Student campaign';
+    c.fillText(cap.length > 44 ? cap.slice(0, 43) + '…' : cap, 16, H - capH / 2);
+    s.tex.needsUpdate = true;
+  }
+  function setAds(list, every) {
+    ads = (list || []).filter((a) => a && a.url && a.on !== false);
+    adEvery = Math.max(4, +every || 9); adCycle = 0;
+    for (const s of adSlots) { s.shown = -2; drawSlot(s); s.shown = 0; }
+  }
+  setAds([]);
+
   // ---------- animation ----------
   const tmp = { x: 0, z: 0 };
   function placeCar(c, p, y) { c.position.set(p.x, y + 0.18, p.z); c.rotation.y = -Math.atan2(p.dz, p.dx); }
@@ -289,6 +344,9 @@ export function createMetro(K) {
       T.cars.forEach((c, i) => placeCar(c, path.at(T.s - i * CAR - CAR / 2), T.y));
     }
     for (const b of blink) b.visible = Math.sin(t * 3) > -0.6;
+    adClock += dt;
+    if (ads.length > 1 && adClock > adEvery) { adClock = 0; adCycle++; for (const s of adSlots) s.shown = -2; }
+    { let n = 0; for (const s of adSlots) if (s.shown === -2 && n < 4) { drawSlot(s); s.shown = 0; n++; } } // vẽ dần vài hộp mỗi khung hình
     // người đi bộ: đi tới cuối sân ga thì dừng một lát rồi quay lại
     for (const p of walkers) {
       if (p.pause > 0) { p.pause -= dt; p.l1.position.x = p.l2.position.x = 0; placeWalker(p); continue; }
@@ -302,5 +360,5 @@ export function createMetro(K) {
   }
 
   walkers.forEach(placeWalker);
-  return { root, levels, pickables, stations, update };
+  return { root, levels, pickables, stations, update, setAds, adCount: () => ads.length };
 }

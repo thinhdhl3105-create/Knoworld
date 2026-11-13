@@ -7,6 +7,7 @@ import { cityTemplate } from './template';
 import { createMetro } from './createMetro';
 import { createHolidayFx } from './cityHoliday';
 import { fetchLiveWeather } from '@/lib/liveWeather';
+import { loadMetroAds } from '@/lib/metroAds';
 
 const THREE = { ...THREE_NS, OrbitControls };
 
@@ -1296,6 +1297,7 @@ export function createCity(root, opts = {}) {
   // ================= v48: metro (B1, B2) & holiday decorations =================
   const metro = createMetro({ THREE, box, cyl, sign, neonMat, neonBox, mat, HAS_ADMIN, islands: ISL });
   scene.add(metro.root);
+  if (!backdrop) loadMetroAds().then((d) => { if (d) metro.setAds(d.list, d.every); }).catch(() => {}); // v50: Metro Ad Wall
   const holidayFx = opts.holiday ? createHolidayFx({ THREE, scene, box, cyl, sign, neonMat, neonBox, mat, glowTex, ROADS, onLand, nearCross, Y0, small, reduce, holiday: opts.holiday }) : null;
   if (holidayFx && billboard && holidayFx.ticker) billboard.text = holidayFx.ticker;
   const LAYER_Y = { sky: 0, b1: metro.levels.b1.y, b2: metro.levels.b2.y };
@@ -1343,13 +1345,13 @@ export function createCity(root, opts = {}) {
     if (layer !== st.level) setLayer(st.level, false);
     selected = null; selectedCity = null; selectedStation = id; refreshMarks();
     flyTo(new THREE.Vector3(st.x, st.y + 1, st.z), zoomFor(st.kind === 'facility' ? 30 : 24));
-    const ready = !!st.route;
+    const ready = !!st.route, wall = st.kind === 'station';
     showCard({
       eyebrow: `<span class="dot" style="background:${st.color}"></span>${st.levelCode} · ${st.lineName}`,
       name: st.name + (st.kind === 'station' ? ' Station' : ''),
-      desc: st.desc || (st.kind === 'station' ? 'This platform is built and the trains already stop here. Its function will be added soon.' : 'The depot is built. Its function will be added soon.'),
-      route: st.route || null,
-      note: ready ? '' : '🚧 Function coming soon',
+      desc: st.desc || (wall ? `The trains already stop here. On the back wall, the Metro Ad Wall rotates the best student posters and campaigns (${metro.adCount()} on show).` : 'The depot is built. Its function will be added soon.'),
+      route: st.route || (wall ? '/metro/ads' : null),
+      note: ready ? '' : wall ? '🚧 Main station function coming soon' : '🚧 Function coming soon',
     });
   }
   function stationUnder(islandId) { return metro.stations.find((st) => st.level === layer && st.island === islandId); }

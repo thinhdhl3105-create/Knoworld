@@ -1,0 +1,40 @@
+/* v50: Metro Ad Wall */
+.mad-admin { padding: 18px 20px; margin-bottom: 28px; border-radius: 18px; color: #ece9f5; }
+.mad-admin h2, .mad-gallery h2 { font: 600 20px/1.2 'Space Grotesk', Inter, sans-serif; margin: 0; color: #ece9f5; }
+.mad-hint { font-size: 13px; color: #a6a0ba; margin: 6px 0 12px; }
+.mad-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; font-size: 13px; color: #cfcadd; }
+.mad-admin input:not([type=file]) { height: 36px; padding: 0 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.14); background: rgba(10,9,16,.55); color: #ece9f5; font-size: 13px; min-width: 0; flex: 1 1 160px; }
+.mad-row input[type=number] { flex: 0 0 70px; }
+.mad-btn { display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 999px; font-weight: 600; font-size: 13px; cursor: pointer; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06); color: #ece9f5; }
+.mad-btn.primary { background: #c6bfff; color: #1b1540; border-color: transparent; }
+.mad-btn:disabled { opacity: .5; cursor: default; }
+.mad-msg { color: #ffd27a; font-size: 12.5px; }
+.mad-list { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 8px; }
+.mad-list li { display: grid; grid-template-columns: 96px 1fr auto; gap: 12px; align-items: center; padding: 8px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+.mad-list li.off { opacity: .55; }
+.mad-list img { width: 96px; height: 64px; object-fit: cover; border-radius: 8px; background: #000; }
+.mad-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.mad-acts { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.mad-acts button { height: 30px; padding: 0 10px; border-radius: 999px; font-size: 12px; background: rgba(255,255,255,.07); color: #ece9f5; border: 0; cursor: pointer; }
+.mad-acts button.danger { color: #ff9b9b; }
+.mad-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.mad-head span, .mad-empty { color: #a6a0ba; font-size: 13px; }
+.mad-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+.mad-card { text-align: left; padding: 0; border: 1px solid rgba(255,255,255,.1); border-radius: 16px; overflow: hidden; background: rgba(19,17,28,.7); color: #ece9f5; cursor: zoom-in; display: flex; flex-direction: column; }
+.mad-card:hover { border-color: #c6bfff; }
+.mad-img { display: block; aspect-ratio: 4 / 3; background: #0b0a10; }
+.mad-img img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.mad-card b { padding: 10px 12px 2px; font-size: 14px; }
+.mad-card small { padding: 0 12px 12px; font-size: 12px; color: #a6a0ba; min-height: 14px; }
+.mad-lightbox { position: fixed; inset: 0; z-index: 80; background: rgba(5,4,10,.86); display: grid; place-items: center; padding: 20px; }
+.mad-lightbox figure { position: relative; margin: 0; max-width: min(1100px, 100%); }
+.mad-lightbox img { max-width: 100%; max-height: 78vh; display: block; margin: 0 auto; border-radius: 10px; }
+.mad-lightbox figcaption { color: #ece9f5; text-align: center; padding-top: 10px; display: grid; gap: 2px; }
+.mad-lightbox figcaption span { color: #a6a0ba; font-size: 13px; }
+.mad-lightbox button { position: absolute; top: -12px; right: -12px; width: 34px; height: 34px; border-radius: 999px; border: 0; background: #ece9f5; color: #13121b; cursor: pointer; }
+@media (max-width: 720px) {
+  .mad-list li { grid-template-columns: 72px 1fr; }
+  .mad-list img { width: 72px; height: 54px; }
+  .mad-fields { grid-template-columns: 1fr; }
+  .mad-acts { grid-column: 1 / -1; justify-content: flex-start; }
+}

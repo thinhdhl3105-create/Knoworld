@@ -43,6 +43,7 @@ export const PLACES = {
   museum: { district: 'museum', place: 'Knoworld Museum', hero: 'sign', label: 'Museum', accent: '#e9a8ff' },
   medisland: { district: 'medisland', place: 'Agency Hub', hero: 'sign', label: 'Medisland', accent: '#ff8f6b' },
   import: { district: 'admin', place: 'Library Annex', hero: 'sign', label: 'Import', accent: '#b7f07e' },
+  metro: { district: 'main', place: 'Metro Ad Wall', hero: 'sign', label: 'Metro', accent: '#b388ff', back: null },
 };
 
 function useCityTime() {
