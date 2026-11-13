@@ -1737,7 +1737,7 @@ function say(lines, opt = {}) {
 }
 let modalKind = null;
 function openModal(html, cls = '', kind = null) { ui.mode = 'modal'; modalKind = kind; modal.innerHTML = `<div class="panel ${cls}">${html}<button class="x" aria-label="Đóng">✕</button></div>`; modal.style.display = 'flex'; modal.querySelector('.x').onclick = closeModal; held.length = 0; sfx.open(); return modal.querySelector('.panel'); }
-function closeModal() { ui.mode = null; modalKind = null; modal.style.display = 'none'; modal.innerHTML = ''; hud(); }
+function closeModal() { ui.mode = null; modalKind = null; modal.style.display = 'none'; modal.innerHTML = ''; hud(); setTimeout(() => { if (!st.agency && !ui.busy() && API()) openLogin(true); }, 0); }
 modal.addEventListener('pointerdown', (e) => { if (e.target === modal && modalKind !== 'login') closeModal(); });
 let toastT;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 3000); }
@@ -2210,6 +2210,7 @@ const MATE_LINES = [
 ];
 function placeMates() { OFF.npcs = peerList(true); }
 function enterOffice() {
+  if (!st.agency) { held.length = 0; return openLogin(true); }
   cityPos = { tx: player.tx, ty: player.ty };
   fade = 1; INOFF = true; placeMates(); logAct('office');
   Object.assign(player, { tx: 11, ty: 15, nx: 11, ny: 15, x: 11 * T, y: 15 * T, moving: false, dir: 'up', f: 0 });
