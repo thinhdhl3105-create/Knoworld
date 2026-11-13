@@ -252,6 +252,14 @@ body.touch #dlg{bottom:160px}
 .react{display:flex;gap:12px;align-items:center;border-radius:12px;padding:10px 12px;margin:0 0 12px;border:1px solid var(--line);background:var(--panel2);font-size:14px;line-height:1.45}
 .react .face{font-size:30px}
 .react.lv3{border-color:var(--green)}.react.lv0{border-color:var(--red)}
+/* influencer */
+.ch .infs{grid-column:1 / 4;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px}
+.ch .infs button{all:unset;cursor:pointer;display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:7px 9px;background:#1c1b23;font-size:12px;line-height:1.3}
+.ch .infs button.on{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset;background:rgba(255,210,122,.08)}
+.ch .infs button:disabled{cursor:default}
+.ch .infs .av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#13121b;flex-shrink:0;font-size:12px}
+.ch .infs b{display:block;font-size:13px}
+.ch .infs small{display:block;color:var(--dim);font-size:11px}
 /* biểu quyết */
 .votes{display:flex;gap:6px;flex-wrap:wrap}
 .vote{font-size:12.5px;padding:4px 10px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
@@ -332,34 +340,51 @@ const DISTRICTS = {
 const DIST_IDS = ['campus', 'downtown', 'residential', 'market'];
 
 const CHANNELS = {
-  tv: { name: 'TV', icon: '📺', color: '#ff8f6b', note: 'Phủ rộng nhanh, mạnh về nhận biết. Đắt, khó nhắm chọn; Gen Z ít xem.',
+  tv: { name: 'TV', icon: '📺', color: '#ff8f6b', note: '',
         cpm: 62, pen: { genz: .35, office: .62, family: .9, senior: .95 }, aware: 1.0, persuade: .42,
         tactic: { key: 'daypart', label: 'Khung giờ', opts: {
           prime: { label: 'Giờ vàng 19–22h', cpmX: 1.45, mix: { genz: .9, office: 1.25, family: 1.25, senior: 1.05 } },
           day:   { label: 'Ban ngày',         cpmX: .7,  mix: { genz: .35, office: .2,  family: 1.3,  senior: 1.65 } },
           late:  { label: 'Đêm khuya',        cpmX: .62, mix: { genz: 1.45, office: 1.0, family: .4,  senior: .25 } } } } },
-  ooh: { name: 'OOH ngoài trời', icon: '🪧', color: '#ffd27a', note: 'Biển quảng cáo theo khu vực. Rẻ, nhắc nhớ tốt, thuyết phục yếu.',
+  ooh: { name: 'OOH ngoài trời', icon: '🪧', color: '#ffd27a', note: '',
         aware: .72, persuade: .18, tactic: { key: 'districts', label: 'Vị trí biển', multi: true } },
-  social: { name: 'Social Ads', icon: '📱', color: '#8b7cf6', note: 'Nhắm chọn được nhóm khách, thuyết phục khá. Người lớn tuổi dùng ít.',
+  social: { name: 'Social Ads', icon: '📱', color: '#8b7cf6', note: '',
         cpm: 40, pen: { genz: .97, office: .9, family: .78, senior: .48 }, aware: .55, persuade: .68,
         tactic: { key: 'target', label: 'Nhắm chọn', opts: { all: { label: 'Toàn đảo' }, genz: { label: 'Chỉ Gen Z' }, office: { label: 'Chỉ Văn phòng' }, family: { label: 'Chỉ Gia đình' }, senior: { label: 'Chỉ Trung niên' } } } },
-  kol: { name: 'KOL / Influencer', icon: '⭐', color: '#ff8fb1', note: 'Celeb tạo độ phủ & tiếng vang; micro-KOL thuyết phục mạnh, phủ hẹp.',
+  kol: { name: 'Influencer', roster: true, icon: '⭐', color: '#ff8fb1', note: '',
         tactic: { key: 'kolType', label: 'Loại KOL', opts: {
           mega:  { label: 'Celeb (1 người nổi tiếng)', cpm: 48, w: { genz: .95, office: .72, family: .55, senior: .3 }, aware: .95, persuade: .45 },
           micro: { label: 'Micro-KOL (20 người nhỏ)',  cpm: 64, w: { genz: .85, office: .5,  family: .8,  senior: .15 }, aware: .42, persuade: 1.15 } } } },
-  search: { name: 'Search & Sàn TMĐT', icon: '🔎', color: '#5ee0a0', note: 'Đón người ĐÃ có ý định tìm mua. Không tự tạo ra nhu cầu.',
+  search: { name: 'Search & Sàn TMĐT', icon: '🔎', color: '#5ee0a0', note: '',
         cpc: 2.6 },
-  act: { name: 'Activation', icon: '🎪', color: '#7ee8ff', note: 'Cho khách dùng thử tận tay. Phủ rất hẹp, chuyển đổi & thiện cảm cao, có lan truyền.',
+  act: { name: 'Activation', icon: '🎪', color: '#7ee8ff', note: '',
         cpc: 16, tactic: { key: 'actLoc', label: 'Địa điểm', opts: {
           campus: { label: 'Booth ở trường' }, downtown: { label: 'Sảnh văn phòng' }, residential: { label: 'Siêu thị khu dân cư' }, market: { label: 'Gian hàng ở chợ' } } } },
 };
+/* ---------- influencer: nhóm được biết tên, lĩnh vực, độ nổi tiếng, phí — KHÔNG biết tệp khán giả ---------- */
+const INFLUENCERS = [
+  { id: 'havy',   name: 'Hà Vy',            field: 'Ca sĩ · Giải trí',            followers: 3200000, fee: 120, color: '#ff8fb1', aud: { genz: .5, office: .3, family: .15, senior: .05 }, cred: .45, aware: 1.0 },
+  { id: 'tung',   name: 'Tùng Gaming',      field: 'Streamer · Game, công nghệ',  followers: 1400000, fee: 60,  color: '#8b7cf6', aud: { genz: .78, office: .18, family: .03, senior: .01 }, cred: .75, aware: .8 },
+  { id: 'linh',   name: 'Linh Review',      field: 'Beauty blogger · Làm đẹp',    followers: 900000,  fee: 40,  color: '#ff9fc0', aud: { genz: .45, office: .42, family: .12, senior: .01 }, cred: .95, aware: .65 },
+  { id: 'anhba',  name: 'Anh Ba Ẩm Thực',   field: 'Food reviewer · Ẩm thực',     followers: 1100000, fee: 45,  color: '#f2b84b', aud: { genz: .3, office: .35, family: .25, senior: .1 }, cred: .85, aware: .7 },
+  { id: 'mebap',  name: 'Mẹ Bắp',           field: 'Mẹ bỉm · Nuôi dạy con',       followers: 480000,  fee: 25,  color: '#5ee0a0', aud: { genz: .04, office: .14, family: .77, senior: .05 }, cred: 1.15, aware: .55 },
+  { id: 'bsminh', name: 'Bác sĩ Minh An',   field: 'Bác sĩ · Sức khỏe',           followers: 650000,  fee: 40,  color: '#7ee8ff', aud: { genz: .05, office: .2, family: .35, senior: .4 }, cred: 1.2, aware: .6 },
+  { id: 'kien',   name: 'Kiên Finance',     field: 'Tài chính cá nhân · Đầu tư',  followers: 520000,  fee: 30,  color: '#ffd27a', aud: { genz: .2, office: .7, family: .09, senior: .01 }, cred: 1.05, aware: .55 },
+  { id: 'chutu',  name: 'Chú Tư Kể Chuyện', field: 'YouTuber · Chuyện xưa',       followers: 300000,  fee: 15,  color: '#d98b3a', aud: { genz: .03, office: .1, family: .25, senior: .62 }, cred: 1.0, aware: .5 },
+];
+const INF = Object.fromEntries(INFLUENCERS.map((x) => [x.id, x]));
+/* lĩnh vực hợp với ngành hàng thì đáng tin hơn (ẩn) */
+const INF_FIT = { maytea: { anhba: .2, havy: .05 }, lumi: { linh: .3 }, vimay: { kien: .3 }, canxi: { bsminh: .35, chutu: .1 }, bepnha: { mebap: .3, anhba: .2 }, zing: { tung: .3, havy: .1 } };
+const kolSpend = (plan) => (plan.kols || []).reduce((a, id) => a + (INF[id] ? INF[id].fee : 0), 0);
+const fmtFollowers = (n) => n >= 1e6 ? (n / 1e6).toFixed(1).replace('.', ',') + ' triệu' : Math.round(n / 1e3) + ' nghìn';
+
 const BUILTIN_CH = ['tv', 'ooh', 'social', 'kol', 'search', 'act'];
 let CH_IDS = BUILTIN_CH.slice();
 /* kênh do admin thêm: { id, name, icon, cpm, pen:{seg:0..1}, aware, persuade, note, color } */
-function setCustomChannels(list) {
+function setCustomChannels(list, offBuiltin = []) {
   Object.keys(CHANNELS).forEach((k) => { if (CHANNELS[k].custom) delete CHANNELS[k]; });
   (list || []).forEach((c) => { CHANNELS[c.id] = Object.assign({ custom: true, icon: '📣', color: '#c6bfff', note: '' }, c); });
-  CH_IDS = BUILTIN_CH.concat((list || []).filter((c) => !c.off).map((c) => c.id));
+  CH_IDS = BUILTIN_CH.filter((c) => !(offBuiltin || []).includes(c)).concat((list || []).filter((c) => !c.off).map((c) => c.id));
 }
 const reachIds = () => CH_IDS.filter((c) => c !== 'search');
 const MSGS = {
@@ -410,7 +435,7 @@ const BRIEFS = {
   lumi: {
     brand: 'Lumi Sun', product: 'Kem chống nắng nâng tông', price: 189, unit: 'tuýp', unitsPer: 1, logo: '#ffb35c', logo2: '#fff4e0',
     stage: 'Mở rộng thị phần', budget: 1200,
-    story: 'Lumi Sun đã có mặt trên sàn TMĐT nhưng ít người tin dùng. Đối thủ đang dẫn đầu nhờ review. Nhãn hàng cần tăng mức cân nhắc và doanh số online, giữ ROAS ở mức có lãi.',
+    story: 'Lumi Sun đã có mặt trên sàn TMĐT nhưng ít người tin dùng. Nhãn hàng cần tăng mức cân nhắc và doanh số online, giữ ROAS ở mức có lãi.',
     target: ['genz', 'office'], interest: { genz: .85, office: .78, family: .45, senior: .18 },
     fit: { func: { genz: .9, office: 1.25, family: 1.1, senior: 1.0 }, emo: { genz: 1.2, office: .95, family: .9, senior: .8 }, promo: { genz: 1.05, office: .85, family: 1.15, senior: 1.0 } },
     conv: .13, actConv: .1, searchDep: .62, repeat: .07, margin: .55, start: { A: .12, C: .03, S: .55 },
@@ -443,7 +468,7 @@ Object.assign(BRIEFS, {
   canxi: {
     brand: 'Canxi Vàng', product: 'Sữa bột bổ sung canxi cho người 40+', price: 420, unit: 'hộp', unitsPer: 1, logo: '#e8b04a', logo2: '#2b2530',
     stage: 'Tái định vị thương hiệu', budget: 1200,
-    story: 'Canxi Vàng là thương hiệu sữa lâu năm nhưng bị xem là “cũ”. Người mua thường là con cái mua cho bố mẹ. Nhãn hàng muốn tăng niềm tin và doanh số trong nhóm trung niên và các gia đình.',
+    story: 'Canxi Vàng là thương hiệu sữa lâu năm nhưng bị xem là “cũ”. Nhãn hàng muốn tăng niềm tin và doanh số trong nhóm trung niên và các gia đình.',
     target: ['senior', 'family'], interest: { genz: .12, office: .4, family: .72, senior: .9 },
     fit: { func: { genz: .8, office: 1.1, family: 1.15, senior: 1.3 }, emo: { genz: 1.0, office: .95, family: 1.2, senior: .95 }, promo: { genz: .9, office: .85, family: 1.0, senior: 1.05 } },
     conv: .1, actConv: .12, searchDep: .28, repeat: .28, margin: .4, start: { A: .35, C: .06, S: .5 },
@@ -451,7 +476,7 @@ Object.assign(BRIEFS, {
   bepnha: {
     brand: 'Bếp Nhà', product: 'Bộ nguyên liệu nấu sẵn — bữa tối 15 phút', price: 99, unit: 'bộ', unitsPer: 1, logo: '#3f9d6a', logo2: '#ffffff',
     stage: 'Ra mắt dịch vụ mới', budget: 1200,
-    story: 'Bếp Nhà giao bộ nguyên liệu đã sơ chế, nấu 15 phút là xong. Nhãn hàng nhắm vào các gia đình trẻ bận rộn — người quyết định là bố mẹ, đặt hàng chủ yếu qua app và sàn.',
+    story: 'Bếp Nhà giao bộ nguyên liệu đã sơ chế, nấu 15 phút là xong. Nhãn hàng nhắm vào các gia đình trẻ.',
     target: ['family'], interest: { genz: .4, office: .62, family: .9, senior: .3 },
     fit: { func: { genz: .85, office: 1.15, family: 1.2, senior: 1.05 }, emo: { genz: 1.1, office: 1.0, family: 1.15, senior: .85 }, promo: { genz: 1.15, office: 1.0, family: 1.1, senior: 1.0 } },
     conv: .16, actConv: .2, searchDep: .58, repeat: .22, margin: .35, start: { A: .02, C: 0, S: .58 },
@@ -459,18 +484,18 @@ Object.assign(BRIEFS, {
   zing: {
     brand: 'Zing Buds', product: 'Tai nghe không dây chống ồn', price: 590, unit: 'chiếc', unitsPer: 1, logo: '#2b2530', logo2: '#ffffff',
     stage: 'Cạnh tranh với thương hiệu lớn', budget: 1200,
-    story: 'Zing Buds là tai nghe giá tốt của một startup. Đối thủ là các thương hiệu quốc tế. Nhãn hàng chỉ tập trung vào Gen Z — nhóm hay nghe nhạc, chơi game và tin review hơn quảng cáo.',
+    story: 'Zing Buds là tai nghe giá tốt của một startup. Đối thủ là các thương hiệu quốc tế. Nhãn hàng chỉ tập trung vào Gen Z.',
     target: ['genz'], interest: { genz: .92, office: .55, family: .2, senior: .08 },
     fit: { func: { genz: 1.05, office: 1.15, family: .9, senior: .9 }, emo: { genz: 1.25, office: .95, family: .85, senior: .7 }, promo: { genz: .95, office: .9, family: 1.0, senior: .9 } },
     conv: .07, actConv: .08, searchDep: .62, repeat: .02, margin: .3, start: { A: .05, C: .01, S: .55 },
     kpis: [] },
 });
 BRIEFS.lumi.target = ['office', 'family']; BRIEFS.lumi.interest = { genz: .7, office: .85, family: .7, senior: .2 };
-BRIEFS.lumi.story = 'Lumi Sun đã có mặt trên sàn TMĐT nhưng ít người tin dùng. Nhãn hàng nhắm vào phụ nữ đi làm và các mẹ trẻ — nhóm cần bằng chứng và review trước khi mua. Cần tăng cân nhắc và doanh số online, giữ ROAS có lãi.';
+BRIEFS.lumi.story = 'Lumi Sun đã có mặt trên sàn TMĐT nhưng ít người tin dùng. Nhãn hàng nhắm vào phụ nữ đi làm và các mẹ trẻ, cần tăng số người cân nhắc và doanh số, giữ chiến dịch có lãi.';
 
-const KPI_TARGETS = {"maytea": {"reach": 0.84, "aware": 0.79, "units": 210000, "roas": 2.7, "sent": 0.6}, "lumi": {"cons": 0.31, "aware": 0.75, "units": 26000, "roas": 4.2, "sent": 0.6}, "vimay": {"units": 48000, "cpa": 25, "aware": 0.74, "reach": 0.75, "sent": 0.6}, "canxi": {"aware": 0.82, "cons": 0.36, "units": 31000, "roas": 10.8, "sent": 0.6}, "bepnha": {"units": 36000, "cpa": 41, "cons": 0.41, "aware": 0.8, "sent": 0.6}, "zing": {"aware": 0.79, "cons": 0.4, "units": 10000, "roas": 5.0, "sent": 0.6}};
-const KPI_LABEL = { reach: 'Độ phủ TB/tuần (nhóm mục tiêu)', aware: 'Nhận biết cuối kỳ (nhóm mục tiêu)', cons: 'Cân nhắc cuối kỳ (nhóm mục tiêu)', roas: 'ROAS (doanh thu / chi phí)', cpa: 'CPA (chi phí / khách mới)', sent: 'Thiện cảm cuối kỳ (nhóm mục tiêu)' };
-Object.entries(KPI_TARGETS).forEach(([bk, o]) => { const b = BRIEFS[bk]; b.kpis = Object.entries(o).map(([id, target]) => ({ id, target, label: id === 'units' ? `Tổng số ${b.unit} bán ra` : KPI_LABEL[id], fmt: id === 'units' ? 'int' : id === 'roas' ? 'x' : id === 'cpa' ? 'k' : 'pct', lower: id === 'cpa' })); });
+const KPI_TARGETS = {"maytea": {"reachN": 440000, "awareN": 410000, "units": 220000, "revenueTr": 3400, "sentN": 230000}, "lumi": {"consN": 200000, "awareN": 460000, "units": 26000, "revenueTr": 5000, "sentN": 240000}, "vimay": {"units": 49000, "cpa": 24, "awareN": 440000, "reachN": 450000, "sentN": 220000}, "canxi": {"awareN": 400000, "consN": 200000, "units": 38000, "revenueTr": 16000, "sentN": 230000}, "bepnha": {"units": 43000, "cpa": 36, "consN": 140000, "awareN": 230000, "sentN": 150000}, "zing": {"awareN": 180000, "consN": 100000, "units": 10000, "revenueTr": 6200, "sentN": 110000}};
+const KPI_LABEL = { reachN: 'Số người tiếp cận TB mỗi tuần (nhóm mục tiêu)', awareN: 'Số người biết đến brand cuối kỳ (nhóm mục tiêu)', consN: 'Số người cân nhắc mua cuối kỳ (nhóm mục tiêu)', sentN: 'Số người có thiện cảm với brand cuối kỳ (nhóm mục tiêu)', revenueTr: 'Tổng doanh thu 4 tuần', cpa: 'Chi phí cho mỗi khách mới' };
+Object.entries(KPI_TARGETS).forEach(([bk, o]) => { const b = BRIEFS[bk]; b.kpis = Object.entries(o).map(([id, target]) => ({ id, target, label: id === 'units' ? `Tổng số ${b.unit} bán ra` : KPI_LABEL[id], fmt: id === 'units' ? 'unit' : id === 'revenueTr' ? 'tr' : id === 'cpa' ? 'vnd' : 'people', lower: id === 'cpa' })); });
 
 /* sự kiện mỗi tuần — đăng trên Bảng tin đảo trước khi tuần bắt đầu */
 const EVENTS = [
@@ -481,7 +506,7 @@ const EVENTS = [
 ];
 
 function emptyPlan() {
-  return { msg: 'emo', spend: Object.fromEntries(CH_IDS.map((c) => [c, 0])), daypart: 'prime', districts: ['downtown'], target: 'all', kolType: 'micro', actLoc: 'campus' };
+  return { msg: 'emo', spend: Object.fromEntries(CH_IDS.map((c) => [c, 0])), daypart: 'prime', districts: ['downtown'], target: 'all', kols: [], actLoc: 'campus' };
 }
 function startState(b) {
   const s = {}; SEG_IDS.forEach((k) => s[k] = { A: b.start.A, C: b.start.C, S: b.start.S, triers: 0 }); return s;
@@ -532,13 +557,21 @@ function simulateWeek(b, plan, prev, w, seed = 7) {
     SEG_IDS.forEach((s) => { wt[s] = tg === 'all' ? Npen(s, CHANNELS.social.pen[s]) : (s === tg ? 1 : 0); wsum += wt[s]; });
     SEG_IDS.forEach((s) => { imp.social[s] = total * wt[s] / wsum; reach.social[s] = sat(imp.social[s], s, CHANNELS.social.pen[s]); });
   }
-  // ---- KOL
-  const ko = CHANNELS.kol.tactic.opts[plan.kolType] || CHANNELS.kol.tactic.opts.micro;
-  if (sp.kol > 0) {
-    const total = sp.kol * M / ko.cpm;
-    let wsum = 0; const wt = {};
-    SEG_IDS.forEach((s) => { wt[s] = Npen(s, ko.w[s]); wsum += wt[s]; });
-    SEG_IDS.forEach((s) => { imp.kol[s] = total * wt[s] / wsum; reach.kol[s] = sat(imp.kol[s], s, ko.w[s]); });
+  // ---- Influencer: mỗi người đăng 3 bài/tuần; lượt xem = follower × 3 × 0,35, chia theo tệp khán giả (ẩn)
+  const bk0 = Object.keys(BRIEFS).find((k) => BRIEFS[k] === b);
+  const kols = (plan.kols || []).filter((id) => INF[id]), kolImp = {}, kolA = {}, kolP = {};
+  if (CH_IDS.includes('kol')) sp.kol = kols.reduce((a, id) => a + INF[id].fee, 0);
+  let kolAw = 0, kolPe = 0;
+  if (kols.length) {
+    const pen = {}; SEG_IDS.forEach((s) => pen[s] = 0);
+    kols.forEach((id) => {
+      const x = INF[id], views = x.followers * 3 * .35; kolImp[id] = views;
+      SEG_IDS.forEach((s) => { imp.kol[s] += views * x.aud[s]; pen[s] = 1 - (1 - pen[s]) * (1 - Math.min(.9, x.followers * x.aud[s] / SEGMENTS[s].N)); });
+      const cred = x.cred + ((INF_FIT[bk0] || {})[id] || 0); kolA[id] = x.aware; kolP[id] = cred;
+    });
+    const tot = kols.reduce((a, id) => a + kolImp[id], 0);
+    kolAw = kols.reduce((a, id) => a + kolA[id] * kolImp[id], 0) / tot; kolPe = kols.reduce((a, id) => a + kolP[id] * kolImp[id], 0) / tot;
+    SEG_IDS.forEach((s) => { reach.kol[s] = sat(imp.kol[s], s, Math.max(.01, pen[s])); });
   }
   // ---- Kênh admin thêm (mô hình chung: phủ theo độ thâm nhập của từng nhóm)
   CH_IDS.filter((c) => CHANNELS[c].custom).forEach((c) => {
@@ -570,7 +603,7 @@ function simulateWeek(b, plan, prev, w, seed = 7) {
     reachIds().filter((c) => c !== 'act').forEach((c) => {
       const r = reach[c][s]; if (!r) { partA[c] = 0; partP[c] = 0; return; }
       const f = imp[c][s] / (r * N), q = resp(f);
-      const aw = c === 'kol' ? ko.aware : CHANNELS[c].aware, pe = c === 'kol' ? ko.persuade : CHANNELS[c].persuade;
+      const aw = c === 'kol' ? kolAw : CHANNELS[c].aware, pe = c === 'kol' ? kolPe : CHANNELS[c].persuade;
       partA[c] = r * aw * q; partP[c] = r * pe * q;
       imA += partA[c]; imP += partP[c];
     });
@@ -578,7 +611,7 @@ function simulateWeek(b, plan, prev, w, seed = 7) {
     const sf = styleFit(bk, plan.style, s);
     const fitA = (.7 + .3 * fit[s]) * (.4 + .6 * sf);
     const A0 = p0.A * .9;
-    const buzz = s === aseg ? 0 : contacts * 1.5 / 1e6 + (plan.kolType === 'mega' && sp.kol > 0 ? .006 : 0);
+    const buzz = s === aseg ? 0 : contacts * 1.5 / 1e6 + (kols.some((id) => INF[id].followers > 2e6) ? .006 : 0);
     const A = clamp(A0 + (1 - A0) * (1 - Math.exp(-.62 * imA * fitA * wear)) * noise() + buzz, 0, .98);
     const C0 = p0.C * .86, pool = A * b.interest[s] * .7;
     const C = clamp(C0 + Math.max(0, pool - C0) * (1 - Math.exp(-.75 * imP * fit[s] * (.25 + .75 * sf) * wear)) * noise(), 0, A);
@@ -587,7 +620,7 @@ function simulateWeek(b, plan, prev, w, seed = 7) {
     S += plan.msg === 'emo' ? .018 : plan.msg === 'func' ? .01 : -.03;
     if (F > 7) S -= Math.min(.07, (F - 7) * .012);
     S += Math.min(.06, ra * 2.5);
-    if (sp.kol > 0 && plan.kolType === 'micro') S += .012 * reach.kol[s] / Math.max(.01, ko.w[s]);
+    if (kols.length) S += Math.max(-.02, (kolPe - .8) * .03 * Math.min(1, reach.kol[s] * 3));
     if (ev.compete && plan.msg !== 'promo') S -= .005;
     S += (sf - 1) * .05;
     S = clamp(S, .2, .95);
@@ -637,6 +670,7 @@ function simulateWeek(b, plan, prev, w, seed = 7) {
     out.ch[c] = { spend: sp[c], imp: I, reach: rr / pop, freq: rr > 0 ? I / rr : 0, cpm: I > 0 ? sp[c] * 1e6 / I : 0, conv: attr[c], units: conv, cpa: attr[c] > 0 ? sp[c] * 1e3 / attr[c] : 0 }; // cpm = nghìn đ/1000 hiển thị; cpa = nghìn đ
   });
   out.ch.search.cov = cov; out.ch.search.queries = Q; out.ch.act.contacts = contacts;
+  { const sw = kols.reduce((a, id) => a + kolImp[id] * kolP[id], 0) || 1; out.kols = kols.map((id) => ({ id, views: kolImp[id], fee: INF[id].fee, conv: (out.ch.kol ? out.ch.kol.conv : 0) * kolImp[id] * kolP[id] / sw })); }
   const spend = CH_IDS.reduce((a, c) => a + sp[c], 0);
   const revenue = totalUnits * b.price * 1000; // đồng
   Object.assign(out, { spend, units: totalUnits, trial: totalTrial, repeat: totalRepeat, revenue, roas: spend > 0 ? revenue / (spend * 1e6) : 0, cpa: (totalTrial) > 0 ? spend * 1e6 / (totalTrial) : 0, cov });
@@ -659,6 +693,11 @@ function kpiValues(b, results) {
     aware: last ? tw((s) => last.seg[s].aware) : 0,
     cons: last ? tw((s) => last.seg[s].cons) : 0,
     sent: last ? tw((s) => last.seg[s].sent) : 0,
+    reachN: results.length ? results.reduce((a, r) => a + T.reduce((x, s) => x + r.seg[s].reach * wN(s), 0), 0) / results.length : 0,
+    awareN: last ? T.reduce((x, s) => x + last.seg[s].aware * wN(s), 0) : 0,
+    consN: last ? T.reduce((x, s) => x + last.seg[s].cons * wN(s), 0) : 0,
+    sentN: last ? T.reduce((x, s) => x + last.seg[s].aware * last.seg[s].sent * wN(s), 0) : 0,
+    revenueTr: rev / 1e6,
     units, spend, revenue: rev, roas: spend > 0 ? rev / (spend * 1e6) : 0, cpa: trial > 0 ? spend * 1e3 / trial : 0, // cpa: nghìn đ
   };
 }
@@ -666,7 +705,7 @@ function kpiScore(k, v) {
   if (k.lower) return v <= 0 ? 0 : clamp(k.target / v, 0, 1.2);
   return clamp(v / k.target, 0, 1.2);
 }
-if (typeof module !== 'undefined' && typeof window === 'undefined') module.exports = { STYLES, STYLE_IDS, styleFit, setCustomChannels, get CH_IDS() { return CH_IDS; }, SEG_IDS, SEGMENTS, DISTRICTS, DIST_IDS, CHANNELS, MSGS, BRIEFS, EVENTS, emptyPlan, startState, simulateWeek, kpiValues, kpiScore };
+if (typeof module !== 'undefined' && typeof window === 'undefined') module.exports = { INFLUENCERS, INF, STYLES, STYLE_IDS, styleFit, setCustomChannels, get CH_IDS() { return CH_IDS; }, SEG_IDS, SEGMENTS, DISTRICTS, DIST_IDS, CHANNELS, MSGS, BRIEFS, EVENTS, emptyPlan, startState, simulateWeek, kpiValues, kpiScore };
 /* =====================================================================
    THẾ GIỚI — bản đồ đảo Medisland, vẽ pixel
    ===================================================================== */
@@ -1417,22 +1456,22 @@ function carSprite(col, axis) {
 function ent(id, kind, tx, ty, dir = 'down', area = null, o = {}) { return Object.assign({ id, kind, tx, ty, x: tx * T, y: ty * T, dir, moving: false, prog: 0, f: 0, alt: false, nx: tx, ny: ty, dur: .2, timer: 1 + Math.random() * 2, area }, o); }
 const player = ent('player', 'player', 38, 52, 'up');
 const RESIDENTS = [
-  { id: 'linh',  kind: 'g1', seg: 'genz',   name: 'Linh',    age: 19, job: 'sinh viên Marketing',      at: [27, 25], area: [21, 16, 36, 26], habit: 'Ngày nào cũng lướt TikTok tới 1–2 giờ sáng. TV hả? Phòng trọ không có.' },
-  { id: 'khang', kind: 'g2', seg: 'genz',   name: 'Khang',   age: 21, job: 'sinh viên IT, mê game',    at: [10, 23], area: [5, 16, 18, 26],  habit: 'Mình xem stream game với YouTube, quảng cáo nào bấm bỏ qua được là bỏ.' },
-  { id: 'mai',   kind: 'g3', seg: 'genz',   name: 'Mai',     age: 20, job: 'làm thêm ở quán cà phê',   at: [33, 13], area: [21, 4, 36, 13],  habit: 'Ngày nào cũng đi xe buýt qua Khu Đại học, nhìn biển quảng cáo dọc đường quen luôn rồi.' },
-  { id: 'tu',    kind: 'g4', seg: 'genz',   name: 'Tú',      age: 22, job: 'TikToker nghiệp dư',       at: [8, 26],  area: [5, 23, 18, 29],  habit: 'Mình tin mấy bạn reviewer nhỏ hơn người nổi tiếng. Celeb quảng cáo thì biết là nhận tiền rồi.' },
-  { id: 'hung',  kind: 'o1', seg: 'office', name: 'Hùng',    age: 29, job: 'nhân viên ngân hàng',      at: [46, 25], area: [39, 16, 54, 26], habit: 'Sáng nào cũng kẹt xe trên Đại lộ Trung tâm nửa tiếng, nhìn biển quảng cáo cho đỡ chán.' },
-  { id: 'thao',  kind: 'o2', seg: 'office', name: 'Thảo',    age: 27, job: 'chuyên viên nhân sự',      at: [62, 26], area: [57, 16, 70, 26], habit: 'Giờ nghỉ trưa là lướt Facebook với sàn thương mại điện tử, thấy gì hay là bỏ giỏ.' },
-  { id: 'quan',  kind: 'o3', seg: 'office', name: 'Quân',    age: 33, job: 'trưởng phòng kinh doanh',  at: [54, 13], area: [39, 4, 70, 16],  habit: 'Tối về mở TV giờ vàng xem tin tức. Ban ngày họp liên tục, ít lướt mạng.' },
-  { id: 'vy',    kind: 'o4', seg: 'office', name: 'Vy',      age: 25, job: 'designer',                 at: [35, 28], area: [33, 23, 43, 32], habit: 'Mua gì mình cũng lên mạng tìm review rồi so giá trên sàn trước.' },
-  { id: 'lan',   kind: 'f1', seg: 'family', name: 'Chị Lan', age: 34, job: 'nội trợ, 2 con nhỏ',       at: [10, 33], area: [5, 29, 18, 39],  habit: 'Tối nào cả nhà cũng xem phim truyền hình. Cuối tuần đi siêu thị Hoa Sứ.' },
-  { id: 'tuan',  kind: 'f2', seg: 'family', name: 'Anh Tuấn',age: 37, job: 'kỹ sư, bố bỉm',            at: [27, 37], area: [21, 29, 36, 39], habit: 'Toàn đọc group bố mẹ, nghe mấy chị micro-KOL review đồ cho con.' },
-  { id: 'hanh',  kind: 'f3', seg: 'family', name: 'Cô Hạnh', age: 31, job: 'giáo viên mầm non',        at: [28, 49], area: [21, 42, 36, 50], habit: 'Ban ngày đi dạy, tối mới coi TV chút. Đồ dùng trong nhà hay mua ở siêu thị.' },
-  { id: 'phuc',  kind: 'f4', seg: 'family', name: 'Anh Phúc',age: 39, job: 'chủ tiệm sửa xe',          at: [12, 47], area: [5, 42, 18, 50],  habit: 'Tiệm mở TV cả ngày, khách ra vào kể chuyện suốt. Ai khen cái gì là anh nhớ.' },
-  { id: 'batu',  kind: 's1', seg: 'senior', name: 'Bà Tư',   age: 63, job: 'bán rau ở chợ',            at: [46, 46], area: [39, 42, 54, 50], habit: 'Bà bán ở chợ từ sáng sớm, trưa về coi TV ban ngày. Điện thoại bà chỉ nghe gọi.' },
-  { id: 'ongsau',kind: 's2', seg: 'senior', name: 'Ông Sáu', age: 58, job: 'cán bộ hưu trí',           at: [42, 39], area: [39, 38, 54, 43], habit: 'Thời sự 7 giờ tối là không bỏ. Quảng cáo trên TV ông xem hết.' },
-  { id: 'coba',  kind: 's3', seg: 'senior', name: 'Cô Ba',   age: 52, job: 'chủ tiệm tạp hóa',         at: [60, 42], area: [57, 38, 70, 50], habit: 'Cô có Facebook để coi con cháu thôi. Ai giới thiệu ở chợ thì cô thử.' },
-  { id: 'chubay',kind: 's4', seg: 'senior', name: 'Chú Bảy', age: 55, job: 'chạy xe ôm',               at: [64, 38], area: [57, 29, 70, 39], habit: 'Chạy xe khắp đảo, biển quảng cáo nào chú cũng thấy hết.' },
+  { id: 'linh', follows: ['havy', 'linh'],  kind: 'g1', seg: 'genz',   name: 'Linh',    age: 19, job: 'sinh viên Marketing',      at: [27, 25], area: [21, 16, 36, 26], habit: 'Ngày nào cũng lướt TikTok tới 1–2 giờ sáng. TV hả? Phòng trọ không có.' },
+  { id: 'khang', follows: ['tung'], kind: 'g2', seg: 'genz',   name: 'Khang',   age: 21, job: 'sinh viên IT, mê game',    at: [10, 23], area: [5, 16, 18, 26],  habit: 'Mình xem stream game với YouTube, quảng cáo nào bấm bỏ qua được là bỏ.' },
+  { id: 'mai', follows: ['anhba', 'havy'],   kind: 'g3', seg: 'genz',   name: 'Mai',     age: 20, job: 'làm thêm ở quán cà phê',   at: [33, 13], area: [21, 4, 36, 13],  habit: 'Ngày nào cũng đi xe buýt qua Khu Đại học, nhìn biển quảng cáo dọc đường quen luôn rồi.' },
+  { id: 'tu', follows: ['linh', 'tung'],    kind: 'g4', seg: 'genz',   name: 'Tú',      age: 22, job: 'TikToker nghiệp dư',       at: [8, 26],  area: [5, 23, 18, 29],  habit: 'Mình tin mấy bạn reviewer nhỏ hơn người nổi tiếng. Celeb quảng cáo thì biết là nhận tiền rồi.' },
+  { id: 'hung', follows: ['kien'],  kind: 'o1', seg: 'office', name: 'Hùng',    age: 29, job: 'nhân viên ngân hàng',      at: [46, 25], area: [39, 16, 54, 26], habit: 'Sáng nào cũng kẹt xe trên Đại lộ Trung tâm nửa tiếng, nhìn biển quảng cáo cho đỡ chán.' },
+  { id: 'thao', follows: ['linh', 'anhba'],  kind: 'o2', seg: 'office', name: 'Thảo',    age: 27, job: 'chuyên viên nhân sự',      at: [62, 26], area: [57, 16, 70, 26], habit: 'Giờ nghỉ trưa là lướt Facebook với sàn thương mại điện tử, thấy gì hay là bỏ giỏ.' },
+  { id: 'quan', follows: ['kien'],  kind: 'o3', seg: 'office', name: 'Quân',    age: 33, job: 'trưởng phòng kinh doanh',  at: [54, 13], area: [39, 4, 70, 16],  habit: 'Tối về mở TV giờ vàng xem tin tức. Ban ngày họp liên tục, ít lướt mạng.' },
+  { id: 'vy', follows: ['linh'],    kind: 'o4', seg: 'office', name: 'Vy',      age: 25, job: 'designer',                 at: [35, 28], area: [33, 23, 43, 32], habit: 'Mua gì mình cũng lên mạng tìm review rồi so giá trên sàn trước.' },
+  { id: 'lan', follows: ['mebap', 'anhba'],   kind: 'f1', seg: 'family', name: 'Chị Lan', age: 34, job: 'nội trợ, 2 con nhỏ',       at: [10, 33], area: [5, 29, 18, 39],  habit: 'Tối nào cả nhà cũng xem phim truyền hình. Cuối tuần đi siêu thị Hoa Sứ.' },
+  { id: 'tuan', follows: ['mebap'],  kind: 'f2', seg: 'family', name: 'Anh Tuấn',age: 37, job: 'kỹ sư, bố bỉm',            at: [27, 37], area: [21, 29, 36, 39], habit: 'Toàn đọc group bố mẹ, nghe mấy chị micro-KOL review đồ cho con.' },
+  { id: 'hanh', follows: ['mebap', 'bsminh'],  kind: 'f3', seg: 'family', name: 'Cô Hạnh', age: 31, job: 'giáo viên mầm non',        at: [28, 49], area: [21, 42, 36, 50], habit: 'Ban ngày đi dạy, tối mới coi TV chút. Đồ dùng trong nhà hay mua ở siêu thị.' },
+  { id: 'phuc', follows: ['anhba', 'chutu'],  kind: 'f4', seg: 'family', name: 'Anh Phúc',age: 39, job: 'chủ tiệm sửa xe',          at: [12, 47], area: [5, 42, 18, 50],  habit: 'Tiệm mở TV cả ngày, khách ra vào kể chuyện suốt. Ai khen cái gì là anh nhớ.' },
+  { id: 'batu', follows: ['chutu'],  kind: 's1', seg: 'senior', name: 'Bà Tư',   age: 63, job: 'bán rau ở chợ',            at: [46, 46], area: [39, 42, 54, 50], habit: 'Bà bán ở chợ từ sáng sớm, trưa về coi TV ban ngày. Điện thoại bà chỉ nghe gọi.' },
+  { id: 'ongsau', follows: ['bsminh', 'chutu'],kind: 's2', seg: 'senior', name: 'Ông Sáu', age: 58, job: 'cán bộ hưu trí',           at: [42, 39], area: [39, 38, 54, 43], habit: 'Thời sự 7 giờ tối là không bỏ. Quảng cáo trên TV ông xem hết.' },
+  { id: 'coba', follows: ['bsminh'],  kind: 's3', seg: 'senior', name: 'Cô Ba',   age: 52, job: 'chủ tiệm tạp hóa',         at: [60, 42], area: [57, 38, 70, 50], habit: 'Cô có Facebook để coi con cháu thôi. Ai giới thiệu ở chợ thì cô thử.' },
+  { id: 'chubay', follows: ['chutu', 'anhba'],kind: 's4', seg: 'senior', name: 'Chú Bảy', age: 55, job: 'chạy xe ôm',               at: [64, 38], area: [57, 29, 70, 39], habit: 'Chạy xe khắp đảo, biển quảng cáo nào chú cũng thấy hết.' },
 ];
 const NPCS = [
   ent('guide', 'guide', 37, 50, 'down', null, { name: 'Hoa tiêu Mira' }),
@@ -1530,7 +1569,9 @@ function interview(e) {
   if (st.talked[e.id] === k) return { lines: [k ? 'Mình kể hết những gì mình thấy tuần này rồi đó. Tuần sau ghé lại nha!' : 'Mình nói hết thói quen của mình rồi đó. Có gì mới mình kể tiếp nha!'], notes: [] };
   if (!k) {
     const lv = b.interest[r.seg] > .7 ? 2 : b.interest[r.seg] > .4 ? 1 : 0;
-    return { lines: [r.habit, CAT[st.brief][lv]], notes: [{ tag: 'Thói quen', text: r.habit }, { tag: 'Ngành hàng', text: CAT[st.brief][lv] }], intro };
+    const fl = (r.follows || []).map((id) => INF[id] ? INF[id].name : '').filter(Boolean);
+    const fline = fl.length ? `Trên mạng mình hay theo dõi ${fl.join(' với ')}.` : 'Mình ít theo dõi người nổi tiếng trên mạng.';
+    return { lines: [r.habit, fline, CAT[st.brief][lv]], notes: [{ tag: 'Thói quen', text: r.habit }, { tag: 'Influencer', text: fline }, { tag: 'Ngành hàng', text: CAT[st.brief][lv] }], intro };
   }
   const res = st.results[k - 1], d = res.seg[r.seg], plan = res.plan, ev = res.event.mod, cov = res.cov || 0;
   const C = [];
@@ -1548,13 +1589,14 @@ function interview(e) {
       tv: `Xem TV ${dp} thấy quảng cáo ${brand} mấy lần.`,
       ooh: `Cái biển ${brand} ở ${DISTRICTS[(plan.districts || []).find((x) => DISTRICTS[x].seg === r.seg) || (plan.districts || [])[0]]?.name || 'ngoài đường'} to ghê, đi ngang là thấy.`,
       social: `Lướt mạng là thấy ${brand} hiện lên${plan.target === r.seg ? ' liên tục, như kiểu nhắm đúng mình' : ''}.`,
-      kol: plan.kolType === 'mega' ? `Thấy ca sĩ Hà Vy quảng cáo ${brand}, mà biết là được trả tiền nên nghe cho vui.` : `Mấy bạn review mình theo dõi đều nhắc tới ${brand}, nghe có vẻ thật lòng.`,
+      kol: (() => { const ks = (plan.kols || []).filter((id) => INF[id]); const x = INF[ks.find((id) => (r.follows || []).includes(id))] || INF[ks.slice().sort((p, q) => INF[q].aud[r.seg] - INF[p].aud[r.seg])[0]]; return x ? `Thấy ${x.name} nhắc tới ${brand} trên mạng.` : ''; })(),
       act: `Hôm bữa có booth ${brand} cho ${VERB[st.brief]} ngay ${DISTRICTS[plan.actLoc].name}, vui lắm!`,
     };
     if (top && L[top]) add(.6, 'Kênh', L[top]);
   }
   if (plan.spend.tv >= 40 && (cr.tv || 0) < .12 && r.seg === 'genz') add(.55, 'Kênh', 'Quảng cáo TV hả? Mình đâu có xem TV, nghe bạn kể mới biết.');
   if (plan.spend.ooh > 0 && !(plan.districts || []).some((x) => DISTRICTS[x].seg === r.seg) && r.seg !== 'senior') add(.35, 'Kênh', `Khu ${DISTRICTS[seg.district].name} chỗ mình không thấy biển ${brand} nào.`);
+  { const mine = (plan.kols || []).filter((id) => (r.follows || []).includes(id)); if (mine.length) { const x = INF[mine[0]], c = x.cred + ((INF_FIT[st.brief] || {})[x.id] || 0); add(.62, 'Influencer', c >= 1 ? `${x.name} mà mình theo dõi giới thiệu ${brand}, nghe thật lòng nên mình cũng muốn thử.` : `${x.name} quảng cáo ${brand}, mà biết là được trả tiền nên nghe cho vui thôi.`); } }
   if (plan.spend.act > 0 && DISTRICTS[plan.actLoc].seg === r.seg) add(.65, 'Activation', `Booth ${brand} ở ${DISTRICTS[plan.actLoc].name} được ${VERB[st.brief]} miễn phí, mình thích kiểu được trải nghiệm tận tay vậy.`);
   // hình ảnh quảng cáo
   if (d.sf !== undefined && d.sf < .86 && d.reach > .2) add(.72, 'Hình ảnh', (STYLE_DISLIKE[plan.style] || 'Hình ảnh quảng cáo không hợp gu mình lắm.'));
@@ -1612,7 +1654,7 @@ const nf = (v, d = 0) => (+v || 0).toLocaleString('vi-VN', { maximumFractionDigi
 const pct = (v, d = 0) => nf((v || 0) * 100, d) + '%';
 const tr = (v) => nf(v) + ' tr';
 const big = (v) => v >= 1e9 ? nf(v / 1e9, 2) + ' tỷ' : v >= 1e6 ? nf(v / 1e6, 1) + ' tr' : v >= 1e3 ? nf(v / 1e3, 1) + ' nghìn' : nf(v);
-function fmtK(k, v) { return k.fmt === 'pct' ? pct(v) : k.fmt === 'x' ? nf(v, 2) + 'x' : k.fmt === 'k' ? nf(v, 1) + 'k đ' : nf(v); }
+function fmtK(k, v) { return k.fmt === 'people' ? nf(v) + ' người' : k.fmt === 'unit' ? nf(v) + ' ' + B().unit : k.fmt === 'tr' ? nf(v) + ' triệu đ' : k.fmt === 'vnd' ? nf(Math.round(v) * 1000) + ' đ' : k.fmt === 'pct' ? pct(v) : k.fmt === 'x' ? nf(v, 2) + 'x' : k.fmt === 'k' ? nf(v, 1) + 'k đ' : nf(v); }
 
 /* ---------- input ---------- */
 const held = [];
@@ -1795,7 +1837,7 @@ async function talk(e) {
   if (e.id === 'analyst') { await say([st.results.length ? 'Số liệu tuần mới đã về! Mình bày lên màn hình cho bạn xem.' : 'Chưa có số liệu đâu. Khi chiến dịch chạy xong 1 tuần (2 ngày thật), báo cáo sẽ hiện ở đây.'], { who: e.name }); st.visited.datalab = true; save(); return openReport(); }
   if (e.id === 'reporter') { await say(['Tin nóng Medisland đây! Bối cảnh thị trường tuần này có thể làm thay đổi hiệu quả kênh đó.'], { who: e.name }); return openNews(); }
   if (e.id === 'promoter') { const pl = onAirPlan(); return say([`Mời bạn ${VERB[st.brief]} ${b.brand}! Booth tụi mình ở ${DISTRICTS[pl.actLoc].name} cả tuần nè.`, `Mỗi ngày phát khoảng ${nf(Math.round(Math.min(pl.spend.act * 1000 / CHANNELS.act.cpc, SEGMENTS[DISTRICTS[pl.actLoc].seg].N * .05) / 7))} phần. Ai thử xong cũng kể cho bạn bè nghe.`], { who: e.name }); }
-  if (e.id === 'kol') { const pl = onAirPlan(); return say(pl.kolType === 'mega' ? ['Hi mọi người, mình là Hà Vy nè! ✨', `Dạo này mình đang mê ${b.brand} lắm đó! (đọc theo kịch bản 😅)`] : ['Mình là một trong 20 reviewer nhỏ của chiến dịch.', `Mình quay clip ${VERB[st.brief]} ${b.brand} thật, khen chê thật — follower của mình tin vậy đó.`], { who: pl.kolType === 'mega' ? 'Ca sĩ Hà Vy' : 'Micro-KOL' }); }
+  if (e.id === 'kol') { const pl = onAirPlan(), x = INF[(pl.kols || [])[0]]; if (!x) return; return say([`Chào bạn, mình là ${x.name} (${x.field}).`, `Tuần này mình làm nội dung về ${b.brand} trên kênh của mình.`], { who: x.name }); }
 }
 async function guideTalk() {
   const c = await say(['Mira đây! Bạn muốn hỏi gì?'], { who: 'Hoa tiêu Mira', choices: ['Mình phải làm gì trên đảo?', 'Thời gian ở đây chạy thế nào?', 'Các khu và nhóm khách hàng', 'Không có gì, cảm ơn!'] });
@@ -1824,10 +1866,10 @@ async function useObj(id) {
   if (id === 'kiosk') return openNews();
   if (id === 'fountain') { sfx.coin(); return say(['Bạn thả một đồng xu xuống đài phun nước… “Mong KPI về đích!” 🙏']); }
   if (id === 'ferry') { const c = await say(['Phà Knoworld ⇄ Medisland. Lên phà về Knoworld City?'], { choices: ['Lên phà', 'Ở lại đảo'] }); if (c === 0) { const api = API(); if (api) api.exit(); } return; }
-  if (id === 'tv') return say(['Đài Sóng Đảo — đài truyền hình duy nhất trên đảo.', 'Bảng giá treo ở sảnh: Giờ vàng 19–22h đắt nhất, cả nhà cùng xem. Ban ngày rẻ, khán giả chủ yếu là người lớn tuổi & nội trợ. Đêm khuya rẻ, người trẻ và dân văn phòng thức khuya.']);
+  if (id === 'tv') return say(['Đài Sóng Đảo — đài truyền hình duy nhất trên đảo.', `Bảng giá treo ở sảnh (CPM): Giờ vàng 19–22h ${nf(CHANNELS.tv.cpm * 1.45)}k · Ban ngày ${nf(CHANNELS.tv.cpm * .7)}k · Đêm khuya ${nf(CHANNELS.tv.cpm * .62)}k.`]);
   if (b.kind === 'billboard') {
     const pl = onAirPlan(), on = pl && pl.spend.ooh > 0 && (pl.districts || []).includes(b.dist);
-    return say(on ? [`Biển của ${br.brand}: “${TAG[st.brief][pl.msg]}”.`, `Đặt ở ${DISTRICTS[b.dist].name}. Người qua lại chủ yếu là ${SEGMENTS[DISTRICTS[b.dist].seg].name}.`] : [`Biển quảng cáo ở ${DISTRICTS[b.dist].name} — đang treo quảng cáo của tiệm khác.`, 'Muốn thuê? Chọn kênh OOH và khu vực này trong kế hoạch ở MediAgency.']);
+    return say(on ? [`Biển của ${br.brand} ở ${DISTRICTS[b.dist].name}: “${TAG[st.brief][pl.msg]}”.`] : [`Biển quảng cáo ở ${DISTRICTS[b.dist].name} — đang treo quảng cáo của tiệm khác.`]);
   }
   const f = FLAVOR[b.kind]; if (f) return say(f);
 }
@@ -1871,14 +1913,14 @@ function openBrief() {
       <p>${esc(b.story)}</p>
       <div class="grid3">
         <div class="stat"><small>Tổng ngân sách 4 tuần</small><b>${tr(b.budget)}</b></div>
-        <div class="stat"><small>Thời gian</small><b>4 tuần · 8 ngày thật</b></div>
+        <div class="stat"><small>Thời gian</small><b>4 lần chạy · mỗi lần 48 giờ</b></div>
         <div class="stat"><small>Nhóm mục tiêu</small><b style="font-size:14px;margin-top:3px">${b.target.map((s) => SEGMENTS[s].short).join(' + ')}</b></div>
       </div>
       <h3>KPI cần đạt (tính trên nhóm mục tiêu)</h3>
       <div class="kpi-list">${b.kpis.map((k) => `<div class="kpi-row"><span>${esc(k.label)}</span><b>${k.lower ? '≤ ' : '≥ '}${fmtK(k, k.target)}</b></div>`).join('')}</div>
       <h3>Dân số Medisland · 1.000.000 người</h3>
       <div class="seglist">${SEG_IDS.map((s) => { const g = SEGMENTS[s]; return `<div class="seg" style="border-color:${b.target.includes(s) ? g.color : 'var(--line)'}">${b.target.includes(s) ? '<span class="pill gold tg">Mục tiêu</span>' : ''}<b style="color:${g.color}">${g.name}</b> · ${g.age} tuổi<br>${nf(g.N)} người · sống chủ yếu ở ${DISTRICTS[g.district].name}</div>`; }).join('')}</div>
-      <p class="note">Brief không nói nhóm nào xem kênh gì — đó là việc của agency: hãy ra phố quan sát, trò chuyện với người dân và tự ghi chép. Mỗi tuần nhóm chốt một kế hoạch; đã chốt thì không sửa hay chạy lại được, chỉ chạy tiếp tuần sau.</p>
+      <p class="note">Mỗi tuần nhóm chốt một kế hoạch; đã chốt thì không sửa hay chạy lại được, chỉ chạy tiếp tuần sau.</p>
       <div class="row"><button class="btn gold" id="okBrief">${st.briefSeen ? 'Đóng' : 'Nhận brief'}</button></div>`;
   };
   const panel = openModal(render(), 'wide', 'brief');
@@ -1894,10 +1936,10 @@ function estLine(c, p) {
   if (c === 'tv') { const o = CHANNELS.tv.tactic.opts[p.daypart]; return `≈ ${big(v * 1e6 / (CHANNELS.tv.cpm * o.cpmX))} lượt hiển thị · CPM ${nf(CHANNELS.tv.cpm * o.cpmX)}k`; }
   if (c === 'ooh') { const ds = p.districts || []; if (!ds.length) return '<span class="warn">Chọn ít nhất 1 khu đặt biển.</span>'; const imp = ds.reduce((a, d) => a + v / ds.length * 1e6 / DISTRICTS[d].oohCpm, 0); return `≈ ${big(imp)} lượt nhìn thấy · ${ds.length} khu · CPM ${ds.map((d) => DISTRICTS[d].oohCpm + 'k').join('/')}`; }
   if (c === 'social') { const cpm = CHANNELS.social.cpm * (p.target === 'all' ? 1 : 1.25); return `≈ ${big(v * 1e6 / cpm)} lượt hiển thị · CPM ${nf(cpm)}k${p.target !== 'all' ? ' (nhắm chọn đắt hơn 25%)' : ''}`; }
-  if (c === 'kol') { const o = CHANNELS.kol.tactic.opts[p.kolType]; return `≈ ${big(v * 1e6 / o.cpm)} lượt xem · CPM ${o.cpm}k`; }
-  if (c === 'search') return `≈ ${big(v * 1000 / CHANNELS.search.cpc)} lượt click tối đa · CPC ${CHANNELS.search.cpc}k — chỉ tiêu hết khi có người tìm`;
-  if (c === 'act') return `≈ ${big(v * 1000 / CHANNELS.act.cpc)} lượt trải nghiệm · ${CHANNELS.act.cpc}k/người — 1 điểm chỉ phục vụ được số người có hạn`;
-  const C = CHANNELS[c]; if (C && C.custom) return `≈ ${big(v * 1e6 / Math.max(1, C.cpm))} lượt tiếp cận · CPM ${nf(C.cpm)}k · kênh do giảng viên thêm`;
+  if (c === 'kol') return `${(p.kols || []).length} influencer · ≈ ${big((p.kols || []).reduce((a, id) => a + (INF[id] ? INF[id].followers * 3 * .35 : 0), 0))} lượt xem (3 bài/người/tuần)`;
+  if (c === 'search') return `CPC ${CHANNELS.search.cpc}k · tối đa ≈ ${big(v * 1000 / CHANNELS.search.cpc)} lượt click`;
+  if (c === 'act') return `${CHANNELS.act.cpc}k/lượt trải nghiệm · ≈ ${big(v * 1000 / CHANNELS.act.cpc)} lượt`;
+  const C = CHANNELS[c]; if (C && C.custom) return `≈ ${big(v * 1e6 / Math.max(1, C.cpm))} lượt hiển thị · CPM ${nf(C.cpm)}k`;
   return '';
 }
 /* ---------- BÁO CÁO ---------- */
@@ -1907,15 +1949,10 @@ function liveBox() {
   const p = phase(), pl = onAirPlan();
   if (p.state === 'plan' && st.results.length < 4) return `<div class="live" style="background:rgba(255,210,122,.07);border-color:rgba(255,210,122,.35)"><span>⏸ Đảo đang chờ ${esc(st.agency.name)} chốt tuần ${p.w + 1}. Mỗi lần chốt, chiến dịch chạy đúng 48 giờ rồi mới có báo cáo.</span></div>`;
   if (p.done || !pl) return '';
-  const est = CH_IDS.reduce((a, c) => { const v = +pl.spend[c] || 0; if (!v) return a; if (c === 'tv') return a + v * 1e6 / (CHANNELS.tv.cpm * CHANNELS.tv.tactic.opts[pl.daypart].cpmX); if (c === 'ooh') return a + v * 1e6 / 35; if (c === 'social') return a + v * 1e6 / (CHANNELS.social.cpm * (pl.target === 'all' ? 1 : 1.25)); if (c === 'kol') return a + v * 1e6 / CHANNELS.kol.tactic.opts[pl.kolType].cpm; return a; }, 0);
+  const est = CH_IDS.reduce((a, c) => { const v = +pl.spend[c] || 0; if (!v) return a; if (c === 'tv') return a + v * 1e6 / (CHANNELS.tv.cpm * CHANNELS.tv.tactic.opts[pl.daypart].cpmX); if (c === 'ooh') return a + v * 1e6 / 35; if (c === 'social') return a + v * 1e6 / (CHANNELS.social.cpm * (pl.target === 'all' ? 1 : 1.25)); if (c === 'kol') return a + (pl.kols || []).reduce((x, id) => x + (INF[id] ? INF[id].followers * 1.05 : 0), 0); return a; }, 0);
   return `<div class="live"><span>🟢 <b>Tuần ${p.cw + 1} đang chạy</b> · báo cáo mở lúc ${fmtClock(p.reportAt)} (còn ${countdown(p.reportAt - vnow())})</span><div class="pbar"><i style="width:${Math.round(p.prog * 100)}%"></i></div><span>Đã chi ~${tr(Math.round(planSpend(pl) * p.prog))} · ~${big(est * p.prog)} lượt hiển thị</span></div>`;
 }
-const QUESTIONS = [
-  ['Nhóm mục tiêu nào có độ phủ thấp nhất? Họ thường tiếp xúc kênh nào (nhớ lại ghi chép của nhóm)?', 'Kênh nào có chi phí cho mỗi đơn (CPA) cao bất thường? Vì sao?', 'Tần suất trung bình của từng nhóm có quá thấp (dễ quên) hoặc quá cao (gây khó chịu) không?'],
-  ['Bối cảnh “đối thủ khuyến mãi” tác động lên nhóm nào nhiều nhất?', 'Nhận biết tăng nhưng cân nhắc có tăng theo không? Nếu không, thông điệp đã hợp chưa?', 'Search đang “đón” được bao nhiêu % nhu cầu? Có người muốn mua mà không tìm thấy bạn không?'],
-  ['Mưa bão làm kênh nào kém đi? Bạn đã dịch chuyển ngân sách kịp chưa?', 'Thiện cảm thương hiệu đang đi lên hay đi xuống? Nguyên nhân có thể là gì?', 'Còn bao nhiêu ngân sách cho tuần cuối? Ưu tiên KPI nào?'],
-  ['KPI nào đã đạt, KPI nào chưa? Nếu làm lại, bạn sẽ đổi quyết định nào ở tuần 1?', 'Nhóm khách hàng nào phản hồi tốt nhất với chiến dịch? Vì sao?', 'Bài học lớn nhất về cách phối hợp kênh (media mix) của bạn là gì?'],
-];
+
 function openReport() {
   ensureResults();
   const R0 = st.results, n = R0.length, b = B();
@@ -1947,7 +1984,7 @@ function openReport() {
 }
 function kpiCards(v, uptoW, final = false) {
   const b = B();
-  return `<div class="kpis">${b.kpis.map((k) => { const val = v[k.id], sc = kpiScore(k, val), ok = sc >= 1; return `<div class="kpi"><small>${esc(k.label)}${!final && ['units'].includes(k.id) ? ' · lũy kế' : ''}</small><b style="color:${ok ? 'var(--green)' : 'var(--ink)'}">${fmtK(k, val)}</b><span class="t">Mục tiêu ${k.lower ? '≤' : '≥'} ${fmtK(k, k.target)} ${ok ? '✔' : ''}</span><div class="bar"><i style="width:${Math.min(100, sc * 100)}%;background:${ok ? 'var(--green)' : sc > .7 ? 'var(--gold)' : 'var(--red)'}"></i></div></div>`; }).join('')}</div>`;
+  return `<div class="kpis">${b.kpis.map((k) => { const val = v[k.id], sc = kpiScore(k, val), ok = sc >= 1; return `<div class="kpi"><small>${esc(k.label)}${!final && ['units', 'revenueTr'].includes(k.id) ? ' · lũy kế' : ''}</small><b style="color:${ok ? 'var(--green)' : 'var(--ink)'}">${fmtK(k, val)}</b><span class="t">Mục tiêu ${k.lower ? '≤' : '≥'} ${fmtK(k, k.target)} ${ok ? '✔' : ''}</span><div class="bar"><i style="width:${Math.min(100, sc * 100)}%;background:${ok ? 'var(--green)' : sc > .7 ? 'var(--gold)' : 'var(--red)'}"></i></div></div>`; }).join('')}</div>`;
 }
 function repOverview(r, w) {
   const b = B(), v = kpiValues(b, st.results.slice(0, w));
@@ -1963,26 +2000,26 @@ function repOverview(r, w) {
     <div class="stat"><small>Khách mới / mua lại</small><b>${big(r.trial)} / ${big(r.repeat)}</b></div>
     <div class="stat"><small>CPA (chi phí/khách mới)</small><b>${nf(r.cpa / 1000, 1)}k đ</b></div>
   </div>
-  <div class="qs"><b>Câu hỏi gợi ý cho báo cáo</b> (không có đáp án đúng duy nhất — hãy dùng số liệu + phỏng vấn):<ul>${QUESTIONS[w - 1].map((q) => `<li>${esc(q)}</li>`).join('')}</ul></div>`;
+`;
 }
 function repChannels(r) {
   const b = B(); let tS = 0, tI = 0, tC = 0;
   const rows = CH_IDS.filter((c) => r.ch[c]).map((c) => { const x = r.ch[c]; tS += x.spend; tI += x.imp; tC += x.conv; const C = CHANNELS[c];
-    const tac = c === 'tv' ? C.tactic.opts[r.plan.daypart].label : c === 'ooh' ? (r.plan.districts || []).map((d) => DISTRICTS[d].name).join(', ') : c === 'social' ? C.tactic.opts[r.plan.target].label : c === 'kol' ? C.tactic.opts[r.plan.kolType].label : c === 'act' ? C.tactic.opts[r.plan.actLoc].label : C && C.custom ? 'Kênh giảng viên thêm' : '—';
+    const tac = c === 'tv' ? C.tactic.opts[r.plan.daypart].label : c === 'ooh' ? (r.plan.districts || []).map((d) => DISTRICTS[d].name).join(', ') : c === 'social' ? C.tactic.opts[r.plan.target].label : c === 'kol' ? (r.plan.kols || []).map((id) => INF[id] ? INF[id].name : id).join(', ') : c === 'act' ? C.tactic.opts[r.plan.actLoc].label : '—';
     return `<tr><td><span style="color:${C.color}">●</span> ${C.name}<div style="color:var(--dim);font-size:11px">${x.spend ? esc(tac) : 'không chạy'}</div></td><td>${tr(x.spend)}</td><td>${x.spend ? big(x.imp) : '—'}</td><td>${x.spend && c !== 'search' && c !== 'act' ? nf(x.cpm, 1) + 'k' : '—'}</td><td>${x.spend ? (c === 'search' ? pct(x.cov) + ' nhu cầu' : pct(x.reach, 1)) : '—'}</td><td>${x.spend && c !== 'search' ? nf(x.freq, 1) : '—'}</td><td>${x.spend ? nf(x.conv) : '—'}</td><td>${x.conv > 0 ? nf(x.cpa, 1) + 'k' : '—'}</td></tr>`; }).join('');
   return `<div class="tblw"><table class="tbl"><thead><tr><th>Kênh · chiến thuật</th><th>Ngân sách</th><th>Hiển thị / tiếp cận</th><th>CPM</th><th>Độ phủ (toàn đảo)</th><th>Tần suất</th><th>Khách mới (ước tính)</th><th>CPA</th></tr></thead><tbody>${rows}</tbody>
   <tfoot><tr><td>Tổng</td><td>${tr(tS)}</td><td>${big(tI)}</td><td></td><td></td><td></td><td>${nf(tC)}</td><td>${tC ? nf(tS * 1000 / tC, 1) + 'k' : '—'}</td></tr></tfoot></table></div>
-  <p class="note">• Thông điệp tuần này: <b>${MSGS[r.plan.msg].label}</b> (“${esc(TAG[st.brief][r.plan.msg])}”).<br>• “Khách mới (ước tính)” phân bổ theo mô hình đa điểm chạm: kênh góp phần tạo nhận biết & thuyết phục được chia công. Search được ghi công phần đơn hàng nhờ “có mặt khi khách tìm”.<br>• Search: hiển thị = số click thực tế (bị giới hạn bởi số người đang tìm). Activation: số người trải nghiệm. Khách mua lại không tính cho kênh nào.</p>`;
+  ${(r.kols || []).length ? `<h3>Influencer</h3><div class="tblw"><table class="tbl" style="min-width:520px"><thead><tr><th>Influencer</th><th>Phí</th><th>Lượt xem</th><th>Khách mới (ước tính)</th><th>Chi phí / khách mới</th></tr></thead><tbody>${r.kols.map((k) => `<tr><td>${esc(INF[k.id] ? INF[k.id].name : k.id)}<div style="color:var(--dim);font-size:11px">${esc(INF[k.id] ? INF[k.id].field : '')}</div></td><td>${tr(k.fee)}</td><td>${big(k.views)}</td><td>${nf(k.conv)}</td><td>${k.conv > 0 ? nf(k.fee * 1000 / k.conv, 1) + 'k' : '—'}</td></tr>`).join('')}</tbody></table></div>` : ''}
+  <p class="note">Thông điệp tuần này: <b>${MSGS[r.plan.msg].label}</b> (“${esc(TAG[st.brief][r.plan.msg])}”) · Hướng thiết kế: <b>${STYLES[r.plan.style] ? STYLES[r.plan.style].label : '—'}</b>.<br>Khách mới (ước tính) được chia cho các kênh theo mô hình đa điểm chạm. Search: hiển thị = số lượt click. Activation: số lượt trải nghiệm. Khách mua lại không tính cho kênh nào.</p>`;
 }
 function delta(v, d = 1) { if (Math.abs(v) < .0005) return '<span style="color:var(--dim)">±0</span>'; return `<span class="${v > 0 ? 'up' : 'dn'}">${v > 0 ? '▲' : '▼'} ${nf(Math.abs(v) * 100, d)}</span>`; }
 function repSegments(r, w) {
   const b = B();
   const rows = SEG_IDS.map((s) => { const x = r.seg[s], g = SEGMENTS[s];
     return `<tr><td><span style="color:${g.color}">●</span> ${g.name}${b.target.includes(s) ? ' <span class="pill gold" style="font-size:10px;padding:0 6px">MT</span>' : ''}<div style="color:var(--dim);font-size:11px">${nf(g.N)} người</div></td>
-      <td>${pct(x.reach)}</td><td>${nf(x.freq, 1)}</td><td>${pct(x.aware)} ${delta(x.dA)}</td><td>${pct(x.cons, 1)} ${delta(x.dC)}</td><td>${nf(x.buyers)}</td><td>${nf(x.repeat)}</td><td>${pct(x.sent)} ${delta(x.dS)}</td></tr>`; }).join('');
+      <td>${pct(x.reach)}</td><td>${nf(x.freq, 1)}</td><td>${pct(x.aware)} ${delta(x.dA)}<div style="color:var(--dim);font-size:11px">${nf(x.aware * g.N)} người</div></td><td>${pct(x.cons, 1)} ${delta(x.dC)}<div style="color:var(--dim);font-size:11px">${nf(x.cons * g.N)} người</div></td><td>${nf(x.buyers)}</td><td>${nf(x.repeat)}</td><td>${pct(x.sent)} ${delta(x.dS)}</td></tr>`; }).join('');
   return `<div class="tblw"><table class="tbl"><thead><tr><th>Nhóm khách hàng</th><th>Độ phủ tuần</th><th>Tần suất TB</th><th>Nhận biết (Δ điểm %)</th><th>Cân nhắc (Δ)</th><th>Khách mới</th><th>Mua lại</th><th>Thiện cảm (Δ)</th></tr></thead><tbody>${rows}</tbody></table></div>
-  <p class="note">Độ phủ = % người trong nhóm thấy quảng cáo ≥1 lần trong tuần. Tần suất = số lần trung bình mỗi người đã thấy. Nhận biết & cân nhắc là chỉ số tích lũy (có hao hụt nếu ngừng quảng cáo). Δ so với tuần trước.</p>
-  <div class="qs"><b>Số liệu chỉ cho biết “cái gì”.</b> Muốn biết “vì sao”, hãy ra phố: quan sát người dân (ai đang cầm sản phẩm, ai lắc đầu, ai thắc mắc) và trò chuyện với họ — rồi tự ghi chép cho nhóm.</div>`;
+  <p class="note">Độ phủ = % người trong nhóm thấy quảng cáo ≥1 lần trong tuần. Tần suất = số lần trung bình mỗi người đã thấy. Δ so với tuần trước.</p>`;
 }
 function svgLine(series, labels, opt = {}) {
   const Wd = 460, Hd = 190, L = 38, Rr = 10, Tt = 12, Bt = 26, max = opt.max || Math.max(.05, ...series.flatMap((s) => s.v.filter((x) => x != null))) * 1.1;
@@ -2021,7 +2058,7 @@ function exportCSV() {
   const b = B(), q = (v) => `"${String(v).replace(/"/g, '""')}"`, L = [];
   L.push(['Phan', 'Tuan', 'Doi tuong', 'Ngan sach (tr)', 'Hien thi', 'CPM (k)', 'Do phu', 'Tan suat', 'Nhan biet', 'Can nhac', 'Khach moi', 'Mua lai', 'Thien cam', 'Chien thuat / thong diep'].map(q).join(','));
   st.results.forEach((r) => {
-    CH_IDS.forEach((c) => { const x = r.ch[c]; if (!x) return; L.push(['Kenh', r.week, CHANNELS[c].name, x.spend, Math.round(x.imp), x.cpm.toFixed(1), x.reach.toFixed(4), x.freq.toFixed(2), '', '', Math.round(x.conv), '', '', c === 'tv' ? r.plan.daypart : c === 'ooh' ? (r.plan.districts || []).join('|') : c === 'social' ? r.plan.target : c === 'kol' ? r.plan.kolType : c === 'act' ? r.plan.actLoc : ''].map(q).join(',')); });
+    CH_IDS.forEach((c) => { const x = r.ch[c]; if (!x) return; L.push(['Kenh', r.week, CHANNELS[c].name, x.spend, Math.round(x.imp), x.cpm.toFixed(1), x.reach.toFixed(4), x.freq.toFixed(2), '', '', Math.round(x.conv), '', '', c === 'tv' ? r.plan.daypart : c === 'ooh' ? (r.plan.districts || []).join('|') : c === 'social' ? r.plan.target : c === 'kol' ? (r.plan.kols || []).join('|') : c === 'act' ? r.plan.actLoc : ''].map(q).join(',')); });
     SEG_IDS.forEach((s) => { const x = r.seg[s]; L.push(['Nhom KH', r.week, SEGMENTS[s].name, '', Math.round(x.imp), '', x.reach.toFixed(4), x.freq.toFixed(2), x.aware.toFixed(4), x.cons.toFixed(4), Math.round(x.buyers), Math.round(x.repeat), x.sent.toFixed(4), r.plan.msg].map(q).join(',')); });
     L.push(['Tong', r.week, b.brand, r.spend, '', '', '', '', '', '', Math.round(r.trial), Math.round(r.repeat), '', `units=${Math.round(r.units)} revenue=${Math.round(r.revenue)} roas=${r.roas.toFixed(2)}`].map(q).join(','));
   });
@@ -2345,48 +2382,34 @@ function presence() {
 }
 function presenceText() { if (!st.agency) return ''; const p = presence(); return `👥 ${p.nOnline}/${st.agency.members.length} online · ${p.nOffice} trong văn phòng`; }
 
-/* ---------- đăng nhập: chọn lớp → agency → MSSV + mã nhóm ---------- */
+/* ---------- đăng nhập: chỉ MSSV + mã vào đảo → tự đưa về đúng đảo của nhóm ---------- */
 async function openLogin(force = true) {
   const api = API();
   if (!api) { openModal('<h2>🏝 Medisland</h2><p class="sub">Hãy mở Medisland từ Knoworld: knoworld.vercel.app/medisland</p>', '', 'login'); return; }
-  const loading = openModal('<h2>🏝 Vào Medisland</h2><p class="sub">Đang tải danh sách lớp…</p>', '', force ? 'login' : 'login2');
-  if (force) { const x = loading.querySelector('.x'); if (x) x.remove(); }
-  try { ADM.classes = await api.directory(); } catch (e) { ADM.classes = []; }
-  let ci = 0, gi = 0;
-  if (SESSION) { const f = findGroup(SESSION.gid); if (f) { ci = ADM.classes.indexOf(f.cls); gi = f.cls.groups.indexOf(f.g); } }
   const mssv0 = (SESSION && SESSION.mssv) || api.studentId() || '';
-  const html = () => {
-    const c = ADM.classes[ci], g = c && c.groups[gi];
-    return `<h2>🏝 Vào Medisland</h2><p class="sub">Mỗi agency có một hòn đảo riêng — chỉ thành viên trong nhóm mới gặp nhau trên đảo của mình.</p>
-    ${ADM.classes.length ? `<div class="grid2">
-      <label style="font-size:13px;color:var(--muted)">Lớp<br><select id="lgC" style="width:100%;${inputCss}">${ADM.classes.map((x, i) => `<option value="${i}" ${i === ci ? 'selected' : ''}>${esc(x.code)} · ${esc(x.term || '')}</option>`).join('')}</select></label>
-      <label style="font-size:13px;color:var(--muted)">Agency (nhóm)<br><select id="lgG" style="width:100%;${inputCss}">${c.groups.length ? c.groups.map((x, i) => `<option value="${i}" ${i === gi ? 'selected' : ''}>${esc(x.name)}</option>`).join('') : '<option>— lớp chưa có nhóm —</option>'}</select></label>
+  const html = () => `<h2>🏝 Vào Medisland</h2><p class="sub">Nhập MSSV và mã vào đảo giảng viên đã phát cho nhóm. Bạn sẽ được đưa thẳng tới hòn đảo của agency mình.</p>
+    <div class="grid2">
+      <label style="font-size:13px;color:var(--muted)">MSSV<br><input id="lgS" value="${esc(mssv0)}" autocomplete="off" style="width:100%;${inputCss}"></label>
+      <label style="font-size:13px;color:var(--muted)">Mã vào đảo<br><input id="lgK" value="" autocomplete="off" style="width:100%;${inputCss};text-transform:uppercase"></label>
     </div>
-    ${g ? `<div style="font-size:12.5px;color:var(--dim);margin-top:8px">Thành viên: ${g.members.map((m) => esc(m.name)).join(', ')}</div>` : ''}
-    <div class="grid2" style="margin-top:10px">
-      <label style="font-size:13px;color:var(--muted)">MSSV của bạn<br><input id="lgS" value="${esc(mssv0)}" autocomplete="off" style="width:100%;${inputCss}"></label>
-      <label style="font-size:13px;color:var(--muted)">Mã vào đảo của nhóm<br><input id="lgK" value="${esc((SESSION && SESSION.gid === (g && g.id) && SESSION.code) || '')}" autocomplete="off" placeholder="giảng viên phát cho nhóm" style="width:100%;${inputCss};text-transform:uppercase"></label>
-    </div>
-    <div class="row">${api.isAdmin() ? '<button class="btn sm" id="lgAdm">⚙ Quản trị</button><span class="grow"></span>' : ''}<button class="btn gold" id="lgGo" ${g ? '' : 'disabled'}>Lên phà ra đảo</button></div>` : `<div class="empty">Chưa có lớp nào trên Medisland.</div>${api.isAdmin() ? '<div class="row"><button class="btn gold" id="lgAdm">⚙ Mở Quản trị</button></div>' : ''}`}`;
-  };
+    <div class="row">${api.isAdmin() ? '<button class="btn sm" id="lgAdm">⚙ Quản trị</button><span class="grow"></span>' : ''}<button class="btn gold" id="lgGo">Lên phà ra đảo</button></div>`;
   const panel = openModal(html(), '', force ? 'login' : 'login2');
-  const re = () => { panel.innerHTML = html() + (force ? '' : '<button class="x">✕</button>'); const x = panel.querySelector('.x'); if (x) x.onclick = closeModal; wire(); };
-  const wire = () => {
-    const c = panel.querySelector('#lgC'); if (c) c.onchange = () => { ci = +c.value; gi = 0; re(); };
-    const g = panel.querySelector('#lgG'); if (g) g.onchange = () => { gi = +g.value; re(); };
-    const go = panel.querySelector('#lgGo'); if (go) go.onclick = async () => {
-      const grp = ADM.classes[ci].groups[gi], mssv = panel.querySelector('#lgS').value.trim(), code = panel.querySelector('#lgK').value.trim().toUpperCase();
-      if (!mssv || !code) return toast('Nhập MSSV và mã vào đảo.');
-      go.disabled = true; go.textContent = 'Đang kiểm tra…';
-      let res = null; try { res = await api.act(grp.id, mssv, code, 'get', {}); } catch (e) { res = null; }
-      go.disabled = false; go.textContent = 'Lên phà ra đảo';
-      if (!res || !res.ok) return toast(errText(res && res.err));
-      SESSION = { gid: grp.id, mssv, code, mem: res.me }; saveSession(); closeModal(); startSession(res, true);
-    };
-    const ad = panel.querySelector('#lgAdm'); if (ad) ad.onclick = () => { closeModal(); openAdmin(); };
-  };
   if (force) { const x = panel.querySelector('.x'); if (x) x.remove(); }
-  wire();
+  const go = panel.querySelector('#lgGo');
+  const submit = async () => {
+    const mssv = panel.querySelector('#lgS').value.trim().toUpperCase(), code = panel.querySelector('#lgK').value.trim().toUpperCase();
+    if (!mssv || !code) return toast('Nhập MSSV và mã vào đảo.');
+    go.disabled = true; go.textContent = 'Đang kiểm tra…';
+    let lg = null; try { lg = await api.login(mssv, code); } catch (e) { lg = null; }
+    if (!lg || !lg.ok) { go.disabled = false; go.textContent = 'Lên phà ra đảo'; return toast(lg && lg.err === 'notfound' ? 'MSSV hoặc mã vào đảo không đúng.' : errText(lg && lg.err)); }
+    let res = null; try { res = await api.act(lg.group, mssv, code, 'get', {}); } catch (e) { res = null; }
+    go.disabled = false; go.textContent = 'Lên phà ra đảo';
+    if (!res || !res.ok) return toast(errText(res && res.err));
+    SESSION = { gid: lg.group, mssv, code, mem: res.me }; saveSession(); closeModal(); startSession(res, true);
+  };
+  go.onclick = submit;
+  panel.querySelector('#lgK').addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+  const ad = panel.querySelector('#lgAdm'); if (ad) ad.onclick = () => { closeModal(); openAdmin(); };
 }
 async function applySession() {
   const api = API(); if (!api || !SESSION) return openLogin(true);
@@ -2397,8 +2420,8 @@ async function applySession() {
 async function startSession(res, fresh) {
   const api = API();
   applyServer(res);
-  try { ADM.channels = await api.channels(); } catch (e) { ADM.channels = []; }
-  setCustomChannels(ADM.channels);
+  try { const ch = await api.channels(); ADM.channels = ch.list || []; ADM.offBuiltin = ch.off || []; } catch (e) { ADM.channels = []; ADM.offBuiltin = []; }
+  setCustomChannels(ADM.channels, ADM.offBuiltin);
   player.kind = 'm' + (SESSION.mem % MEM_PAL.length);
   INOFF = false; miniC.classList.remove('on');
   Object.assign(player, { tx: 38, ty: 52, nx: 38, ny: 52, x: 38 * T, y: 52 * T, moving: false, dir: 'up' });
@@ -2445,6 +2468,7 @@ function openPlanner(opt = {}) {
   let d = JSON.parse(JSON.stringify(saved() ? saved().plan : (prev ? prev.plan : emptyPlan())));
   ['reason', 'by', 'byName', 'approvals', 'lockedAt', 'locked', 'late', 'carried'].forEach((k) => delete d[k]);
   if (!saved()) d.style = d.style || null;
+  if (!Array.isArray(d.kols)) d.kols = []; d.kols = d.kols.filter((id) => INF[id]); d.spend.kol = CH_IDS.includes('kol') ? kolSpend(d) : 0;
   let reason = saved() ? saved().reason : '';
   const dirty = () => !saved() || JSON.stringify(d) !== JSON.stringify(saved().plan) || reason !== saved().reason;
   const checks = () => {
@@ -2460,6 +2484,10 @@ function openPlanner(opt = {}) {
   };
   const chRow = (c) => {
     const C = CHANNELS[c], v = d.spend[c] || 0, max = Math.max(rem, v);
+    if (c === 'kol') return `<div class="ch"><div class="nm"><div class="i" style="background:${C.color}22;border:1px solid ${C.color}">${C.icon}</div><div><b>${C.name}</b><small>Chọn người hợp tác tuần này — mỗi người đăng 3 bài/tuần. Phí tính theo tuần.</small></div></div>
+      <div></div><div class="amt"><b style="font-size:15px">${tr(kolSpend(d))}</b></div>
+      <div class="infs">${INFLUENCERS.map((x) => `<button data-kol="${x.id}" class="${(d.kols || []).includes(x.id) ? 'on' : ''}" ${edit ? '' : 'disabled'}><span class="av" style="background:${x.color}">${esc(x.name.split(' ').map((w) => w[0]).join('').slice(0, 2))}</span><span><b>${esc(x.name)}</b><small>${esc(x.field)}</small><small>${fmtFollowers(x.followers)} người theo dõi · ${tr(x.fee)}/tuần</small></span></button>`).join('')}</div>
+      <div class="est" data-est="kol">${estLine('kol', d)}</div></div>`;
     let tac = '';
     if (c === 'ooh') tac = `<span>${C.tactic.label}:</span>` + DIST_IDS.map((x) => `<button data-dist="${x}" class="${(d.districts || []).includes(x) ? 'on' : ''}" ${edit ? '' : 'disabled'}>${DISTRICTS[x].name}</button>`).join('');
     else if (C.tactic) tac = `<span>${C.tactic.label}:</span>` + Object.entries(C.tactic.opts).map(([k, o]) => `<button data-tac="${c}:${k}" class="${d[C.tactic.key] === k ? 'on' : ''}" ${edit ? '' : 'disabled'}>${o.label}</button>`).join('');
@@ -2487,7 +2515,7 @@ function openPlanner(opt = {}) {
     ${prev ? `<div class="note" style="margin:0 0 12px;border:0;padding:0">Tuần trước: chi ${tr(prev.spend)} · bán ${nf(prev.units)} ${esc(b.unit)} · ROAS ${nf(prev.roas, 2)}x — xem chi tiết trên màn hình phòng họp.</div>` : ''}
     <h3 style="margin-top:0">1 · Thông điệp chủ đạo</h3>
     <div class="msgs">${Object.entries(MSGS).map(([k, m]) => `<button data-msg="${k}" class="${d.msg === k ? 'on' : ''}" ${edit ? '' : 'disabled'}><b>${m.label}</b><span>${m.sub}<br>VD: “${esc(TAG[st.brief][k])}”</span></button>`).join('')}</div>
-    <h3>2 · Hướng thiết kế quảng cáo <span style="color:var(--dim);font-weight:400;font-size:12px">— mỗi nhóm khách hàng thích một kiểu hình ảnh khác nhau. Hãy cho người dân xem mẫu trước khi chọn!</span></h3>
+    <h3>2 · Hướng thiết kế quảng cáo</h3>
     <div class="styles">${STYLE_IDS.map((k) => `<button data-sty="${k}" class="${d.style === k ? 'on' : ''}" ${edit ? '' : 'disabled'}><img src="${stylePreview(d.msg, k)}" alt=""><b>${STYLES[k].label}</b><span>${STYLES[k].sub}</span></button>`).join('')}</div>
     <h3>3 · Phân bổ ngân sách (triệu đồng)</h3>
     <div class="chs">${CH_IDS.map(chRow).join('')}</div>
@@ -2530,6 +2558,7 @@ function openPlanner(opt = {}) {
     if (!edit) return;
     panel.querySelectorAll('[data-msg]').forEach((x) => x.onclick = () => { d.msg = x.dataset.msg; sfx.blip(); refresh(); });
     panel.querySelectorAll('[data-sty]').forEach((x) => x.onclick = () => { d.style = x.dataset.sty; sfx.blip(); refresh(); });
+    panel.querySelectorAll('[data-kol]').forEach((x) => x.onclick = () => { const id = x.dataset.kol; d.kols = (d.kols || []).includes(id) ? d.kols.filter((z) => z !== id) : [...(d.kols || []), id]; d.spend.kol = kolSpend(d); sfx.blip(); refresh(); });
     panel.querySelectorAll('[data-rng]').forEach((x) => x.oninput = () => { const c = x.dataset.rng; d.spend[c] = +x.value; panel.querySelector(`[data-num="${c}"]`).value = x.value; updTotals(); });
     panel.querySelectorAll('[data-num]').forEach((x) => x.oninput = () => { const c = x.dataset.num; d.spend[c] = Math.max(0, Math.round(+x.value || 0)); panel.querySelector(`[data-rng="${c}"]`).value = d.spend[c]; updTotals(); });
     panel.querySelectorAll('[data-dist]').forEach((x) => x.onclick = () => { const k = x.dataset.dist; d.districts = (d.districts || []).includes(k) ? d.districts.filter((z) => z !== k) : [...(d.districts || []), k]; sfx.blip(); refresh(); });
@@ -2561,7 +2590,7 @@ function openBoard() {
 function openConceptTest(e) {
   const who = e.res ? `${e.res.name}` : 'Người dân', seg = e.res ? e.res.seg : e.seg;
   let shown = null;
-  const html = () => `<h2>🖼 Cho ${esc(who)} xem mẫu quảng cáo</h2><p class="sub">Bấm vào từng mẫu để xem phản ứng. Mỗi người một gu — hãy hỏi nhiều người ở nhiều khu rồi tự ghi lại cho nhóm.</p>
+  const html = () => `<h2>🖼 Cho ${esc(who)} xem mẫu quảng cáo</h2><p class="sub">Bấm vào từng mẫu để xem phản ứng.</p>
   ${shown ? `<div class="react lv${shown.r.lv}"><span class="face">${['😣', '😐', '🙂', '😍'][shown.r.lv]}</span><div><b>${esc(who)} xem mẫu “${STYLES[shown.k].label}”:</b><br>“${esc(shown.r.text)}”</div></div>` : ''}
   <div class="styles">${STYLE_IDS.map((k) => `<button data-ct="${k}" class="${shown && shown.k === k ? 'on' : ''}"><img src="${stylePreview('emo', k)}" alt=""><b>${STYLES[k].label}</b><span>${STYLES[k].sub}</span></button>`).join('')}</div>`;
   const panel = openModal(html(), 'wide', 'concept');
@@ -2641,14 +2670,6 @@ function openHelp() {
 }
 
 /* ---------- ADMIN (giảng viên) ---------- */
-const CH_PRESETS = {
-  radio:   { name: 'Radio', icon: '📻', cpm: 18, pen: { genz: .1, office: .45, family: .4, senior: .7 }, aware: .6, persuade: .25, note: 'Nghe trên xe, trong tiệm. Rẻ, nhắc nhớ tốt; người trẻ ít nghe.' },
-  print:   { name: 'Báo in', icon: '📰', cpm: 70, pen: { genz: .05, office: .2, family: .25, senior: .65 }, aware: .5, persuade: .5, note: 'Người lớn tuổi tin báo giấy; phủ hẹp, đắt.' },
-  crm:     { name: 'Email / CRM', icon: '✉️', cpm: 15, pen: { genz: .3, office: .6, family: .45, senior: .2 }, aware: .2, persuade: .75, note: 'Gửi tới khách đã đăng ký. Thuyết phục tốt nhưng ít tạo nhận biết.' },
-  podcast: { name: 'Podcast', icon: '🎙️', cpm: 55, pen: { genz: .45, office: .5, family: .2, senior: .05 }, aware: .45, persuade: .75, note: 'Người nghe trung thành, tin người dẫn.' },
-  posm:    { name: 'POSM tại điểm bán', icon: '🏷️', cpm: 25, pen: { genz: .4, office: .5, family: .75, senior: .7 }, aware: .5, persuade: .6, note: 'Kệ, biển, wobbler ở siêu thị & tạp hóa — nhắc ngay lúc mua.' },
-  ride:    { name: 'Quảng cáo app gọi xe', icon: '🛵', cpm: 45, pen: { genz: .75, office: .8, family: .4, senior: .15 }, aware: .6, persuade: .35, note: 'Hiện trong app khi chờ xe.' },
-};
 const ACT_LABEL = { login: 'Vào đảo', draft: 'Soạn nháp', approve: 'Đồng ý', lock: 'Chốt', board: 'Ghi bảng', concept: 'Khảo sát mẫu', talk: 'Trò chuyện', peer: 'Đánh giá ĐĐ' };
 let admTab = 'cls', admCls = 0, ADMIN = { classes: [] };
 function groupStatus(g) {
@@ -2682,18 +2703,17 @@ async function openAdmin() {
     } else if (admTab === 'ch') {
       const lv = (v) => v >= .85 ? 'Cao' : v >= .5 ? 'Vừa' : 'Thấp';
       body = `<div class="tblw"><table class="tbl" style="min-width:560px"><thead><tr><th>Công cụ</th><th>CPM</th><th>Phủ Gen Z / VP / GĐ / TN</th><th>Nhận biết</th><th>Thuyết phục</th><th></th></tr></thead><tbody>
-      ${BUILTIN_CH.map((c) => { const C = CHANNELS[c]; return `<tr><td>${C.icon} ${C.name}</td><td>${C.cpm ? C.cpm + 'k' : c === 'search' ? 'CPC ' + C.cpc + 'k' : c === 'act' ? C.cpc + 'k/người' : 'theo khu/loại'}</td><td style="color:var(--dim)">mô hình riêng</td><td>${C.aware ? lv(C.aware) : '—'}</td><td>${C.persuade ? lv(C.persuade) : '—'}</td><td><span class="pill">Mặc định</span></td></tr>`; }).join('')}
+      ${BUILTIN_CH.map((c) => { const C = CHANNELS[c], off = (ADM.offBuiltin || []).includes(c); return `<tr style="${off ? 'opacity:.5' : ''}"><td>${C.icon} ${C.name}</td><td>${C.cpm ? C.cpm + 'k' : c === 'search' ? 'CPC ' + C.cpc + 'k' : c === 'act' ? C.cpc + 'k/người' : c === 'kol' ? 'phí theo người' : 'theo khu'}</td><td style="color:var(--dim)">mô hình có sẵn</td><td>${C.aware ? lv(C.aware) : '—'}</td><td>${C.persuade ? lv(C.persuade) : '—'}</td><td><button class="btn sm" data-btog="${c}">${off ? 'Bật' : 'Tắt'}</button></td></tr>`; }).join('')}
       ${ADM.channels.map((C, i) => `<tr><td>${C.icon} ${esc(C.name)}</td><td>${C.cpm}k</td><td>${SEG_IDS.map((sg) => Math.round(C.pen[sg] * 100) + '%').join(' / ')}</td><td>${lv(C.aware)}</td><td>${lv(C.persuade)}</td><td><button class="btn sm" data-tog="${i}">${C.off ? 'Bật' : 'Tắt'}</button> <button class="btn sm" data-del="${i}">Xóa</button></td></tr>`).join('')}
       </tbody></table></div>
-      <h3>Thêm công cụ mới</h3>
-      <div class="tabs" style="margin:0 0 8px">${Object.entries(CH_PRESETS).map(([k, p]) => `<button data-pre="${k}">${p.icon} ${p.name}</button>`).join('')}</div>
-      <div class="grid2"><label style="font-size:13px;color:var(--muted)">Tên công cụ<br><input id="aName" style="width:100%;${inputCss}"></label>
+      <h3>Thêm công cụ mới (tự đặt tên và thông số)</h3>
+      <div class="grid2"><label style="font-size:13px;color:var(--muted)">Tên công cụ<br><input id="aName" placeholder="VD: Radio, Báo in, Màn hình thang máy…" style="width:100%;${inputCss}"></label>
       <label style="font-size:13px;color:var(--muted)">Biểu tượng · CPM (nghìn đ/1000 lượt)<br><span style="display:flex;gap:6px"><input id="aIcon" value="📣" style="width:60px;${inputCss};text-align:center"><input id="aCpm" type="number" value="30" style="flex:1;${inputCss}"></span></label></div>
       <div style="font-size:13px;color:var(--muted);margin:8px 0 4px">Độ phủ tối đa trong từng nhóm khách hàng (%)</div>
       <div class="grid2" style="grid-template-columns:repeat(4,1fr)">${SEG_IDS.map((sg) => `<label style="font-size:12px;color:${SEGMENTS[sg].color}">${SEGMENTS[sg].short}<br><input data-pen="${sg}" type="number" min="0" max="100" value="40" style="width:100%;${inputCss}"></label>`).join('')}</div>
       <div class="grid2" style="margin-top:8px"><label style="font-size:13px;color:var(--muted)">Sức tạo nhận biết<br><select id="aAw" style="width:100%;${inputCss}"><option value=".35">Thấp</option><option value=".6" selected>Vừa</option><option value=".95">Cao</option></select></label>
       <label style="font-size:13px;color:var(--muted)">Sức thuyết phục<br><select id="aPe" style="width:100%;${inputCss}"><option value=".25">Thấp</option><option value=".5" selected>Vừa</option><option value=".85">Cao</option></select></label></div>
-      <label style="display:block;font-size:13px;color:var(--muted);margin-top:8px">Mô tả cho sinh viên<br><input id="aNote" style="width:100%;${inputCss}"></label>
+      <label style="display:block;font-size:13px;color:var(--muted);margin-top:8px">Mô tả ngắn hiện cho sinh viên (không bắt buộc)<br><input id="aNote" placeholder="VD: Quảng cáo trên màn hình thang máy các tòa văn phòng" style="width:100%;${inputCss}"></label>
       <div class="row"><button class="btn gold" id="aAdd">+ Thêm vào tất cả các đảo</button></div>
       <p class="note">Công cụ mới xuất hiện ở Bàn điều phối của mọi agency (khi các bạn vào lại đảo). Tuần đã chốt không bị ảnh hưởng.</p>`;
     } else {
@@ -2724,19 +2744,19 @@ async function openAdmin() {
     panel.querySelectorAll('[data-gh]').forEach((s2) => s2.onchange = async () => { const g = ADMIN.classes[admCls].groups[+s2.dataset.gh], v = Math.max(.02, +s2.value || 48); await api.adminUpdateGroup(g.id, { run_hours: v }); toast(`${g.name}: mỗi lần chạy ${nf(v, 2)} giờ`); reload(); });
     panel.querySelectorAll('[data-gd]').forEach((b) => b.onclick = async () => { const g = ADMIN.classes[admCls].groups[+b.dataset.gd]; if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Chắc chưa?'; return; } await api.adminDeleteGroup(g.id); reload(); });
     panel.querySelectorAll('[data-gv]').forEach((b) => b.onclick = () => openGroupDetail(ADMIN.classes[admCls].groups[+b.dataset.gv]));
-    panel.querySelectorAll('[data-pre]').forEach((b) => b.onclick = () => { const p = CH_PRESETS[b.dataset.pre]; panel.querySelector('#aName').value = p.name; panel.querySelector('#aIcon').value = p.icon; panel.querySelector('#aCpm').value = p.cpm; panel.querySelector('#aNote').value = p.note; SEG_IDS.forEach((sg) => panel.querySelector(`[data-pen="${sg}"]`).value = Math.round(p.pen[sg] * 100)); panel.querySelector('#aAw').value = p.aware >= .85 ? '.95' : p.aware >= .5 ? '.6' : '.35'; panel.querySelector('#aPe').value = p.persuade >= .7 ? '.85' : p.persuade >= .45 ? '.5' : '.25'; });
-    const saveCh = async () => { await api.saveChannels(ADM.channels); setCustomChannels(ADM.channels); };
+    const saveCh = async () => { await api.saveChannels({ list: ADM.channels, off: ADM.offBuiltin || [] }); setCustomChannels(ADM.channels, ADM.offBuiltin); };
+    panel.querySelectorAll('[data-btog]').forEach((b) => b.onclick = async () => { const c = b.dataset.btog, o = ADM.offBuiltin || []; ADM.offBuiltin = o.includes(c) ? o.filter((x) => x !== c) : [...o, c]; await saveCh(); re(); });
     const add = panel.querySelector('#aAdd'); if (add) add.onclick = async () => {
       const name = panel.querySelector('#aName').value.trim(); if (!name) return toast('Nhập tên công cụ.');
       const pen = {}; SEG_IDS.forEach((sg) => pen[sg] = Math.max(0, Math.min(100, +panel.querySelector(`[data-pen="${sg}"]`).value || 0)) / 100);
       const cols = ['#c6bfff', '#ffb35c', '#9fe0c0', '#e8908a', '#8fc3e8'];
-      ADM.channels.push({ id: 'cx' + Date.now().toString(36), name, icon: panel.querySelector('#aIcon').value || '📣', cpm: Math.max(1, +panel.querySelector('#aCpm').value || 30), pen, aware: +panel.querySelector('#aAw').value, persuade: +panel.querySelector('#aPe').value, note: panel.querySelector('#aNote').value.trim() || 'Công cụ do giảng viên thêm.', color: cols[ADM.channels.length % cols.length] });
+      ADM.channels.push({ id: 'cx' + Date.now().toString(36), name, icon: panel.querySelector('#aIcon').value || '📣', cpm: Math.max(1, +panel.querySelector('#aCpm').value || 30), pen, aware: +panel.querySelector('#aAw').value, persuade: +panel.querySelector('#aPe').value, note: panel.querySelector('#aNote').value.trim(), color: cols[ADM.channels.length % cols.length] });
       try { await saveCh(); sfx.coin(); toast(`Đã thêm “${name}” vào tất cả các đảo.`); } catch (e) { toast('Không lưu được: ' + (e.message || e)); } re();
     };
     panel.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => { ADM.channels.splice(+b.dataset.del, 1); await saveCh(); re(); });
     panel.querySelectorAll('[data-tog]').forEach((b) => b.onclick = async () => { const C = ADM.channels[+b.dataset.tog]; C.off = !C.off; await saveCh(); re(); });
   };
-  if (!ADM.channels.length) { try { ADM.channels = await api.channels(); setCustomChannels(ADM.channels); } catch (e) {} }
+  try { const ch = await api.channels(); ADM.channels = ch.list || []; ADM.offBuiltin = ch.off || []; setCustomChannels(ADM.channels, ADM.offBuiltin); } catch (e) {}
   await re();
 }
 function openGroupDetail(g) {
