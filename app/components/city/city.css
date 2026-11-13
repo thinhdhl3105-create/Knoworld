@@ -207,6 +207,14 @@
 .kwa-day b { font: 600 14px/1.1 'Space Grotesk', Inter, sans-serif; }
 .kwa-day span { font-size: 11.5px; color: var(--kwb-muted); }
 .kwa-back { display: block; margin: 0 auto 2px; font-size: 11.5px !important; color: var(--kwb-accent) !important; font-weight: 600 !important; }
+.kwa-hol { display: flex; align-items: center; gap: 9px; margin: 2px 10px 8px; padding: 7px 8px 7px 10px; border-radius: 12px; background: rgba(255,210,122,.08); border: 1px dashed rgba(255,210,122,.35); }
+.kwa-hol-ic { font-size: 17px; line-height: 1; }
+.kwa-hol-txt { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.kwa-hol-txt b { font-size: 12px; color: #ffd27a; }
+.kwa-hol-txt span { font-size: 11px; color: var(--kwb-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kwa-hol-act { display: flex; gap: 3px; }
+.kwa-hol-act button { font-size: 11px !important; font-weight: 600; padding: 4px 7px; border-radius: 999px; color: var(--kwb-fg); background: rgba(255,255,255,.07); }
+.kwa-hol-act button:hover { background: rgba(255,255,255,.14); }
 .kwa-sum { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; padding: 4px 14px 8px; font-size: 11.5px; color: var(--kwb-muted); border-bottom: 1px solid var(--kwb-line); }
 .kwa-sum span { display: inline-flex; align-items: center; gap: 5px; }
 .kwa-sum i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }

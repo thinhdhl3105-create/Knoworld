@@ -1,16 +1,16 @@
 'use client';
 
-// v48: Giao diện chúc mừng ngày lễ — thiệp chúc mừng (tự mở 1 lần/ngày), dải ruy băng
-// gọi lại thiệp, hiệu ứng hạt nhẹ trên toàn trang, tường lời chúc (Supabase) và bảng admin.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+// v48→v49: Giao diện chúc mừng ngày lễ. Người xem: chỉ đổi giao diện (trang trí thành phố, bảng LED)
+// + pháo hoa và dòng chúc mừng lúc vào trang (1 lần/phiên). Không thiệp tự bật, không tường lời chúc.
+// Admin: mở bảng sửa lời chúc / xem trước từ bảng Today's Schedule.
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../AuthProvider';
 import { useHoliday, setHolidayPreview, refreshHolidaySettings, getSettings } from './useHoliday';
 import HolidayParticles from './HolidayParticles';
 import HolidayArt from './HolidayArt';
-import { HOLIDAYS, fill, nextHoliday, vnToday } from '@/lib/holidays';
-import { fetchWishes, addWish, deleteWish, subscribeWishes, saveHolidaySettings } from '@/lib/holidayWishes';
-import { hasRegistered } from '@/lib/visitor';
+import { HOLIDAYS, fill } from '@/lib/holidays';
+import { saveHolidaySettings } from '@/lib/holidayWishes';
 import './holiday.css';
 
 const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
@@ -25,8 +25,6 @@ const FX_COLORS = {
   teachers: ['#ffd25e', '#b7f07e', '#ffffff'],
   christmas: ['#ffffff'],
 };
-const todayStr = () => { const t = vnToday(); return `${t.y}-${t.m}-${t.d}`; };
-const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } } };
 
 function subtitle(h) {
   switch (h.id) {
@@ -43,100 +41,79 @@ export default function HolidayLayer() {
   const isAdmin = user?.email === ADMIN_EMAIL;
   const path = usePathname() || '/';
   const quiet = QUIET.some((p) => path.startsWith(p));
-  const [open, setOpen] = useState(false);
-  const [fxOff, setFxOff] = useState(false);
-  const [next, setNext] = useState(null);
+  const [burst, setBurst] = useState(0);   // v49: số lần bắn pháo hoa (tăng lên -> bắn lại)
+  const [admin, setAdmin] = useState(false);
   const lastKey = useRef(null);
 
-  useEffect(() => { setNext(nextHoliday()); }, []);
-
-  // tự mở thiệp: 1 lần/ngày cho mỗi dịp; xem trước thì mở ngay
+  // v49: ngày lễ chỉ đổi giao diện + bắn pháo hoa lúc vào (1 lần mỗi phiên truy cập). Không tự mở thiệp, không kêu gọi tương tác.
   useEffect(() => {
-    if (!h) { setOpen(false); return; }
-    setFxOff(ls.get('kw_hol_fx_off_' + h.key) === '1');
+    if (!h) { setBurst(0); return; }
     const k = h.key + (h.preview ? ':p' : '');
     if (lastKey.current === k) return;
     lastKey.current = k;
-    if (h.preview) { setOpen(true); return; }
-    if (quiet || !(hasRegistered() || user)) return;
-    if (ls.get('kw_hol_seen_' + h.key) === todayStr()) return;
-    const t = setTimeout(() => setOpen(true), 1400);
-    return () => clearTimeout(t);
-  }, [h, quiet, user]);
+    if (quiet && !h.preview) return;
+    let seen = null; try { seen = sessionStorage.getItem('kw_hol_burst_' + k); } catch { /* ignore */ }
+    if (seen && !h.preview) return;
+    try { sessionStorage.setItem('kw_hol_burst_' + k, '1'); } catch { /* ignore */ }
+    setBurst((b) => b + 1);
+  }, [h, quiet]);
 
-  const close = useCallback(() => { setOpen(false); if (h) ls.set('kw_hol_seen_' + h.key, todayStr()); }, [h]);
+  // Lệnh từ bảng Today's Schedule (admin): bắn lại pháo hoa / mở bảng sửa lời chúc
   useEffect(() => {
-    if (!open) return undefined;
-    const k = (e) => { if (e.key === 'Escape') close(); };
+    const onFire = () => setBurst((b) => b + 1);
+    const onAdmin = () => setAdmin(true);
+    window.addEventListener('kw-holiday-burst', onFire);
+    window.addEventListener('kw-holiday-admin', onAdmin);
+    return () => { window.removeEventListener('kw-holiday-burst', onFire); window.removeEventListener('kw-holiday-admin', onAdmin); };
+  }, []);
+  useEffect(() => {
+    if (!admin) return undefined;
+    const k = (e) => { if (e.key === 'Escape') setAdmin(false); };
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
-  }, [open, close]);
+  }, [admin]);
 
-  if (!h) {
-    if (!isAdmin || !next || quiet) return null;
-    return (
-      <button type="button" className="hl-next" onClick={() => setHolidayPreview(next.id)} title="Admin: xem trước giao diện ngày lễ sắp tới">
-        🎉 {next.short} · còn {next.days} ngày <span>xem trước</span>
-      </button>
-    );
-  }
-
+  if (!h) return null;
   const vars = { '--hb': h.colors.bg, '--hb2': h.colors.bg2, '--hi': h.colors.ink, '--ha': h.colors.accent, '--hs': h.colors.soft };
   const colors = FX_COLORS[h.id];
   return (
     <div style={vars} className="hl-root" data-holiday={h.id}>
-      {!open && !fxOff && !quiet && (
-        <div className="hl-ambient"><HolidayParticles kind={h.fx} colors={colors} density={h.fx === 'fireworks' ? 0.2 : 0.28} /></div>
-      )}
-      {!open && !quiet && (
-        <div className="hl-ribbon">
-          <button type="button" onClick={() => setOpen(true)} className="hl-ribbon-main">
-            <span aria-hidden="true">{h.emoji}</span>{h.preview ? 'Xem trước · ' : ''}{h.title}
-          </button>
-          <button type="button" className="hl-ribbon-x" title={fxOff ? 'Bật hiệu ứng' : 'Tắt hiệu ứng'}
-            onClick={() => { const v = !fxOff; setFxOff(v); ls.set('kw_hol_fx_off_' + h.key, v ? '1' : '0'); }}>
-            {fxOff ? '✨' : '✕'}
-          </button>
-          {h.preview && <button type="button" className="hl-ribbon-x" title="Thoát xem trước" onClick={() => setHolidayPreview(null)}>⏻</button>}
+      {burst > 0 && <Entry key={burst} h={h} colors={colors} />}
+      {h.preview && isAdmin && (
+        <div className="hl-preview-pill">
+          <span>{h.emoji} Xem trước · {h.short}</span>
+          <button type="button" onClick={() => setBurst((b) => b + 1)} title="Bắn pháo hoa lại">🎆</button>
+          <button type="button" onClick={() => setAdmin(true)} title="Sửa lời chúc">✎</button>
+          <button type="button" onClick={() => setHolidayPreview(null)} title="Thoát xem trước">⏻</button>
         </div>
       )}
-      {open && <Card h={h} colors={colors} isAdmin={isAdmin} onClose={close} />}
+      {admin && isAdmin && <Card h={h} colors={colors} isAdmin onClose={() => setAdmin(false)} />}
     </div>
   );
 }
 
-function Card({ h, colors, isAdmin, onClose }) {
-  const [wishes, setWishes] = useState([]);
-  const [name, setName] = useState('');
-  const [msg, setMsg] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
-  const [edit, setEdit] = useState(false);
-  const [sent, setSent] = useState(false);
+// Màn chào khi vào trang: pháo hoa + dòng chúc mừng, tự tắt sau vài giây, không chặn thao tác.
+function Entry({ h, colors }) {
+  const [on, setOn] = useState(true);
+  useEffect(() => { const t = setTimeout(() => setOn(false), 7000); return () => clearTimeout(t); }, []);
+  if (!on) return null;
+  return (
+    <div className="hl-entry" aria-hidden="true">
+      <HolidayParticles kind="fireworks" colors={colors} density={1} />
+      <div className="hl-entry-msg">
+        <span className="hl-entry-emoji">{h.emoji}</span>
+        <b>{fill(h.title, h)}</b>
+        <small>{subtitle(h)}</small>
+      </div>
+    </div>
+  );
+}
 
-  useEffect(() => {
-    let alive = true;
-    try { const v = JSON.parse(localStorage.getItem('kw_visitor') || 'null'); if (v?.full_name) setName(v.full_name); } catch { /* ignore */ }
-    fetchWishes(h.key).then((w) => alive && setWishes(w));
-    const off = subscribeWishes(h.key, (row) => setWishes((list) => (list.some((x) => x.id === row.id) ? list : [row, ...list])));
-    return () => { alive = false; off(); };
-  }, [h.key]);
-
-  async function send(e) {
-    e.preventDefault(); setErr('');
-    if (msg.trim().length < 2) { setErr('Viết vài chữ chúc mừng nhé ✍️'); return; }
-    setBusy(true);
-    const { data, error } = await addWish(h.key, name, msg);
-    setBusy(false);
-    if (error) { setErr(error); return; }
-    setWishes((list) => (list.some((x) => x.id === data.id) ? list : [data, ...list]));
-    setMsg(''); setSent(true); setTimeout(() => setSent(false), 2400);
-  }
-
+function Card({ h, isAdmin, onClose }) {
+  const [edit, setEdit] = useState(true);
   const art = useMemo(() => <HolidayArt h={h} />, [h]);
   return (
     <div className="hl-overlay" role="dialog" aria-modal="true" aria-label={h.title} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="hl-fx"><HolidayParticles kind={h.fx} colors={colors} density={1} /></div>
-      <div className="hl-card">
+      <div className="hl-card hl-card-solo">
         <button type="button" className="hl-close" onClick={onClose} aria-label="Đóng">✕</button>
         <section className="hl-hero">
           <div className="hl-art">{art}</div>
@@ -145,35 +122,8 @@ function Card({ h, colors, isAdmin, onClose }) {
           <div className="hl-sub">{subtitle(h)}</div>
           <p className="hl-msg">{fill(h.message, h)}</p>
           <div className="hl-sign">— Knoworld City</div>
-          <div className="hl-actions">
-            <button type="button" className="hl-btn primary" onClick={onClose}>Vào thành phố →</button>
-            <a className="hl-btn" href="#hl-wish" onClick={(e) => { e.preventDefault(); document.getElementById('hl-wish-input')?.focus(); }}>💌 Gửi lời chúc</a>
-          </div>
+          <p className="hl-admin-note">Chỉ admin thấy bảng này. Người xem chỉ thấy giao diện ngày lễ + pháo hoa lúc vào trang; tiêu đề hiện trên màn chào, lời chúc chạy trên bảng LED trong thành phố.</p>
           {isAdmin && <AdminBar h={h} edit={edit} setEdit={setEdit} />}
-        </section>
-        <section className="hl-wall" id="hl-wish">
-          <div className="hl-wall-head"><b>Lời chúc từ cư dân</b><span>{wishes.length}</span></div>
-          <form className="hl-form" onSubmit={send}>
-            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="Tên của bạn" aria-label="Tên" />
-            <textarea id="hl-wish-input" value={msg} onChange={(e) => setMsg(e.target.value)} maxLength={220} rows={3}
-              placeholder={h.id === 'teachers' ? 'Viết lời tri ân gửi thầy cô…' : 'Viết lời chúc của bạn…'} aria-label="Lời chúc" />
-            <div className="hl-form-row">
-              <span className="hl-count">{msg.length}/220</span>
-              {err && <span className="hl-err">{err}</span>}
-              {sent && <span className="hl-ok">Đã gửi 💖</span>}
-              <button type="submit" className="hl-btn primary sm" disabled={busy}>{busy ? 'Đang gửi…' : 'Gửi'}</button>
-            </div>
-          </form>
-          <ul className="hl-wishes">
-            {wishes.length === 0 && <li className="hl-empty">Chưa có lời chúc nào — hãy là người đầu tiên!</li>}
-            {wishes.map((w, i) => (
-              <li key={w.id} className="hl-wish" style={{ animationDelay: `${Math.min(i, 12) * 0.04}s` }}>
-                <p>{w.message}</p>
-                <span>— {w.name}</span>
-                {isAdmin && <button type="button" className="hl-del" title="Xoá" onClick={async () => { const { error } = await deleteWish(w.id); if (!error) setWishes((l) => l.filter((x) => x.id !== w.id)); }}>✕</button>}
-              </li>
-            ))}
-          </ul>
         </section>
       </div>
     </div>

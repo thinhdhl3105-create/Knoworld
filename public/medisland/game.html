@@ -632,6 +632,30 @@ const EVENTS = [
   { title: 'Lễ hội mua sắm 12.12', text: 'Các sàn TMĐT giảm giá đồng loạt. Người dân tìm kiếm & mua online nhiều hơn hẳn.', mod: { fest: true } },
 ];
 
+/* v49: SỰ KIỆN BẤT NGỜ — sau 2 lần chạy đầu, đúng 1 sự kiện nổ ra vào một thời điểm ngẫu nhiên trong lần chạy 3 hoặc 4,
+   kéo dài 1,5–3 ngày đảo, làm thị trường khó hơn một chút (tác động tỉ lệ với số ngày kéo dài).
+   CÔNG BẰNG: rút thăm theo mã lớp -> mọi agency trong cùng lớp gặp cùng sự kiện, cùng lần chạy, cùng thời điểm
+   (tính theo ngày đảo của lần chạy đó) và cùng mức tác động. Không báo trước: chỉ hiện "Tin nóng" khi sự kiện xảy ra. */
+const SHOCK_SINCE = Date.UTC(2026, 10, 13, 9, 0); // chỉ áp cho lần chạy chốt sau bản cập nhật này (không làm đổi kết quả cũ)
+const SHOCKS = [
+  { id: 'flash', icon: '⚔️', title: 'Đối thủ bất ngờ tung flash sale', text: 'Một đối thủ cùng ngành giảm giá sốc trong vài ngày. Khách đang phân vân dễ bị kéo sang bên kia, trừ khi mình cũng có khuyến mãi.', mod: { buy: .8, promoBuy: .95, sent: -.03 } },
+  { id: 'econ', icon: '📉', title: 'Tin xấu kinh tế: giá xăng, giá điện cùng tăng', text: 'Người dân thắt chặt chi tiêu vài ngày, cân nhắc lâu hơn trước khi mua — nhất là nhóm thu nhập thấp.', mod: { buy: .82, cons: .9, poor: .85 } },
+  { id: 'flu', icon: '🤒', title: 'Cúm mùa bùng phát ngắn ngày', text: 'Nhiều trường cho học online, người dân hạn chế ra đường: ít ai thấy biển quảng cáo & booth, ở nhà xem TV và lướt mạng nhiều hơn.', mod: { ch: { ooh: .4, act: .3, tv: 1.1, social: 1.08 }, buy: .92 }, notW: [2] },
+  { id: 'outage', icon: '📵', title: 'Mạng xã hội gặp sự cố diện rộng', text: 'Facebook, TikTok chập chờn mấy ngày liền. Quảng cáo online và bài đăng influencer tiếp cận được ít người hơn.', mod: { ch: { social: .4, kol: .45, search: .8 } } },
+  { id: 'bid', icon: '💸', title: 'Đua thầu quảng cáo, giá online tăng vọt', text: 'Nhiều nhãn hàng lớn dồn tiền chạy quảng cáo cùng lúc. Cùng số tiền, quảng cáo online hiển thị được ít lượt hơn.', mod: { ch: { social: .7, search: .72, kol: .88 } } },
+  { id: 'scandal', icon: '🧯', title: 'Khủng hoảng truyền thông trong ngành', text: 'Một nhãn hàng khác cùng ngành dính bê bối chất lượng. Người tiêu dùng nghi ngại cả ngành hàng trong vài ngày.', mod: { cons: .85, buy: .9, sent: -.04 } },
+  { id: 'heat', icon: '🥵', title: 'Nắng nóng kỷ lục', text: 'Trời nóng gắt, người dân tránh ra đường giờ cao điểm. Biển ngoài trời và hoạt động sự kiện vắng người xem.', mod: { ch: { ooh: .55, act: .45 }, buy: .95 }, notW: [2] },
+];
+function shockPlan(classId, cfg) {
+  if (!classId || (cfg && cfg.shock === 'off')) return null;
+  const r = rng(Math.abs(hstr('medis-shock:' + classId)) % 99991 + 101); for (let i = 0; i < 5; i++) r();
+  const w = r() < .5 ? 2 : 3, pool = SHOCKS.filter((x) => !(x.notW || []).includes(w));
+  const x = pool[Math.floor(r() * pool.length) % pool.length];
+  const dur = 1.5 + Math.floor(r() * 4) * .5;                       // 1,5 – 3 ngày đảo
+  const d0 = .5 + Math.floor(r() * ((7 - dur - 1) * 2 + 1)) * .5;   // bắt đầu từ ngày 0,5 đến (6 - dur)
+  return { id: x.id, icon: x.icon, title: x.title, text: x.text, mod: x.mod, w, d0, d1: d0 + dur, f: dur / 7 };
+}
+
 function emptyPlan() {
   return { msg: 'emo', spend: Object.fromEntries(CH_IDS.map((c) => [c, 0])), daypart: 'prime', districts: ['downtown'], target: 'all', kols: [], actLoc: 'campus' };
 }
@@ -644,15 +668,22 @@ const resp = (f) => 1 - Math.exp(-f / 1.8);
 /* noise: deterministic theo seed (để cả lớp cùng điều kiện) */
 function rng(seed) { let x = seed | 0 || 1; return () => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return ((x >>> 0) % 10000) / 10000; }; }
 
-function simulateWeek(b, plan, prev, w, seed = 7) {
+function simulateWeek(b, plan, prev, w, seed = 7, shock = null) {
   const ev = (EVENTS[w] || EVENTS[0]).mod, rnd = rng(seed * 31 + w * 977);
+  // v49: sự kiện bất ngờ (nếu rơi vào tuần này) — hệ số tác động co lại theo tỉ lệ số ngày sự kiện / 7
+  const sh = shock && shock.w === w ? shock : null, shf = sh ? sh.f : 0, SM = (sh && sh.mod) || {};
+  const shx = (m) => (m === undefined ? 1 : 1 + (m - 1) * shf), shCh = (c) => shx((SM.ch || {})[c]);
+  const shBuy = shx(plan.msg === 'promo' && SM.promoBuy !== undefined ? SM.promoBuy : SM.buy);
   const noise = () => 1 + (rnd() - .5) * .08;
   const out = { week: w + 1, plan: JSON.parse(JSON.stringify(plan)), ch: {}, seg: {}, event: EVENTS[w] };
+  if (sh) out.shock = { id: sh.id, icon: sh.icon, title: sh.title, text: sh.text, d0: sh.d0, d1: sh.d1 };
   // kênh dùng trong tuần này: kênh hiện có + kênh tự thêm đã chụp lại lúc soạn (nếu admin đã xoá sau đó)
   const CHL = (c) => (plan.cx && plan.cx[c]) || CHANNELS[c];
   const ids = [...new Set([...CH_IDS, ...Object.keys(plan.cx || {})])].filter((c) => CHL(c));
   const rids = ids.filter((c) => c !== 'search');
   const price = {}; ids.forEach((c) => { if (c !== 'kol') price[c] = priceAt(c, w, seed, plan); });
+  const priceRep = { ...price }; // giá báo cáo; sự kiện chỉ làm đổi số lượt hiển thị mua được
+  if (sh) ids.forEach((c) => { if (price[c]) price[c] = price[c] / shCh(c); });
   const imp = {}, reach = {};
   ids.forEach((c) => { imp[c] = {}; reach[c] = {}; SEG_IDS.forEach((s) => { imp[c][s] = 0; reach[c][s] = 0; }); });
   const sp = Object.fromEntries(ids.map((c) => [c, Math.max(0, +(plan.spend || {})[c] || 0)])), M = 1e6; // impressions = triệu đ * 1e6 / CPM(nghìn đ)
@@ -697,7 +728,7 @@ function simulateWeek(b, plan, prev, w, seed = 7) {
   if (kols.length) {
     const pen = {}; SEG_IDS.forEach((s) => pen[s] = 0);
     kols.forEach((id) => {
-      const x = INF[id], views = x.followers * 3 * .35; kolImp[id] = views;
+      const x = INF[id], views = x.followers * 3 * .35 * shCh('kol'); kolImp[id] = views;
       SEG_IDS.forEach((s) => { imp.kol[s] += views * x.aud[s]; pen[s] = 1 - (1 - pen[s]) * (1 - Math.min(.9, x.followers * x.aud[s] / SEGMENTS[s].N)); });
       const cred = x.cred + ((INF_FIT[bk0] || {})[id] || 0); kolA[id] = x.aware; kolP[id] = cred;
     });
@@ -748,7 +779,7 @@ function simulateWeek(b, plan, prev, w, seed = 7) {
     const buzz = amix(s) > 0 ? 0 : contacts * 1.5 / 1e6 + (kols.some((id) => INF[id].followers > 2e6) ? .006 : 0);
     const A = clamp(A0 + (1 - A0) * (1 - Math.exp(-.62 * imA * fitA * wear)) * noise() + buzz, 0, .98);
     const C0 = p0.C * .86, pool = A * b.interest[s] * .7;
-    const C = clamp(C0 + Math.max(0, pool - C0) * (1 - Math.exp(-.75 * imP * fit[s] * (.25 + .75 * sf) * wear)) * noise(), 0, A);
+    const C = clamp(C0 + Math.max(0, pool - C0) * (1 - Math.exp(-.75 * imP * fit[s] * (.25 + .75 * sf) * wear)) * noise() * shx(SM.cons), 0, A);
     // thiện cảm
     let S = p0.S + (.6 - p0.S) * .08;
     S += plan.msg === 'emo' ? .018 : plan.msg === 'func' ? .01 : -.03;
@@ -756,6 +787,7 @@ function simulateWeek(b, plan, prev, w, seed = 7) {
     S += Math.min(.06, ra * 2.5);
     if (kols.length) S += Math.max(-.02, (kolPe - .8) * .03 * Math.min(1, reach.kol[s] * 3));
     if (ev.compete && plan.msg !== 'promo') S -= .005;
+    if (SM.sent) S += SM.sent * shf * (SM.promoBuy !== undefined && plan.msg === 'promo' ? .3 : 1);
     S += (sf - 1) * .05;
     S = clamp(S, .2, .95);
     segTmp[s] = { R, F, I, A, C, S, partA, partP, wear, fitS: fit[s], sf };
@@ -771,13 +803,13 @@ function simulateWeek(b, plan, prev, w, seed = 7) {
 
   SEG_IDS.forEach((s) => {
     const t = segTmp[s], N = SEGMENTS[s].N, p0 = prev[s];
-    let mult = (.7 + .6 * t.S) * avail * (ev.compete ? (plan.msg === 'promo' ? 1 : .8) : 1) * (plan.msg === 'promo' ? 1.3 : 1) * (ev.fest ? 1 + .45 * cov : 1);
+    let mult = (.7 + .6 * t.S) * avail * (ev.compete ? (plan.msg === 'promo' ? 1 : .8) : 1) * (plan.msg === 'promo' ? 1.3 : 1) * (ev.fest ? 1 + .45 * cov : 1) * shBuy * (SM.poor && INCOME[s] < .5 ? shx(SM.poor) : 1);
     // món đắt: quyết định dựa trên mức cân nhắc tích luỹ từ tuần trước (cân nhắc lâu) + khả năng chi trả của từng nhóm
     const lag = b.lag || 0, Ceff = (1 - lag) * t.C + lag * Math.min(t.C, p0.C * 1.05);
     const aff = b.price >= 1000 ? clamp(.15 + INCOME[s] * .95, .15, 1.15) : 1;
     const hand = N * Ceff * .3 * mult * noise();
     const trial = hand * b.conv * aff * Math.max(0, 1 - p0.triers / (N * .9));
-    const actTrial = cts[s] * b.actConv * aff * fitAct(b, s) * (ev.compete && plan.msg !== 'promo' ? .9 : 1);
+    const actTrial = cts[s] * b.actConv * aff * fitAct(b, s) * (ev.compete && plan.msg !== 'promo' ? .9 : 1) * shBuy;
     // lead: người để lại thông tin / đăng ký tư vấn — phụ thuộc kênh có khả năng thu lead
     const lw = rids.reduce((a, c) => a + (t.partP[c] || 0), 0);
     const searchSh = cov > 0 ? (b.searchDep * cov) / avail : 0;
@@ -819,7 +851,7 @@ function simulateWeek(b, plan, prev, w, seed = 7) {
     let I = 0, rr = 0, pop = 0; SEG_IDS.forEach((s) => { I += imp[c][s]; rr += reach[c][s] * SEGMENTS[s].N; pop += SEGMENTS[s].N; });
     if (c === 'search') { I = searchClicks; rr = searchClicks; }
     const conv = attr[c] * b.unitsPer;
-    out.ch[c] = { spend: sp[c], imp: I, reach: rr / pop, freq: rr > 0 ? I / rr : 0, cpm: I > 0 ? sp[c] * 1e6 / I : 0, conv: attr[c], units: conv, cpa: attr[c] > 0 ? sp[c] * 1e3 / attr[c] : 0, leads: lattr[c], eng: eattr[c], price: price[c] || 0 }; // cpm = nghìn đ/1000 hiển thị; cpa = nghìn đ
+    out.ch[c] = { spend: sp[c], imp: I, reach: rr / pop, freq: rr > 0 ? I / rr : 0, cpm: I > 0 ? sp[c] * 1e6 / I : 0, conv: attr[c], units: conv, cpa: attr[c] > 0 ? sp[c] * 1e3 / attr[c] : 0, leads: lattr[c], eng: eattr[c], price: priceRep[c] || 0 }; // cpm = nghìn đ/1000 hiển thị; cpa = nghìn đ
   });
   out.ch.search.cov = cov; out.ch.search.queries = Q; out.ch.act.contacts = contacts;
   { const sw = kols.reduce((a, id) => a + kolImp[id] * kolP[id], 0) || 1; out.kols = kols.map((id) => ({ id, views: kolImp[id], fee: feeOf(id, plan), conv: (out.ch.kol ? out.ch.kol.conv : 0) * kolImp[id] * kolP[id] / sw })); }
@@ -863,7 +895,7 @@ function kpiScore(k, v) {
   if (k.lower) return v <= 0 ? 0 : clamp(k.target / v, 0, 1.2);
   return clamp(v / k.target, 0, 1.2);
 }
-if (typeof module !== 'undefined' && typeof window === 'undefined') module.exports = { applyObjective, OBJECTIVES, OBJ_IDS, OBJ_KPIS, BRIEF_KPIS, LOWER_KPI, setPricing, PRICE_DEFAULT, pricingSnapshot, get TARGETS() { return TARGETS; }, set TARGETS(v) { TARGETS = v; }, INFLUENCERS, INF, STYLES, STYLE_IDS, styleFit, setCustomChannels, get CH_IDS() { return CH_IDS; }, SEG_IDS, SEGMENTS, DISTRICTS, DIST_IDS, CHANNELS, MSGS, BRIEFS, EVENTS, emptyPlan, startState, simulateWeek, kpiValues, kpiScore };
+if (typeof module !== 'undefined' && typeof window === 'undefined') module.exports = { applyObjective, OBJECTIVES, OBJ_IDS, OBJ_KPIS, BRIEF_KPIS, LOWER_KPI, setPricing, PRICE_DEFAULT, pricingSnapshot, get TARGETS() { return TARGETS; }, set TARGETS(v) { TARGETS = v; }, INFLUENCERS, INF, STYLES, STYLE_IDS, styleFit, setCustomChannels, get CH_IDS() { return CH_IDS; }, SEG_IDS, SEGMENTS, DISTRICTS, DIST_IDS, CHANNELS, MSGS, BRIEFS, EVENTS, SHOCKS, shockPlan, emptyPlan, startState, simulateWeek, kpiValues, kpiScore };
 /* =====================================================================
    THẾ GIỚI — bản đồ đảo Medisland, vẽ pixel
    ===================================================================== */
@@ -1458,19 +1490,40 @@ function usedBudget(exceptW = -1) {
 const totalBudget = () => B().budget;
 const remaining = (exceptW = -1) => Math.max(0, totalBudget() - usedBudget(exceptW));
 function canEdit(w) { const p = phase(); return p.state === 'plan' && p.w === w && !st.launches[w]; }
-function resultsFor(o, b, seed, runMs = RUN_MS) {
+function resultsFor(o, b, seed, runMs = RUN_MS, shock = null) {
   const L = o.launches || [], now = vnow(); let changed = false;
   o.results = o.results || [];
   for (let w = 0; w < L.length; w++) {
     if (o.results[w] || now < L[w] + runMs || !o.plans[w]) continue;
     const prev = w === 0 ? startState(b) : o.results[w - 1].next;
-    o.results[w] = simulateWeek(b, o.plans[w], prev, w, seed); o.results[w].launchedAt = L[w]; changed = true;
+    o.results[w] = simulateWeek(b, o.plans[w], prev, w, seed, shock && shock.w === w && L[w] >= SHOCK_SINCE ? shock : null); o.results[w].launchedAt = L[w]; changed = true;
   }
   return changed;
 }
+/* v49: sự kiện bất ngờ của lớp đang chơi + trạng thái hiển thị (chỉ lộ ra khi đã xảy ra) */
+const curShock = () => (st.cls && st.cls.id ? shockPlan(st.cls.id, CUR_OBJ) : null);
+function shockLive() {
+  const sh = curShock(); if (!sh || !st.launches || !(st.launches[sh.w] >= SHOCK_SINCE)) return null;
+  const r = st.results[sh.w]; if (r && r.shock) return Object.assign({ state: 'past' }, sh);
+  const p = phase(); if (p.state !== 'run' || p.w !== sh.w) return null;
+  const day = p.prog * 7; if (day < sh.d0) return null;
+  return Object.assign({ state: day < sh.d1 ? 'now' : 'past' }, sh);
+}
+const shockDay = (d) => `${WD[Math.floor(d) % 7]} ${String(Math.floor((d % 1) * 24)).padStart(2, '0')}:00`;
+function shockNewsHTML(sh) {
+  return `<div class="news" style="border-color:rgba(255,143,107,.55);background:rgba(255,143,107,.08)"><div class="ic">${sh.icon}</div><div><b>⚡ Tin nóng tuần ${sh.w + 1}: ${esc(sh.title)}</b><span>${esc(sh.text)} <i style="opacity:.7">(trên đảo: ${shockDay(sh.d0)} → ${shockDay(sh.d1)})</i></span></div></div>`;
+}
+function checkShock() {
+  if (!st.gid || (SESSION && SESSION.admin)) return;
+  const sh = shockLive(); if (!sh) return;
+  const k = 'medis-shock-' + st.gid + '-' + sh.w; let seen = null; try { seen = localStorage.getItem(k); } catch (e) {}
+  if (seen) return; try { localStorage.setItem(k, '1'); } catch (e) {}
+  sfx.chime(); banner('⚡ Tin nóng: ' + sh.title, 'Thị trường khó hơn vài ngày — ra phố xem người dân phản ứng.', '#ff8f6b');
+  if (!ui.busy()) openModal(`<h2>⚡ Tin nóng trên Medisland</h2><p class="sub">Một sự kiện bất ngờ vừa xảy ra trong lúc tuần ${sh.w + 1} đang chạy. Mọi agency trong lớp đều gặp đúng sự kiện này, cùng thời điểm và cùng mức độ.</p>${shockNewsHTML(sh)}<p class="note">Kế hoạch tuần này đã chốt nên không đổi được. Hãy ra phố hỏi người dân xem họ phản ứng thế nào, rồi tính cho tuần tiếp theo.</p>`, '', 'news');
+}
 function ensureResults() {
   if (!st.gid) return;
-  if (resultsFor(st, B(), st.seed)) {
+  if (resultsFor(st, B(), st.seed, RUN_MS, curShock())) {
     onResultsChanged();
     const weekly = st.results.map((_, i) => scoreUpTo(B(), st.results, i + 1));
     if (JSON.stringify(weekly) !== JSON.stringify(st.scores || [])) { st.scores = weekly; op('score', { weekly }, true); }
@@ -1815,6 +1868,10 @@ function interview(e) {
   if (ev.compete && plan.msg !== 'promo' && b.interest[r.seg] > .5) add(.6, 'Đối thủ', 'Tuần rồi bên kia mua 1 tặng 1, mình mua bên đó luôn cho lời.');
   if (ev.storm && (plan.spend.ooh > 0 || plan.spend.act > 0)) add(.55, 'Bối cảnh', 'Mưa bão cả tuần, ra đường đâu mà thấy biển hay booth gì.');
   if (ev.fest && cov < .4) add(.65, 'Mua hàng', `12.12 mình săn sale trên sàn mà không thấy ${brand} có deal gì.`);
+  if (res.shock) {
+    const SL = { flash: 'Mấy hôm trước bên kia flash sale rẻ quá, mình mua bên đó luôn rồi.', econ: 'Dạo này cái gì cũng lên giá, mình chưa dám mua thêm gì.', flu: 'Mấy hôm cúm, cả nhà ở trong nhà suốt, có ra đường đâu mà thấy biển quảng cáo.', outage: 'Mạng xã hội sập mấy ngày, lướt không được nên cũng chẳng thấy quảng cáo gì.', bid: 'Lướt mạng thấy toàn quảng cáo của mấy hãng lớn, ngợp luôn, chẳng nhớ của ai.', scandal: 'Đọc tin bê bối trong ngành xong mình hơi ngại mua mấy món kiểu này.', heat: 'Nóng quá, mình ở trong nhà máy lạnh, chẳng để ý biển ngoài đường.' };
+    if (SL[res.shock.id]) add(.62, 'Sự kiện', SL[res.shock.id]);
+  }
   C.sort((a, b2) => b2.s - a.s);
   const pick = C.slice(0, 3);
   return { lines: pick.map((p) => p.text), notes: pick.map((p) => ({ tag: p.tag, text: p.text })), intro };
@@ -2190,6 +2247,7 @@ function kpiCards(v, uptoW, final = false) {
 function repOverview(r, w) {
   const b = B(), v = kpiValues(b, st.results.slice(0, w));
   return `<div class="news"><div class="ic">${['🎉', '⚔️', '🌧️', '🛒'][w - 1]}</div><div><b>Bối cảnh tuần ${w}: ${esc(r.event.title)}</b><span>${esc(r.event.text)}</span></div></div>
+  ${r.shock ? shockNewsHTML(Object.assign({ w: w - 1 }, r.shock)) : ''}
   ${r.plan.reason ? `<div class="lockbox" style="background:rgba(198,191,255,.07);border-color:rgba(198,191,255,.35)"><b>Lý do nhóm đưa ra khi chốt tuần ${w}</b> (${esc(r.plan.byName || '')}): “${esc(r.plan.reason)}”<br><span style="color:var(--dim);font-size:12px">Hướng thiết kế: ${STYLES[r.plan.style] ? STYLES[r.plan.style].label : '—'} · Chạy từ ${fmtClock(r.launchedAt)}</span></div>` : ''}
   <h3 style="margin-top:0">KPI tính đến hết tuần ${w}</h3>${kpiCards(v, w)}
   <h3>Kết quả riêng tuần ${w}</h3>
@@ -2847,6 +2905,7 @@ async function openNews() {
   const p = phase(), rows = await classBoard(st.cls.id), upto = Math.min(p.cw, 3);
   let h = `<h2>📰 Bảng tin Medisland · Lớp ${esc(st.cls.name)}</h2><p class="sub">Bối cảnh thị trường từng tuần và vinh danh “Agency của tuần” trong lớp. Bảng xếp hạng chỉ công bố thứ hạng, không công bố kế hoạch.</p>`;
   h += `<div class="grid2" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px">${[1, 2, 3, 4].map((w) => { const a = agencyOfWeek(rows, w); return `<div class="stat"><small>🏆 Agency tuần ${w}</small><b style="font-size:14px;color:${a ? a.g.color : 'var(--dim)'}">${a ? esc(a.g.name) : 'chưa có'}</b></div>`; }).join('')}</div>`;
+  { const sh = shockLive(); if (sh) h += shockNewsHTML(sh); }
   for (let w = upto; w >= 0; w--) { const ev = EVENTS[w]; h += `<div class="news"><div class="ic">${['🎉', '⚔️', '🌧️', '🛒'][w]}</div><div><b>Tuần ${w + 1}: ${esc(ev.title)}</b><span>${esc(ev.text)}</span></div></div>`; }
   if (p.done) h += leaderboardHTML(rows);
   else h += '<p class="note">Bảng xếp hạng đầy đủ của lớp sẽ mở khi agency của bạn hoàn thành 4 tuần.</p>';
@@ -2907,7 +2966,7 @@ const ACT_LABEL = { login: 'Vào đảo', draft: 'Soạn nháp', approve: 'Đồ
 let admTab = 'cls', admCls = 0, ADMIN = { classes: [] };
 function groupStatus(g) {
   const o = Object.assign(blankState(), g.state || {}), b = BRIEFS[g.brief] || BRIEFS.maytea, runMs = Math.max(60e3, (+g.run_hours || 48) * 3600e3);
-  resultsFor(o, b, strHash(g.id) % 9973 + 11, runMs);
+  resultsFor(o, b, strHash(g.id) % 9973 + 11, runMs, shockPlan(g.class_id, ((ADMIN.classes || []).find((c) => c.id === g.class_id) || {}).settings || {}));
   const p = phaseOf(o, runMs);
   const txt = p.done ? 'Đã xong 4 tuần' : p.state === 'run' ? `Đang chạy tuần ${p.w + 1} · báo cáo ${fmtClock(p.reportAt)}` : o.launches.length ? `Chờ chốt tuần ${p.w + 1} (từ ${fmtClock(p.since)})` : 'Chưa chạy';
   return { o, b, p, txt, score: o.results.length ? scoreUpTo(b, o.results, o.results.length) : null };
@@ -2929,9 +2988,11 @@ async function openAdmin() {
       ${admCls === 'new' || !c ? `<div class="card"><b>Tạo lớp mới</b><div class="grid2" style="margin-top:8px"><input id="ncName" placeholder="Mã lớp, VD: MK318DV01" style="${inputCss}"><input id="ncTerm" placeholder="Học kỳ, VD: HK1 2026–2027" style="${inputCss}"></div><div class="row"><button class="btn gold sm" id="ncAdd">Tạo lớp</button></div></div>` : `
       ${(() => { const cs = Object.assign({ objective: 'brief', difficulty: 'normal', course: '' }, c.settings || {}); const kp = cs.objective === 'brief' ? 'mỗi brand có bộ KPI riêng theo brief gốc' : OBJ_KPIS[cs.objective].map((k) => KPI_LABEL[k] || k).join(' · ');
         return `<div class="card" style="margin-bottom:12px"><b>🎯 Thiết lập brief cho lớp ${esc(c.code)}</b> <span style="color:var(--dim);font-size:12px">— áp cho mọi agency trong lớp, chỉ đổi mục tiêu & KPI, bối cảnh nhãn hàng giữ nguyên</span>
-        <div class="grid3" style="margin-top:8px;grid-template-columns:2fr 2fr 1fr"><label style="font-size:13px;color:var(--muted)">Tên môn học (hiện trong brief)<br><input id="csCourse" value="${esc(cs.course)}" placeholder="VD: Direct Marketing" style="width:100%;${inputCss}"></label>
+        <div class="grid3" style="margin-top:8px;grid-template-columns:2fr 2fr 1fr 1.2fr"><label style="font-size:13px;color:var(--muted)">Tên môn học (hiện trong brief)<br><input id="csCourse" value="${esc(cs.course)}" placeholder="VD: Direct Marketing" style="width:100%;${inputCss}"></label>
         <label style="font-size:13px;color:var(--muted)">Mục tiêu chiến dịch<br><select id="csObj" style="width:100%;${inputCss}">${OBJ_IDS.map((k) => `<option value="${k}" ${k === cs.objective ? 'selected' : ''}>${esc(OBJECTIVES[k].label)}</option>`).join('')}</select></label>
-        <label style="font-size:13px;color:var(--muted)">Độ khó KPI<br><select id="csDiff" style="width:100%;${inputCss}">${Object.entries(DIFFICULTY).map(([k, x]) => `<option value="${k}" ${k === cs.difficulty ? 'selected' : ''}>${x.label}</option>`).join('')}</select></label></div>
+        <label style="font-size:13px;color:var(--muted)">Độ khó KPI<br><select id="csDiff" style="width:100%;${inputCss}">${Object.entries(DIFFICULTY).map(([k, x]) => `<option value="${k}" ${k === cs.difficulty ? 'selected' : ''}>${x.label}</option>`).join('')}</select></label>
+        <label style="font-size:13px;color:var(--muted)">Sự kiện bất ngờ<br><select id="csShock" style="width:100%;${inputCss}"><option value="on" ${cs.shock !== 'off' ? 'selected' : ''}>Bật (1 lần, sau 2 tuần đầu)</option><option value="off" ${cs.shock === 'off' ? 'selected' : ''}>Tắt</option></select></label></div>
+        <div style="font-size:12px;color:var(--dim);margin-top:6px">${(() => { const sp = shockPlan(c.id, cs); return sp ? `⚡ Rút thăm cho lớp này (chỉ giảng viên thấy): ${sp.icon} <b style="color:var(--ink)">${esc(sp.title)}</b> · lần chạy ${sp.w + 1} · ${shockDay(sp.d0)} → ${shockDay(sp.d1)} trên đảo. Mọi agency trong lớp gặp giống nhau.` : '⚡ Sự kiện bất ngờ: đang tắt cho lớp này.'; })()}</div>
         <div class="row"><span class="grow" style="font-size:12px;color:var(--dim)">KPI: ${esc(kp)}</span><button class="btn gold sm" id="csSave">Lưu thiết lập</button></div></div>`; })()}
       <div class="tblw"><table class="tbl" style="min-width:760px"><thead><tr><th>Agency (đảo riêng)</th><th>Mã vào đảo</th><th>Brand</th><th>Người</th><th>Giờ/lần chạy</th><th>Tiến độ</th><th>Điểm</th><th></th></tr></thead><tbody>
       ${c.groups.map((g, gi) => { const s2 = groupStatus(g), started = s2.o.launches.length > 0; return `<tr><td style="text-align:left"><span style="color:${g.color}">●</span> <b>${esc(g.name)}</b></td><td><code style="font-size:13px;color:var(--gold)">${esc(g.join_code)}</code></td><td>${started ? esc(BRIEFS[g.brief].brand) : `<select data-gb="${gi}" style="height:28px;border-radius:7px;background:#1c1b23;color:var(--ink);border:1px solid var(--line)">${Object.entries(BRIEFS).map(([k, x]) => `<option value="${k}" ${k === g.brief ? 'selected' : ''}>${esc(x.brand)}</option>`).join('')}</select>`}</td><td>${g.members.filter((m) => !m.out).length}</td><td>${started ? nf(g.run_hours, 2) : `<input data-gh="${gi}" type="number" step="any" min="0.02" value="${+g.run_hours}" style="width:70px;height:28px;border-radius:7px;background:#1c1b23;color:var(--ink);border:1px solid var(--line);padding:0 6px">`}</td><td style="white-space:normal;max-width:200px">${s2.txt}</td><td>${s2.score ?? '—'}</td><td><button class="btn sm gold" data-ge="${gi}">🏝 Vào đảo</button> <button class="btn sm" data-gv="${gi}">Chi tiết</button> ${started ? '' : `<button class="btn sm" data-gd="${gi}">Xóa</button>`}</td></tr>`; }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--dim)">Lớp chưa có nhóm.</td></tr>'}
@@ -3014,9 +3075,9 @@ async function openAdmin() {
       if (v && v.mode === 'range' && !(v.max > v.min)) v.max = +(v.min * 1.5).toFixed(2); setPricing(ADM.price, ADM.fees); re(); });
     const ps = panel.querySelector('#pSave'); if (ps) ps.onclick = async () => { readPrices(); try { await saveCh(); sfx.coin(); toast('Đã lưu bảng giá cho tất cả các đảo.'); } catch (e) { toast('Không lưu được: ' + (e.message || e)); } re(); };
     const pr = panel.querySelector('#pReset'); if (pr) pr.onclick = async () => { if (pr.dataset.sure !== '1') { pr.dataset.sure = '1'; pr.textContent = 'Chắc chưa?'; return; } ADM.price = {}; ADM.fees = {}; ADM.channels.forEach((C) => { delete C.price; }); await saveCh(); toast('Đã khôi phục giá mặc định.'); re(); };
-    const cs = panel.querySelector('#csSave'); if (cs) cs.onclick = async () => { const c = ADMIN.classes[admCls]; const settings = { course: panel.querySelector('#csCourse').value.trim(), objective: panel.querySelector('#csObj').value, difficulty: panel.querySelector('#csDiff').value };
+    const cs = panel.querySelector('#csSave'); if (cs) cs.onclick = async () => { const c = ADMIN.classes[admCls]; const settings = { course: panel.querySelector('#csCourse').value.trim(), objective: panel.querySelector('#csObj').value, difficulty: panel.querySelector('#csDiff').value, shock: (panel.querySelector('#csShock') || {}).value || 'on' };
       try { await api.adminUpdateClass(c.id, { settings }); c.settings = settings; sfx.coin(); toast(`Lớp ${c.code}: ${OBJECTIVES[settings.objective].short} · ${DIFFICULTY[settings.difficulty].label}. Sinh viên thấy brief mới khi vào lại đảo.`); } catch (e) { toast('Không lưu được (đã chạy SQL v47 chưa?): ' + (e.message || e)); } re(); };
-    const co = panel.querySelector('#csObj'); if (co) co.onchange = () => { const c = ADMIN.classes[admCls]; c.settings = Object.assign({}, c.settings || {}, { objective: co.value, course: panel.querySelector('#csCourse').value, difficulty: panel.querySelector('#csDiff').value }); re(); };
+    const co = panel.querySelector('#csObj'); if (co) co.onchange = () => { const c = ADMIN.classes[admCls]; c.settings = Object.assign({}, c.settings || {}, { objective: co.value, course: panel.querySelector('#csCourse').value, difficulty: panel.querySelector('#csDiff').value, shock: (panel.querySelector('#csShock') || {}).value || 'on' }); re(); };
     panel.querySelectorAll('[data-btog]').forEach((b) => b.onclick = async () => { const c = b.dataset.btog, o = ADM.offBuiltin || []; ADM.offBuiltin = o.includes(c) ? o.filter((x) => x !== c) : [...o, c]; await saveCh(); re(); });
     const add = panel.querySelector('#aAdd'); if (add) add.onclick = async () => {
       const name = panel.querySelector('#aName').value.trim(); if (!name) return toast('Nhập tên công cụ.');
@@ -3202,7 +3263,7 @@ function draw() {
     ctx.fillStyle = '#13121b'; ctx.fillRect(sx(lx - 2), sy(ly - 2), (lw + 4) * s, (lh + 4) * s);
     const on = pl && pl.spend.ooh > 0 && (pl.districts || []).includes('downtown');
     if (on) S(brandAd(pl.msg, pl.style, lw, lh), lx, ly, lw, lh);
-    else { ctx.fillStyle = '#0b2a3a'; ctx.fillRect(sx(lx), sy(ly), lw * s, lh * s); ctx.font = `${8 * s}px VT323`; ctx.fillStyle = '#7ee8ff'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; const msg = 'MEDISLAND NEWS · ' + EVENTS[Math.min(3, phase().cw)].title.toUpperCase() + ' · '; const off = (time * 22) % (msg.length * 4.2); ctx.save(); ctx.beginPath(); ctx.rect(sx(lx), sy(ly), lw * s, lh * s); ctx.clip(); ctx.fillText(msg + msg, sx(lx - off), sy(ly + lh / 2)); ctx.restore(); }
+    else { ctx.fillStyle = '#0b2a3a'; ctx.fillRect(sx(lx), sy(ly), lw * s, lh * s); ctx.font = `${8 * s}px VT323`; ctx.fillStyle = '#7ee8ff'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; const shL = shockLive(); const msg = (shL && shL.state === 'now' ? 'TIN NÓNG · ' + shL.title.toUpperCase() : 'MEDISLAND NEWS · ' + EVENTS[Math.min(3, phase().cw)].title.toUpperCase()) + ' · '; const off = (time * 22) % (msg.length * 4.2); ctx.save(); ctx.beginPath(); ctx.rect(sx(lx), sy(ly), lw * s, lh * s); ctx.clip(); ctx.fillText(msg + msg, sx(lx - off), sy(ly + lh / 2)); ctx.restore(); }
   }
   // booth activation
   const br = boothRect();
@@ -3341,7 +3402,7 @@ function update(dt) {
   }
   for (const p of parts) p.t += dt;
   while (parts.length && parts[0].t > 1.6) parts.shift();
-  hudT -= dt; if (hudT <= 0) { hudT = 1; pollT -= 1; if (pollT <= 0 && st.gid && !ui.busy()) { pollT = 60; op('get', {}, true); } const api = API(); if (api) $('bAdmin').style.display = api.isAdmin() ? '' : 'none'; const before = st.results.length; ensureResults(); if (st.results.length > before) { sfx.chime(); banner(`Báo cáo tuần ${st.results.length} đã có`, 'Người dân trên đảo đã phản ứng — ra phố quan sát!', '#7ee8ff'); } if (!ui.busy()) hud(); else { $('hWeek').textContent = phase().done ? 'Chiến dịch kết thúc' : gameClock().label; $('dReal').textContent = realLabel(); } }
+  hudT -= dt; if (hudT <= 0) { hudT = 1; pollT -= 1; if (pollT <= 0 && st.gid && !ui.busy()) { pollT = 60; op('get', {}, true); } const api = API(); if (api) $('bAdmin').style.display = api.isAdmin() ? '' : 'none'; const before = st.results.length; ensureResults(); checkShock(); if (st.results.length > before) { sfx.chime(); banner(`Báo cáo tuần ${st.results.length} đã có`, 'Người dân trên đảo đã phản ứng — ra phố quan sát!', '#7ee8ff'); } if (!ui.busy()) hud(); else { $('hWeek').textContent = phase().done ? 'Chiến dịch kết thúc' : gameClock().label; $('dReal').textContent = realLabel(); } }
 }
 function loop(now) { const dt = Math.max(0, Math.min(.05, (now - lastT) / 1000)); lastT = now; update(dt); draw(); requestAnimationFrame(loop); }
 

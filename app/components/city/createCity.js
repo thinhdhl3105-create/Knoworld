@@ -6,6 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { cityTemplate } from './template';
 import { createMetro } from './createMetro';
 import { createHolidayFx } from './cityHoliday';
+import { fetchLiveWeather } from '@/lib/liveWeather';
 
 const THREE = { ...THREE_NS, OrbitControls };
 
@@ -41,8 +42,8 @@ export function createCity(root, opts = {}) {
   let under = 0; // 0 = Skyline, 1 = dưới hầm (làm mượt ánh sáng)
 
   const scene = new THREE.Scene();
-  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 600);
-  const CAM_DIR = new THREE.Vector3(54, 38, 22).normalize().multiplyScalar(90);
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 1000);
+  const CAM_DIR = new THREE.Vector3(54, 38, 22).normalize().multiplyScalar(260); // v49: lùi xa hơn để thấy cả B1, B2 (camera trực giao nên không đổi hình)
   const HOME_T = HAS_ADMIN ? new THREE.Vector3(20, 0, 20) : new THREE.Vector3(24, 0, 6);
   camera.position.copy(HOME_T).add(CAM_DIR);
   let vBase = 100, aspect = 1;
@@ -60,7 +61,7 @@ export function createCity(root, opts = {}) {
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.target.copy(HOME_T);
   controls.enableDamping = true; controls.dampingFactor = 0.08;
-  controls.enablePan = false; controls.minZoom = 0.8; controls.maxZoom = 9;
+  controls.enablePan = false; controls.minZoom = 0.3; controls.maxZoom = 9;
   controls.minPolarAngle = 0.55; controls.maxPolarAngle = 1.15;
 
   // ================= lights =================
@@ -1246,8 +1247,14 @@ export function createCity(root, opts = {}) {
   const VN_MONTH = vnNow().month;
   let mode = 'real', hours = vnNow().h, weather = 'auto', rainNow = 0;
   const slider = $('hour'), elTime = $('time'), elPhase = $('phase'), elWx = $('wx');
-  // Saigon's rainy season (May–Nov) brings short afternoon showers
+  // v49: thời tiết thật ở TP.HCM (Open-Meteo, cập nhật mỗi 10 phút). Lỗi mạng -> quay về mô phỏng mùa mưa cũ.
   const autoRain = (h) => (VN_MONTH >= 5 && VN_MONTH <= 11 && h >= 14.5 && h <= 16.8 ? 1 : 0);
+  let live = null;
+  {
+    let on = true;
+    const pull = () => fetchLiveWeather().then((w) => { if (on && w) live = w; }).catch(() => {});
+    pull(); const wxT = setInterval(pull, 10 * 60 * 1000); cleanups.push(() => { on = false; clearInterval(wxT); });
+  }
   function phaseName(h) {
     if (h >= 5 && h < 6.6) return 'Sunrise';
     if (h >= 6.6 && h < 16.8) return 'Daytime';
@@ -1273,7 +1280,13 @@ export function createCity(root, opts = {}) {
   function updateClock() {
     const hh = Math.floor(hours) % 24, mm = Math.floor((hours % 1) * 60);
     const txt = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
-    const wx = rainNow > 0.35 ? '🌧 Showers' : N > 0.6 ? (moonF > 0.43 && moonF < 0.57 ? '🌕 Full moon' : '🌙 Clear') : '☀️ Sunny';
+    const night = N > 0.6, moonTxt = moonF > 0.43 && moonF < 0.57 ? '🌕 Full moon' : '🌙 Clear';
+    let wx;
+    if (weather === 'auto' && live && mode === 'real') {
+      const k = live.kind, tC = live.temp != null ? ` ${Math.round(live.temp)}°C` : '';
+      wx = (k === 'storm' ? '⛈ Thunderstorm' : k === 'rain' ? '🌧 Rain' : k === 'drizzle' ? '🌦 Drizzle' : k === 'fog' ? '🌫 Fog'
+        : k === 'overcast' ? '☁️ Overcast' : k === 'cloudy' ? (night ? '☁️ Cloudy' : '⛅ Partly cloudy') : night ? moonTxt : '☀️ Sunny') + tC;
+    } else wx = rainNow > 0.35 ? '🌧 Showers' : night ? moonTxt : '☀️ Sunny';
     const ph = phaseName(hours) + (mode === 'real' ? ' · <em>Vietnam time</em>' : mode === 'play' ? ' · fast-forward' : ' · picked time');
     const key = txt + ph + wx;
     if (key !== lastLabel) { elTime.textContent = txt; elPhase.innerHTML = ph; elWx.textContent = wx; lastLabel = key; }
@@ -1287,6 +1300,20 @@ export function createCity(root, opts = {}) {
   if (holidayFx && billboard && holidayFx.ticker) billboard.text = holidayFx.ticker;
   const LAYER_Y = { sky: 0, b1: metro.levels.b1.y, b2: metro.levels.b2.y };
   const CUT = { sky: 400, b1: metro.levels.b1.y + 11.4, b2: metro.levels.b2.y + 10.4 };
+  // v49: khung nhìn "tách lớp" — Skyline thấy cả B1, B2 bên dưới; B1 thấy B1 + B2; B2 chỉ còn B2.
+  const CAMN = CAM_DIR.clone().normalize();
+  const UPV = new THREE.Vector3(0, 1, 0).addScaledVector(CAMN, -CAMN.y).normalize();
+  const RTV = new THREE.Vector3().crossVectors(UPV, CAMN).normalize();
+  function stackView(l) {
+    const top = l === 'sky' ? 22 : metro.levels[l].y + 4, bot = metro.levels.b2.y - 5, C0 = 21, H = 56, p = new THREE.Vector3();
+    let v0 = Infinity, v1 = -Infinity, h0 = Infinity, h1 = -Infinity;
+    for (const y of [top, bot]) for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      p.set(C0 + sx * H, y, C0 + sz * H); const v = p.dot(UPV), h = p.dot(RTV);
+      v0 = Math.min(v0, v); v1 = Math.max(v1, v); h0 = Math.min(h0, h); h1 = Math.max(h1, h);
+    }
+    const ty = ((v0 + v1) / 2 - C0 * (UPV.x + UPV.z)) / UPV.y;
+    return { t: new THREE.Vector3(C0, ty, C0), z: Math.min(vBase / ((v1 - v0) * 1.1), (vBase * aspect) / ((h1 - h0) * 1.04)) };
+  }
   let layer = 'sky', cutNow = 400;
   const mLabels = metro.stations.map((st) => {
     const l = document.createElement('button'); l.type = 'button'; l.className = 'mlbl';
@@ -1305,7 +1332,7 @@ export function createCity(root, opts = {}) {
     clearTimeout(navT); selected = null; selectedCity = null; selectedStation = null; card.hidden = true; hovered = '__'; setHover(null); refreshMarks();
     if (!fly) return;
     void prev;
-    flyTo(HOME_T.clone().setY(LAYER_Y[l] + (l === 'sky' ? 0 : 1)), small ? zoomFor(l === 'sky' ? 64 : 80) : 1);
+    { const v = stackView(l); flyTo(v.t, v.z); }
     if (l !== 'sky') showCard({ eyebrow: `<span class="dot" style="background:${lv.color}"></span>Underground · ${lv.code}`, name: lv.name, desc: lv.desc, list: lv.stations.map((st) => ({ key: 'metro:' + st.id, name: st.name, dot: st.color })) });
   }
   root.querySelectorAll('[data-layer]').forEach((b) => b.addEventListener('click', () => setLayer(b.dataset.layer)));
@@ -1370,12 +1397,14 @@ export function createCity(root, opts = {}) {
     const r = renderer.domElement.getBoundingClientRect();
     ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
-    const h = ray.intersectObjects(layer === 'sky' ? pickables : metroPick[layer], false)[0];
+    const pool = layer === 'sky' ? pickAll : layer === 'b1' ? metroPick.b1.concat(metroPick.b2) : metroPick.b2;
+    const h = ray.intersectObjects(pool, false)[0];
     return h ? h.object.userData.key : null;
   }
   const metroLevelOf = (key) => { const st = metro.stations.find((x) => 'metro:' + x.id === key); return st ? st.level : null; };
   const metroPick = { b1: [], b2: [] };
   for (const o of metro.pickables) { const lv = metroLevelOf(o.userData.key); if (lv) metroPick[lv].push(o); }
+  const pickAll = backdrop ? pickables : pickables.concat(metro.pickables);
   const cv = renderer.domElement;
   let down = null;
   cv.addEventListener('pointermove', (e) => {
@@ -1453,7 +1482,7 @@ export function createCity(root, opts = {}) {
     clearTimeout(navT);
     selected = null; selectedCity = null; card.hidden = true; hovered = '__'; setHover(null); refreshMarks(); closeMenus();
     selectedStation = null;
-    flyTo(HOME_T.clone().setY(LAYER_Y[layer] + (layer === 'sky' ? 0 : 1)), small ? zoomFor(64) : 1);
+    { const v = stackView(layer); flyTo(v.t, v.z); }
   }
   $('cBack').addEventListener('click', home);
   $('cOpen').addEventListener('click', (e) => { const r = selected ? byKey[selected].route : selectedStation ? metro.stations.find((x) => x.id === selectedStation)?.route : null; if (opts.onNavigate && r) { e.preventDefault(); clearTimeout(navT); opts.onNavigate(r); } });
@@ -1492,11 +1521,12 @@ export function createCity(root, opts = {}) {
     const dt = Math.min(clock.getDelta(), 0.05); elapsed += dt; frame++;
     if (mode === 'real') hours = vnNow().h;
     else if (mode === 'play') hours = (hours + dt * 24 / 40) % 24;
-    const target = weather === 'rain' ? 1 : weather === 'clear' ? 0 : autoRain(hours);
+    const target = weather === 'rain' ? 1 : weather === 'clear' ? 0 : live && mode === 'real' ? live.rain : autoRain(hours);
     rainNow += (target - rainNow) * Math.min(1, dt * (mode === 'play' ? 1.6 : 0.7));
     if (rainNow < 0.001) rainNow = 0;
     flash = Math.max(0, flash - dt * 5);
-    if (!reduce && rainNow > 0.85) { boltT -= dt; if (boltT <= 0) { flash = 1; boltT = 3 + Math.random() * 6; } }
+    const thunder = weather === 'rain' || (weather === 'auto' && (live && mode === 'real' ? live.thunder : true));
+    if (!reduce && rainNow > 0.85 && thunder) { boltT -= dt; if (boltT <= 0) { flash = 1; boltT = 3 + Math.random() * 6; } }
     envE = applyEnv(hours, rainNow); updateClock();
     if (frame % 2 === 0) drawSky(envE, hours, elapsed, flash);
 
@@ -1535,11 +1565,11 @@ export function createCity(root, opts = {}) {
     // v48: cắt dần thành phố khi xuống hầm / dựng lại khi lên Skyline
     const cutT = CUT[layer];
     if (cutNow !== cutT) {
-      if (cutT < cutNow) { cutNow = Math.max(cutT, Math.min(cutNow, 34) - dt * 34); }           // đào xuống: cắt từ nóc nhà cao nhất
-      else { cutNow = Math.min(cutT, cutNow + dt * 40); if (cutNow > 34) cutNow = cutT; }       // lên Skyline: dựng lại thành phố
+      if (cutT < cutNow) { cutNow = Math.max(cutT, Math.min(cutNow, 34) - dt * 90); }           // đào xuống: cắt từ nóc nhà cao nhất
+      else { cutNow = Math.min(cutT, cutNow + dt * 100); if (cutNow > 34) cutNow = cutT; }      // đi lên: dựng lại các tầng
     }
     clip.constant = cutNow;
-    metro.root.visible = cutNow < 30;
+    metro.root.visible = !backdrop; // v49: luôn thấy 2 tầng hầm bên dưới (trừ khi thành phố chỉ làm nền)
     under += ((layer === 'sky' ? 0 : 1) - under) * Math.min(1, dt * 2.5);
     if (metro.root.visible) metro.update(dt * sMul, elapsed);
     if (holidayFx) holidayFx.update(dt * sMul, elapsed, N, layer === 'sky');
@@ -1576,6 +1606,7 @@ export function createCity(root, opts = {}) {
   const ro = new ResizeObserver(() => fit()); ro.observe(root); cleanups.push(() => ro.disconnect());
   if (backdrop) { controls.enabled = false; controls.autoRotate = !reduce; controls.autoRotateSpeed = 0.35; }
   if (small) { camera.zoom = zoomFor(64); camera.updateProjectionMatrix(); }
+  if (!backdrop) { const v = stackView('sky'); controls.target.copy(v.t); camera.position.copy(v.t).add(CAM_DIR); camera.zoom = v.z; camera.updateProjectionMatrix(); }
   controls.update();
   envE = applyEnv(hours, 0); updateClock(); drawSky(envE, hours, 0, 0); placeCityLabels();
   const go = () => { if (!alive) return; if (billboard) drawBillboard(0); raf = requestAnimationFrame(tick); };

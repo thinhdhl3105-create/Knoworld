@@ -11,7 +11,7 @@ const CAR = 3.0;                   // chiều dài 1 toa (kể cả khe nối)
 export function createMetro(K) {
   const { THREE, box, cyl, sign, neonMat, neonBox, mat, HAS_ADMIN, islands } = K;
   const root = new THREE.Group();
-  const levels = {}, pickables = [], stations = [], trains = [], blink = [];
+  const levels = {}, pickables = [], stations = [], trains = [], blink = [], walkers = [];
   const sleeperG = new THREE.BoxGeometry(1, 1, 1);
 
   const tag = (g, key) => g.traverse((o) => { if (o.isMesh) { o.userData.key = key; pickables.push(o); } });
@@ -45,7 +45,10 @@ export function createMetro(K) {
   for (const LV of METRO_LEVELS) {
     const g = new THREE.Group(); root.add(g);
     const y = LV.y;
-    levels[LV.id] = { ...LV, g, stations: [] };
+    // v49: trần của tầng = đáy tầng phía trên (Skyline: đáy biển ≈ -10.4) — giếng thang cuốn kéo dài tới đó
+    const iLv = METRO_LEVELS.indexOf(LV);
+    const ceil = iLv === 0 ? -10.4 : METRO_LEVELS[iLv - 1].y - 5;
+    levels[LV.id] = { ...LV, g, stations: [], ceil };
     let yy = y - 5;
     for (const [c, h] of [['#2b2320', 1.4], ['#3d3029', 1.3], ['#4e3e31', 1.3], ['#3a3540', 1.0]]) { box(C, yy, C, SEA, h, SEA, c, g, { shadow: false }); yy += h; }
     // gạch nền sàn: các ô ca-rô nhạt để có cảm giác không gian ngầm
@@ -128,12 +131,28 @@ export function createMetro(K) {
   }
 
   // ---------- station halls ----------
-  function person(color, g, x, y, z) {
-    box(x, y, z, 0.28, 0.55, 0.22, '#2a2a34', g);
-    box(x, y + 0.55, z, 0.36, 0.55, 0.26, color, g);
-    box(x, y + 1.1, z, 0.24, 0.24, 0.24, '#e7c3a0', g);
+  // v49: người đi bộ — nhóm (chân, thân, đầu) di chuyển qua lại; chân đánh nhịp khi bước
+  const COLS = ['#ff9bd2', '#7ee8ff', '#ffd27a', '#b7f07e', '#c6bfff', '#ff8f6b', '#f5f1e8', '#8fb3ff'];
+  let wsd = 3;
+  const wr = () => { wsd = (wsd * 9301 + 49297) % 233280; return wsd / 233280; };
+  function walker(g, o) {
+    const w = new THREE.Group(); g.add(w);
+    const l1 = box(0, 0, -0.09, 0.14, 0.55, 0.12, '#2a2a34', w, { shadow: false });
+    const l2 = box(0, 0, 0.09, 0.14, 0.55, 0.12, '#2a2a34', w, { shadow: false });
+    box(0, 0.55, 0, 0.26, 0.55, 0.36, COLS[Math.floor(wr() * COLS.length)], w, { shadow: false });
+    box(0, 1.1, 0, 0.24, 0.24, 0.24, wr() < 0.15 ? '#8a5a3c' : '#e7c3a0', w, { shadow: false });
+    if (wr() < 0.3) box(-0.2, 0.62, 0, 0.12, 0.34, 0.26, '#3a3442', w, { shadow: false }); // ba lô
+    const p = { w, l1, l2, ph: wr() * 6, pause: wr() * 2, v: (0.55 + wr() * 0.6) * (wr() < 0.5 ? -1 : 1), ...o };
+    p.t = p.min + wr() * (p.max - p.min);
+    walkers.push(p); return p;
   }
-  function hall(st, line, y, alongX, g) {
+  function placeWalker(p) {
+    const along = p.alongX, x = along ? p.x0 + p.t : p.x0 + p.o, z = along ? p.z0 + p.o : p.z0 + p.t;
+    p.w.position.set(x, p.y + (p.pause > 0 ? 0 : Math.abs(Math.sin(p.ph)) * 0.05), z);
+    const dx = along ? Math.sign(p.v) : 0, dz = along ? 0 : Math.sign(p.v);
+    p.w.rotation.y = -Math.atan2(dz, dx);
+  }
+  function hall(st, line, y, alongX, g, ceil) {
     const [px, pz] = st.at;
     const P = (t, o) => (alongX ? [px + t, pz + o] : [px + o, pz + t]);
     const B = (t, o, len, w, h, yy, c, opt) => { const [x, z] = P(t, o); return box(x, yy, z, alongX ? len : w, h, alongX ? w : len, c, g, opt); };
@@ -156,14 +175,17 @@ export function createMetro(K) {
     // thang cuốn + giếng ánh sáng lên tầng trên
     for (let i = 0; i < 6; i++) B(-ST_LEN / 2 + 0.6 + i * 0.5, -3.4, 0.5, 1.1, 0.72 + i * 0.32, y, '#9c96a8');
     const [ex, ez] = P(-ST_LEN / 2 + 0.6, -3.4);
-    const shaft = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 1.4 : 1.6, 9, alongX ? 1.6 : 1.4),
+    const SH = Math.max(9, ceil - y); // v49: giếng sáng nối thẳng lên tầng trên
+    const shaft = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 1.4 : 1.6, SH, alongX ? 1.6 : 1.4),
       new THREE.MeshBasicMaterial({ color: line.color, transparent: true, opacity: 0.16, depthWrite: false }));
-    shaft.position.set(ex, y + 4.5, ez); g.add(shaft);
+    shaft.position.set(ex, y + SH / 2, ez); g.add(shaft);
     const cap = neonBox(ex, y + 3.4, ez, alongX ? 1.5 : 1.7, 0.08, alongX ? 1.7 : 1.5, line.color, g, '#6a6478');
     blink.push(cap);
-    // hành khách
-    const COLS = ['#ff9bd2', '#7ee8ff', '#ffd27a', '#b7f07e', '#c6bfff'];
-    for (let i = 0; i < 4; i++) { const s = i % 2 ? 1 : -1; const [x, z] = P(-4 + i * 2.6, s * 2.6); person(COLS[(i + st.id.length) % 5], g, x, y + 0.72, z); }
+    // hành khách đi lại trên sân ga (2 bên) — v49
+    for (let i = 0; i < 6; i++) {
+      const s = i % 2 ? 1 : -1;
+      walker(g, { alongX, x0: px, z0: pz, o: s * (2.25 + wr() * 0.75), min: -ST_LEN / 2 + 1.1, max: ST_LEN / 2 - 0.9, y: y + 0.72 });
+    }
   }
 
   // ---------- train cars ----------
@@ -204,7 +226,7 @@ export function createMetro(K) {
     for (const st of sts) {
       const sg = new THREE.Group(); g.add(sg);
       const seg = path.stopsFor(st.at)[0];
-      hall(st, line, y, seg ? seg.dz === 0 : true, sg);
+      hall(st, line, y, seg ? seg.dz === 0 : true, sg, LV.ceil);
       tag(sg, 'metro:' + st.id);
       const info = { ...st, kind: 'station', lineName: line.name, color: line.color, levelCode: LV.code, y, x: st.at[0], z: st.at[1] };
       stations.push(info); LV.stations.push(info);
@@ -235,6 +257,7 @@ export function createMetro(K) {
     box(fx, y + 5.5, fz - 7.6, 24.4, 0.4, 0.4, '#e0a64a', fg); box(fx, y + 5.5, fz + 7.6, 24.4, 0.4, 0.4, '#e0a64a', fg);
     const crane = box(fx + 3, y + 5.0, fz, 0.6, 0.5, 15.6, '#ffd24d', fg); crane.userData.crane = true;
     sign(f.name.toUpperCase(), fx - 4, y + 4.4, fz - 7.35, 8, 1.0, 'z', fg, { fg: '#ffd24d', bg: '#15121c', border: '#ffd24d', day: '#ece7f2' });
+    for (const o of [-2.5, 2.5, 7]) walker(fg, { alongX: true, x0: fx, z0: fz, o, min: -11, max: 11, y: y + 0.12 }); // thợ bảo trì
     tag(fg, 'metro:' + f.id);
     const info = { ...f, kind: 'facility', lineName: 'Depot', color: '#ffd24d', levelCode: LV.code, y, x: fx, z: fz };
     stations.push(info); LV.stations.push(info);
@@ -244,7 +267,7 @@ export function createMetro(K) {
   // giếng thang nối B1 <-> B2 dưới Main City
   {
     const y1 = levels.b1.y, y2 = levels.b2.y;
-    const shaft = new THREE.Mesh(new THREE.BoxGeometry(3, y1 - y2 - 5, 3), new THREE.MeshBasicMaterial({ color: '#7ee8ff', transparent: true, opacity: 0.12, depthWrite: false }));
+    const shaft = new THREE.Mesh(new THREE.BoxGeometry(3, y1 - y2 - 5, 3), new THREE.MeshBasicMaterial({ color: '#7ee8ff', transparent: true, opacity: 0.18, depthWrite: false }));
     shaft.position.set(-2, y2 + (y1 - 5 - y2) / 2, -22); levels.b2.g.add(shaft);
   }
 
@@ -266,8 +289,18 @@ export function createMetro(K) {
       T.cars.forEach((c, i) => placeCar(c, path.at(T.s - i * CAR - CAR / 2), T.y));
     }
     for (const b of blink) b.visible = Math.sin(t * 3) > -0.6;
+    // người đi bộ: đi tới cuối sân ga thì dừng một lát rồi quay lại
+    for (const p of walkers) {
+      if (p.pause > 0) { p.pause -= dt; p.l1.position.x = p.l2.position.x = 0; placeWalker(p); continue; }
+      p.t += p.v * dt; p.ph += dt * 9 * Math.abs(p.v);
+      if (p.t > p.max || p.t < p.min) { p.t = Math.max(p.min, Math.min(p.max, p.t)); p.v = -p.v; p.pause = 0.6 + Math.random() * 2.4; }
+      else if (Math.random() < dt * 0.04) p.pause = 1 + Math.random() * 3; // đứng chờ tàu
+      const sw = Math.sin(p.ph) * 0.11; p.l1.position.x = sw; p.l2.position.x = -sw;
+      placeWalker(p);
+    }
     void tmp;
   }
 
+  walkers.forEach(placeWalker);
   return { root, levels, pickables, stations, update };
 }

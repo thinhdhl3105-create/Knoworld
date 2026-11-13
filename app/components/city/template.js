@@ -39,9 +39,9 @@ export function cityTemplate(hasAdmin) {
       <button data-id="real" class="on" type="button">Real time</button>
       <button data-id="play" type="button">Fast-forward 24h</button>
     </div>
-    <span class="lbl-sm">Weather</span>
+    <span class="lbl-sm">Weather · HCMC live</span>
     <div class="seg" role="group" aria-label="Weather">
-      <button type="button" data-w="auto" class="on">Auto</button>
+      <button type="button" data-w="auto" class="on" title="Live weather in Ho Chi Minh City">Live</button>
       <button type="button" data-w="clear">Sunny</button>
       <button type="button" data-w="rain">Rain</button>
     </div>

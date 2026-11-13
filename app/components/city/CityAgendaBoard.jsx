@@ -8,6 +8,8 @@ import Link from 'next/link';
 import {
   KINDS, vnNow, ymd, parseYmd, addDays, toMin, fetchEvents,
 } from '@/lib/island';
+import { nextHoliday } from '@/lib/holidays';
+import { useHoliday, setHolidayPreview } from '../holiday/useHoliday';
 
 const DAYN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -38,6 +40,9 @@ export default function CityAgendaBoard({ anchorRef }) {
   const [open, setOpen] = useState(false);
   const [top, setTop] = useState(null);
   const [hidden, setHidden] = useState(false);
+  const holiday = useHoliday();          // v49: ngày lễ đang diễn ra / đang xem trước
+  const [nextH, setNextH] = useState(null);
+  useEffect(() => { setNextH(nextHoliday()); }, [now?.getDate()]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Đồng hồ giờ Việt Nam, cập nhật mỗi 30 giây.
   useEffect(() => {
@@ -145,6 +150,24 @@ export default function CityAgendaBoard({ anchorRef }) {
           </div>
           {offset !== 0 && (
             <button type="button" className="kwa-back" onClick={() => setOffset(0)}>Back to today</button>
+          )}
+
+          {/* v49: ghi chú ngày lễ (thay cho nút "xem trước" nổi trên thành phố) */}
+          {(holiday || nextH) && (
+            <div className="kwa-hol">
+              <span className="kwa-hol-ic" aria-hidden="true">{(holiday || nextH).emoji || '🎉'}</span>
+              <div className="kwa-hol-txt">
+                {holiday
+                  ? <><b>{holiday.preview ? 'Previewing' : 'Today'} · {holiday.short}</b><span>{holiday.name}</span></>
+                  : <><b>{nextH.short} · {nextH.days === 0 ? 'today' : `in ${nextH.days} day${nextH.days > 1 ? 's' : ''}`}</b><span>{nextH.name}</span></>}
+              </div>
+              <div className="kwa-hol-act">
+                {!holiday && nextH && <button type="button" onClick={() => setHolidayPreview(nextH.id)}>Preview</button>}
+                {holiday && <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('kw-holiday-burst'))} title="Fireworks again">🎆</button>}
+                {holiday && <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('kw-holiday-admin'))}>Edit</button>}
+                {holiday?.preview && <button type="button" onClick={() => setHolidayPreview(null)}>Exit</button>}
+              </div>
+            </div>
           )}
 
           {counts.length > 0 && (
