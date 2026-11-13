@@ -1250,7 +1250,8 @@ let busyOp = false;
 async function op(name, data = {}, quiet = false) {
   const api = API(); if (!api || !SESSION) { if (!quiet) toast('Mất kết nối với Knoworld — tải lại trang nhé.'); return null; }
   try {
-    const res = await api.act(SESSION.gid, SESSION.mssv, SESSION.code, name, data);
+    if (SESSION.admin && name !== 'get') { if (!quiet) toast('Chế độ giảng viên chỉ xem — thao tác này dành cho sinh viên trong nhóm.'); return null; }
+    const res = SESSION.admin ? await api.adminGet(SESSION.gid) : await api.act(SESSION.gid, SESSION.mssv, SESSION.code, name, data);
     if (!res || !res.ok) { if (!quiet) toast(errText(res && res.err)); return res; }
     if (name !== 'log' && name !== 'score') { applyServer(res); ensureResults(); refreshAir(); computeMoods(); hud(); if (name !== 'get' && ROOM) ROOM.send('sync', {}); }
     else syncClock(res.now);
@@ -1261,9 +1262,15 @@ function errText(e) {
   return ({ code: 'Mã nhóm không đúng.', mssv: 'MSSV không có trong nhóm này.', nogroup: 'Không tìm thấy nhóm.', state: 'Tuần này đang chạy hoặc đã chốt — tải lại để cập nhật.', stale: 'Bản nháp vừa được sửa — xem lại rồi đồng ý.', votes: 'Chưa đủ đa số thành viên đồng ý.', reason: 'Lý do điều chỉnh cần ít nhất 60 ký tự.', nodraft: 'Chưa có bản nháp.', offline: 'Chưa kết nối được Supabase.' })[e] || 'Có lỗi xảy ra, thử lại nhé.';
 }
 const B = () => BRIEFS[st.brief];
-const ME = () => (SESSION && st.agency && st.agency.members[SESSION.mem]) || { name: 'Bạn' };
+/* thành viên còn trong nhóm (giảng viên có thể cho rời nhóm: out = true; chỉ số được giữ nguyên để không lệch lịch sử) */
+const isIn = (i) => !!(st.agency && st.agency.members[i] && !st.agency.members[i].out);
+const nActive = () => (st.agency ? st.agency.members.filter((m) => !m.out).length : 0);
+const needVotes = () => Math.floor(nActive() / 2) + 1;
+const needOffice = () => Math.min(2, Math.max(1, nActive()));
+const nApps = (d) => (d && d.approvals ? d.approvals.filter(isIn).length : 0);
+const ME = () => (SESSION && SESSION.admin ? { name: 'Giảng viên' } : (SESSION && st.agency && st.agency.members[SESSION.mem]) || { name: 'Bạn' });
 const LOG_ONCE = {};
-function logAct(a, extra) { if (!SESSION || !st.gid) return; const k = a + (extra || ''); if (['login', 'office', 'report'].includes(a)) { if (LOG_ONCE[k] && vnow() - LOG_ONCE[k] < 30 * 60e3) return; LOG_ONCE[k] = vnow(); } op('log', { a, x: extra || null }, true); }
+function logAct(a, extra) { if (!SESSION || SESSION.admin || !st.gid) return; const k = a + (extra || ''); if (['login', 'office', 'report'].includes(a)) { if (LOG_ONCE[k] && vnow() - LOG_ONCE[k] < 30 * 60e3) return; LOG_ONCE[k] = vnow(); } op('log', { a, x: extra || null }, true); }
 
 /* ---- thời gian: mỗi lần chốt chạy đúng RUN_MS (48 giờ) theo giờ máy chủ ---- */
 function phaseOf(o, runMs = RUN_MS) {
@@ -1326,7 +1333,7 @@ function connectRoom() {
     snapshot: () => ({ mem: SESSION.mem, tx: player.tx, ty: player.ty, dir: player.dir, off: INOFF }),
     onPeers: (list) => {
       const seen = new Set();
-      list.forEach((p) => { seen.add(p.sid); const o = PEERS[p.sid]; if (!o) PEERS[p.sid] = { sid: p.sid, name: p.name || '?', mem: +p.mem || 0, tx: +p.tx || 38, ty: +p.ty || 52, x: (+p.tx || 38) * T, y: (+p.ty || 52) * T, dir: p.dir || 'down', off: !!p.off, f: 0, t: 0 }; else { o.name = p.name || o.name; o.mem = +p.mem || 0; if (!!p.off !== o.off && p.tx !== undefined) { o.off = !!p.off; o.tx = +p.tx; o.ty = +p.ty; o.x = o.tx * T; o.y = o.ty * T; } } });
+      list.forEach((p) => { seen.add(p.sid); const o = PEERS[p.sid]; if (!o) PEERS[p.sid] = { sid: p.sid, name: p.name || '?', mem: Number.isFinite(+p.mem) ? +p.mem : 0, tx: +p.tx || 38, ty: +p.ty || 52, x: (+p.tx || 38) * T, y: (+p.ty || 52) * T, dir: p.dir || 'down', off: !!p.off, f: 0, t: 0 }; else { o.name = p.name || o.name; o.mem = Number.isFinite(+p.mem) ? +p.mem : 0; if (!!p.off !== o.off && p.tx !== undefined) { o.off = !!p.off; o.tx = +p.tx; o.ty = +p.ty; o.x = o.tx * T; o.y = o.ty * T; } } });
       Object.keys(PEERS).forEach((k) => { if (!seen.has(k)) delete PEERS[k]; });
       placeMates(); hud();
     },
@@ -1345,7 +1352,7 @@ function updatePeers(dt) {
     if (d > .5) { const v = Math.min(d, 90 * dt); p.x += dx / d * v; p.y += dy / d * v; p.t += dt; p.f = Math.floor(p.t * 6) % 2 ? 1 : 2; } else { p.f = 0; }
   }
 }
-function peerList(off) { return Object.values(PEERS).filter((p) => !!p.off === !!off).map((p) => ({ id: 'peer' + p.sid, kind: 'm' + (p.mem % 5), x: p.x, y: p.y, tx: p.tx, ty: p.ty, dir: p.dir, f: p.f, name: p.name, mate: p.mem, peer: true })); }
+function peerList(off) { return Object.values(PEERS).filter((p) => !!p.off === !!off).map((p) => ({ id: 'peer' + p.sid, kind: p.mem < 0 ? 'guide' : 'm' + (p.mem % 5), x: p.x, y: p.y, tx: p.tx, ty: p.ty, dir: p.dir, f: p.f, name: p.name, mate: p.mem, peer: true })); }
 
 /* ---------- âm thanh ---------- */
 let AC = null;
@@ -1784,10 +1791,10 @@ function quest() {
   if (p.done) return { t: 'Chiến dịch 4 tuần đã kết thúc! Xem tổng kết trên màn hình phòng họp và đánh giá đồng đội.', target: INOFF ? 'datalab' : 'agency' };
   if (k > 0 && !st.reportSeen[k - 1]) return { t: `Báo cáo tuần ${k} đã có! Xem trên màn hình phòng họp ở văn phòng, hoặc ở Đài Dữ Liệu.`, target: INOFF ? 'datalab' : 'agency', sub: 'Sau đó ra phố quan sát khách hàng và tự ghi lên Bảng ý tưởng.' };
   if (p.state === 'run') return { t: `Tuần ${p.w + 1} đang chạy — báo cáo mở lúc ${fmtClock(p.reportAt)} (còn ${countdown(p.reportAt - vnow())}).`, target: null, sub: 'Trong lúc chờ: ra phố quan sát quảng cáo của nhóm và cách người dân phản ứng.' };
-  const d = st.drafts[p.w], n = st.agency.members.length, need = Math.floor(n / 2) + 1;
+  const d = st.drafts[p.w], need = needVotes();
   if (!d) return { t: `Soạn kế hoạch tuần ${p.w + 1}/4 ở Bàn điều phối trong văn phòng (Agency Hub).`, target: 'agency', sub: 'Không có hạn chót — tuần mới chỉ bắt đầu khi nhóm chốt, và chạy đúng 48 giờ.' };
-  if (d.approvals.length < need) return { t: `Bản nháp tuần ${p.w + 1} đang chờ biểu quyết: ${d.approvals.length}/${need} người đồng ý.`, target: 'agency', sub: d.approvals.includes(SESSION.mem) ? 'Bạn đã đồng ý. Nhắc các bạn khác vào Bàn họp xem và đồng ý nhé.' : 'Vào Bàn họp trong văn phòng để xem bản nháp và biểu quyết.' };
-  return { t: `Bản nháp tuần ${p.w + 1} đã đủ đồng ý — ra Bàn điều phối chốt & phát sóng.`, target: 'agency', sub: 'Cần ít nhất 2 thành viên trong văn phòng và lý do điều chỉnh.' };
+  if (nApps(d) < need) return { t: `Bản nháp tuần ${p.w + 1} đang chờ biểu quyết: ${nApps(d)}/${need} người đồng ý.`, target: 'agency', sub: d.approvals.includes(SESSION.mem) ? 'Bạn đã đồng ý. Nhắc các bạn khác vào Bàn họp xem và đồng ý nhé.' : 'Vào Bàn họp trong văn phòng để xem bản nháp và biểu quyết.' };
+  return { t: `Bản nháp tuần ${p.w + 1} đã đủ đồng ý — ra Bàn điều phối chốt & phát sóng.`, target: 'agency', sub: needOffice() > 1 ? 'Cần ít nhất 2 thành viên trong văn phòng và lý do điều chỉnh.' : 'Bạn cần ở trong văn phòng và ghi lý do điều chỉnh.' };
 }
 $('quest').onclick = () => $('quest').classList.toggle('min');
 function targetPos() {
@@ -2377,23 +2384,24 @@ const inputCss = 'height:34px;border-radius:9px;border:1px solid var(--line);bac
 /* ---------- có mặt (Supabase Realtime: các bạn cùng nhóm đang mở đảo) ---------- */
 function presence() {
   const m = st.agency ? st.agency.members : [], me = SESSION ? SESSION.mem : 0, peers = Object.values(PEERS);
-  const online = m.map((_, i) => i === me || peers.some((p) => p.mem === i));
-  const inOffice = m.map((_, i) => (i === me ? INOFF : peers.some((p) => p.mem === i && p.off)));
+  const online = m.map((x, i) => !x.out && (i === me || peers.some((p) => p.mem === i)));
+  const inOffice = m.map((x, i) => !x.out && (i === me ? INOFF : peers.some((p) => p.mem === i && p.off)));
   return { online, inOffice, nOnline: online.filter(Boolean).length, nOffice: inOffice.filter(Boolean).length };
 }
-function presenceText() { if (!st.agency) return ''; const p = presence(); return `👥 ${p.nOnline}/${st.agency.members.length} online · ${p.nOffice} trong văn phòng`; }
+function presenceText() { if (!st.agency) return ''; const p = presence(); return `👥 ${p.nOnline}/${st.agency.members.length} online · ${p.nOffice} trong văn phòng`.replace(`/${st.agency.members.length} `, `/${nActive()} `); }
 
 /* ---------- đăng nhập: chỉ MSSV + mã vào đảo → tự đưa về đúng đảo của nhóm ---------- */
 async function openLogin(force = true) {
   const api = API();
   if (!api) { openModal('<h2>🏝 Medisland</h2><p class="sub">Hãy mở Medisland từ Knoworld: knoworld.vercel.app/medisland</p>', '', 'login'); return; }
   const mssv0 = (SESSION && SESSION.mssv) || api.studentId() || '';
-  const html = () => `<h2>🏝 Vào Medisland</h2><p class="sub">Nhập MSSV và mã vào đảo giảng viên đã phát cho nhóm. Bạn sẽ được đưa thẳng tới hòn đảo của agency mình.</p>
+  const adm = api.isAdmin();
+  const html = () => (adm ? `<h2>🏝 Vào Medisland <span class="pill gold">Giảng viên</span></h2><p class="sub">Chọn lớp và nhóm để vào thẳng hòn đảo của nhóm đó.</p><div id="lgAdmPick" class="card" style="margin-bottom:12px"><span style="color:var(--dim);font-size:13px">Đang tải danh sách lớp…</span></div><details style="margin-bottom:6px"><summary style="cursor:pointer;color:var(--muted);font-size:13px">Hoặc vào bằng MSSV + mã như sinh viên</summary>` : '') + `${adm ? '' : '<h2>🏝 Vào Medisland</h2>'}<p class="sub">Nhập MSSV và mã vào đảo giảng viên đã phát cho nhóm. Bạn sẽ được đưa thẳng tới hòn đảo của agency mình.</p>
     <div class="grid2">
       <label style="font-size:13px;color:var(--muted)">MSSV<br><input id="lgS" value="${esc(mssv0)}" autocomplete="off" style="width:100%;${inputCss}"></label>
       <label style="font-size:13px;color:var(--muted)">Mã vào đảo<br><input id="lgK" value="" autocomplete="off" style="width:100%;${inputCss};text-transform:uppercase"></label>
     </div>
-    <div class="row">${api.isAdmin() ? '<button class="btn sm" id="lgAdm">⚙ Quản trị</button><span class="grow"></span>' : ''}<button class="btn gold" id="lgGo">Lên phà ra đảo</button></div>`;
+    <div class="row">${api.isAdmin() ? '<button class="btn sm" id="lgAdm">⚙ Quản trị</button><span class="grow"></span>' : ''}<button class="btn gold" id="lgGo">Lên phà ra đảo</button></div>` + (adm ? '</details>' : '');
   const panel = openModal(html(), '', force ? 'login' : 'login2');
   if (force) { const x = panel.querySelector('.x'); if (x) x.remove(); }
   const go = panel.querySelector('#lgGo');
@@ -2411,10 +2419,36 @@ async function openLogin(force = true) {
   go.onclick = submit;
   panel.querySelector('#lgK').addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
   const ad = panel.querySelector('#lgAdm'); if (ad) ad.onclick = () => { closeModal(); openAdmin(); };
+  if (adm) adminPicker(panel);
+}
+/* giảng viên: chọn lớp + nhóm là vào thẳng đảo, không cần mã (chế độ chỉ xem) */
+async function adminEnter(gid) {
+  const api = API(); if (!api || !api.isAdmin()) return toast('Chỉ tài khoản giảng viên mới vào thẳng được.');
+  let res = null; try { res = await api.adminGet(gid); } catch (e) { res = null; }
+  if (!res || !res.ok) return toast('Không mở được đảo này.');
+  if (ROOM) { try { ROOM.leave(); } catch (e) {} ROOM = null; }
+  SESSION = { gid, admin: true, mem: -1 }; saveSession(); closeModal(); startSession(res, true);
+  toast('Chế độ giảng viên: xem tự do, không thao tác thay nhóm.');
+}
+async function adminPicker(panel) {
+  const box = panel.querySelector('#lgAdmPick'); if (!box) return;
+  const api = API(); let cls = [];
+  try { cls = await api.adminList(); } catch (e) { box.innerHTML = '<span style="color:var(--dim);font-size:13px">Không tải được danh sách lớp.</span>'; return; }
+  cls = cls.filter((c) => c.groups.length);
+  if (!cls.length) { box.innerHTML = '<span style="color:var(--dim);font-size:13px">Chưa có lớp/nhóm nào — tạo trong ⚙ Quản trị.</span>'; return; }
+  const sel = `height:34px;border-radius:9px;border:1px solid var(--line);background:#1c1b23;color:var(--ink);font:inherit;padding:0 8px;width:100%`;
+  box.innerHTML = `<div class="grid2"><label style="font-size:13px;color:var(--muted)">Lớp<br><select id="apC" style="${sel}">${cls.map((c, i) => `<option value="${i}">${esc(c.code)}${c.term ? ' · ' + esc(c.term) : ''}</option>`).join('')}</select></label>
+    <label style="font-size:13px;color:var(--muted)">Nhóm (agency)<br><select id="apG" style="${sel}"></select></label></div>
+    <div class="row"><span class="grow" style="font-size:12px;color:var(--dim)">Vào xem tự do · không cần mã · không thao tác thay nhóm</span><button class="btn gold" id="apGo">🏝 Vào đảo nhóm này</button></div>`;
+  const fill = () => { const c = cls[+box.querySelector('#apC').value]; box.querySelector('#apG').innerHTML = c.groups.map((g) => `<option value="${g.id}">${esc(g.name)} (${g.members.filter((m) => !m.out).length} người)</option>`).join(''); };
+  box.querySelector('#apC').onchange = fill; fill();
+  if (SESSION && SESSION.admin) { const ci = cls.findIndex((c) => c.groups.some((g) => g.id === SESSION.gid)); if (ci >= 0) { box.querySelector('#apC').value = ci; fill(); box.querySelector('#apG').value = SESSION.gid; } }
+  box.querySelector('#apGo').onclick = () => adminEnter(box.querySelector('#apG').value);
 }
 async function applySession() {
   const api = API(); if (!api || !SESSION) return openLogin(true);
-  let res = null; try { res = await api.act(SESSION.gid, SESSION.mssv, SESSION.code, 'get', {}); } catch (e) { res = null; }
+  if (SESSION.admin && !api.isAdmin()) { SESSION = null; saveSession(); return openLogin(true); }
+  let res = null; try { res = SESSION.admin ? await api.adminGet(SESSION.gid) : await api.act(SESSION.gid, SESSION.mssv, SESSION.code, 'get', {}); } catch (e) { res = null; }
   if (!res || !res.ok) { if (res && res.err) toast(errText(res.err)); return openLogin(true); }
   SESSION.mem = res.me; saveSession(); startSession(res, false);
 }
@@ -2423,7 +2457,7 @@ async function startSession(res, fresh) {
   applyServer(res);
   try { const ch = await api.channels(); ADM.channels = ch.list || []; ADM.offBuiltin = ch.off || []; } catch (e) { ADM.channels = []; ADM.offBuiltin = []; }
   setCustomChannels(ADM.channels, ADM.offBuiltin);
-  player.kind = 'm' + (SESSION.mem % MEM_PAL.length);
+  player.kind = SESSION.admin ? 'guide' : 'm' + (SESSION.mem % MEM_PAL.length);
   INOFF = false; miniC.classList.remove('on');
   Object.assign(player, { tx: 38, ty: 52, nx: 38, ny: 52, x: 38 * T, y: 52 * T, moving: false, dir: 'up' });
   Object.keys(adCache).forEach((k) => delete adCache[k]);
@@ -2440,7 +2474,7 @@ function openSwitch() {
   if (!st.agency) return openLogin(true);
   const p = presence();
   const h = `<h2>👤 ${esc(ME().name)} · ${esc(st.agency.name)}</h2><p class="sub">Lớp ${esc(st.cls.name)} · mỗi bạn điều khiển nhân vật của mình trên đảo của nhóm.</p>
-  <div class="kpi-list">${st.agency.members.map((m, i) => `<div class="kpi-row"><span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${MEM_PAL[i % 5].shirt};margin-right:6px"></span>${esc(m.name)}</span>${i === SESSION.mem ? '<span class="pill gold">bạn</span>' : p.inOffice[i] ? '<span class="pill green">trong văn phòng</span>' : p.online[i] ? '<span class="pill green">online</span>' : '<span class="pill">offline</span>'}</div>`).join('')}</div>
+  <div class="kpi-list">${st.agency.members.map((m, i) => m.out ? '' : `<div class="kpi-row"><span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${MEM_PAL[i % 5].shirt};margin-right:6px"></span>${esc(m.name)}</span>${i === SESSION.mem ? '<span class="pill gold">bạn</span>' : p.inOffice[i] ? '<span class="pill green">trong văn phòng</span>' : p.online[i] ? '<span class="pill green">online</span>' : '<span class="pill">offline</span>'}</div>`).join('')}</div>
   <div class="row"><button class="btn sm" id="swOut">Đăng xuất / đổi nhóm</button></div>`;
   const panel = openModal(h, '', 'switch');
   panel.querySelector('#swOut').onclick = () => { if (ROOM) { try { ROOM.leave(); } catch (e) {} ROOM = null; } SESSION = null; saveSession(); closeModal(); openLogin(true); };
@@ -2462,7 +2496,7 @@ function openPlanner(opt = {}) {
   const p = phase(), b = B();
   if (p.done) { toast('Chiến dịch đã kết thúc — xem tổng kết.'); return openFinal(); }
   if (p.state === 'run') return openRunning(p);
-  const w = p.w, n = st.agency.members.length, need = Math.floor(n / 2) + 1, me = SESSION.mem;
+  const w = p.w, n = nActive(), need = needVotes(), me = SESSION.mem, needOff = needOffice();
   const rem = remaining(w), ev = EVENTS[w], prev = st.results[w - 1];
   const edit = !opt.review;
   const saved = () => st.drafts[w];
@@ -2473,14 +2507,14 @@ function openPlanner(opt = {}) {
   let reason = saved() ? saved().reason : '';
   const dirty = () => !saved() || JSON.stringify(d) !== JSON.stringify(saved().plan) || reason !== saved().reason;
   const checks = () => {
-    const tot = planSpend(d), pr = presence(), ap = saved() && !dirty() ? saved().approvals.length : 0;
+    const tot = planSpend(d), pr = presence(), ap = saved() && !dirty() ? nApps(saved()) : 0;
     return [
       ['Bản nháp đã lưu (không còn thay đổi chưa lưu)', !!saved() && !dirty()],
       [`Đa số thành viên đồng ý (${ap}/${need} cần thiết, nhóm ${n} người)`, ap >= need],
       ['Có lý do điều chỉnh / chiến lược (ít nhất 60 ký tự)', reason.trim().length >= 60],
       ['Đã chọn hướng thiết kế quảng cáo', !!d.style],
       [`Ngân sách hợp lệ (0 < tổng ≤ ${tr(rem)})${d.spend.ooh > 0 && !(d.districts || []).length ? ' · OOH chưa chọn khu' : ''}`, tot > 0 && tot <= rem && !(d.spend.ooh > 0 && !(d.districts || []).length)],
-      [`Ít nhất 2 thành viên đang ở trong văn phòng (hiện có ${pr.nOffice})`, pr.nOffice >= 2],
+      [needOff > 1 ? `Ít nhất 2 thành viên đang ở trong văn phòng (hiện có ${pr.nOffice})` : 'Bạn đang ở trong văn phòng', pr.nOffice >= needOff],
     ];
   };
   const chRow = (c) => {
@@ -2500,7 +2534,7 @@ function openPlanner(opt = {}) {
   const voteBox = () => {
     const sv = saved(), pr = presence(), ck = checks(), ok = ck.every((x) => x[1]);
     const ap = sv && !dirty() ? sv.approvals : [];
-    return `<div class="votes">${st.agency.members.map((m, i) => `<span class="vote ${ap.includes(i) ? 'yes' : ''}">${ap.includes(i) ? '✔' : '…'} ${esc(m.name)}${pr.inOffice[i] ? ' 🏢' : pr.online[i] ? ' 🟢' : ''}</span>`).join('')}</div>
+    return `<div class="votes">${st.agency.members.map((m, i) => m.out ? '' : `<span class="vote ${ap.includes(i) ? 'yes' : ''}">${ap.includes(i) ? '✔' : '…'} ${esc(m.name)}${pr.inOffice[i] ? ' 🏢' : pr.online[i] ? ' 🟢' : ''}</span>`).join('')}</div>
       ${sv ? `<div style="font-size:12px;color:var(--dim);margin-top:6px">Bản nháp lưu bởi ${esc(st.agency.members[sv.by].name)} lúc ${fmtClock(sv.at)}${dirty() ? ' · <span class="warn">bạn có thay đổi chưa lưu — lưu lại thì cả nhóm phải đồng ý lại</span>' : ''}</div>` : '<div style="font-size:12px;color:var(--dim);margin-top:6px">Chưa có bản nháp. Một thành viên soạn và lưu, sau đó cả nhóm vào xem và bấm đồng ý.</div>'}
       <div class="checks">${ck.map(([t, v]) => `<div class="${v ? 'ok' : ''}">${v ? '✔' : '✗'} ${t}</div>`).join('')}</div>
       <div class="row">${edit ? `<button class="btn sm" id="pClear">Xóa hết</button><span class="grow"></span><button class="btn" id="pSaveD" ${dirty() ? '' : 'disabled'}>💾 Lưu bản nháp</button>` : '<span class="grow"></span>'}
@@ -2547,7 +2581,7 @@ function openPlanner(opt = {}) {
       box.scrollIntoView({ block: 'nearest' });
       box.querySelector('#pNo').onclick = () => { box.innerHTML = ''; };
       box.querySelector('#pYes').onclick = async () => {
-        if (presence().nOffice < 2) return toast('Cần ít nhất 2 thành viên đang ở trong văn phòng.');
+        if (presence().nOffice < needOffice()) return toast(needOffice() > 1 ? 'Cần ít nhất 2 thành viên đang ở trong văn phòng.' : 'Bạn cần ở trong văn phòng.');
         const r = await op('lock', { w }); if (!r || !r.ok) return;
         logAct('lock', String(w)); closeModal(); sfx.chime(); hud();
         banner(`Tuần ${w + 1} lên sóng!`, `Báo cáo mở lúc ${fmtClock(st.launches[w] + RUN_MS)}`, '#5ee0a0');
@@ -2631,7 +2665,7 @@ async function openFinal() {
   const b = B(), v = kpiValues(b, st.results);
   const score = scoreUpTo(b, st.results, st.results.length), grade = score >= 90 ? 'A' : score >= 75 ? 'B' : score >= 60 ? 'C' : 'D';
   const me = SESSION.mem, mine = st.peer[me] || { r: {}, c: '' };
-  const mates = st.agency.members.map((m, i) => [m, i]).filter(([, i]) => i !== me);
+  const mates = st.agency.members.map((m, i) => [m, i]).filter(([m, i]) => i !== me && !m.out);
   const h = `<h2>🏁 Tổng kết · ${esc(b.brand)} · ${esc(st.agency.name)}</h2><p class="sub">4 tuần · ${tr(v.spend)} đã chi / ${tr(b.budget)}</p>
   <div class="grade"><div class="big">${grade}<small>${score}/100</small></div><div style="font-size:14px;line-height:1.55">Điểm hiệu quả tính theo 5 KPI của brief (mỗi KPI 20 điểm).<br><span style="color:var(--muted);font-size:13px">Điểm mô phỏng — điểm môn học còn dựa vào báo cáo phân tích, lý do điều chỉnh từng tuần và đóng góp của từng thành viên.</span></div></div>
   ${kpiCards(v, 4, true)}
@@ -2694,13 +2728,13 @@ async function openAdmin() {
       body = `<div class="tabs" style="margin:0 0 10px">${ADMIN.classes.map((x, i) => `<button data-cl="${i}" class="${i === admCls ? 'on' : ''}">${esc(x.code)}</button>`).join('')}<button data-cl="new" class="${admCls === 'new' ? 'on' : ''}">+ Lớp mới</button></div>
       ${admCls === 'new' || !c ? `<div class="card"><b>Tạo lớp mới</b><div class="grid2" style="margin-top:8px"><input id="ncName" placeholder="Mã lớp, VD: MK318DV01" style="${inputCss}"><input id="ncTerm" placeholder="Học kỳ, VD: HK1 2026–2027" style="${inputCss}"></div><div class="row"><button class="btn gold sm" id="ncAdd">Tạo lớp</button></div></div>` : `
       <div class="tblw"><table class="tbl" style="min-width:760px"><thead><tr><th>Agency (đảo riêng)</th><th>Mã vào đảo</th><th>Brand</th><th>Người</th><th>Giờ/lần chạy</th><th>Tiến độ</th><th>Điểm</th><th></th></tr></thead><tbody>
-      ${c.groups.map((g, gi) => { const s2 = groupStatus(g), started = s2.o.launches.length > 0; return `<tr><td style="text-align:left"><span style="color:${g.color}">●</span> <b>${esc(g.name)}</b></td><td><code style="font-size:13px;color:var(--gold)">${esc(g.join_code)}</code></td><td>${started ? esc(BRIEFS[g.brief].brand) : `<select data-gb="${gi}" style="height:28px;border-radius:7px;background:#1c1b23;color:var(--ink);border:1px solid var(--line)">${Object.entries(BRIEFS).map(([k, x]) => `<option value="${k}" ${k === g.brief ? 'selected' : ''}>${esc(x.brand)}</option>`).join('')}</select>`}</td><td>${g.members.length}</td><td>${started ? nf(g.run_hours, 2) : `<input data-gh="${gi}" type="number" step="any" min="0.02" value="${+g.run_hours}" style="width:70px;height:28px;border-radius:7px;background:#1c1b23;color:var(--ink);border:1px solid var(--line);padding:0 6px">`}</td><td style="white-space:normal;max-width:200px">${s2.txt}</td><td>${s2.score ?? '—'}</td><td><button class="btn sm" data-gv="${gi}">Chi tiết</button> ${started ? '' : `<button class="btn sm" data-gd="${gi}">Xóa</button>`}</td></tr>`; }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--dim)">Lớp chưa có nhóm.</td></tr>'}
+      ${c.groups.map((g, gi) => { const s2 = groupStatus(g), started = s2.o.launches.length > 0; return `<tr><td style="text-align:left"><span style="color:${g.color}">●</span> <b>${esc(g.name)}</b></td><td><code style="font-size:13px;color:var(--gold)">${esc(g.join_code)}</code></td><td>${started ? esc(BRIEFS[g.brief].brand) : `<select data-gb="${gi}" style="height:28px;border-radius:7px;background:#1c1b23;color:var(--ink);border:1px solid var(--line)">${Object.entries(BRIEFS).map(([k, x]) => `<option value="${k}" ${k === g.brief ? 'selected' : ''}>${esc(x.brand)}</option>`).join('')}</select>`}</td><td>${g.members.filter((m) => !m.out).length}</td><td>${started ? nf(g.run_hours, 2) : `<input data-gh="${gi}" type="number" step="any" min="0.02" value="${+g.run_hours}" style="width:70px;height:28px;border-radius:7px;background:#1c1b23;color:var(--ink);border:1px solid var(--line);padding:0 6px">`}</td><td style="white-space:normal;max-width:200px">${s2.txt}</td><td>${s2.score ?? '—'}</td><td><button class="btn sm gold" data-ge="${gi}">🏝 Vào đảo</button> <button class="btn sm" data-gv="${gi}">Chi tiết</button> ${started ? '' : `<button class="btn sm" data-gd="${gi}">Xóa</button>`}</td></tr>`; }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--dim)">Lớp chưa có nhóm.</td></tr>'}
       </tbody></table></div>
       <p class="note" style="margin-top:8px">Phát <b>mã vào đảo</b> cho từng nhóm. Sinh viên đăng nhập bằng MSSV (phải có trong danh sách thành viên) + mã này. “Giờ/lần chạy” mặc định 48; đặt nhỏ (VD 0.05 = 3 phút) cho một nhóm thử nghiệm của giảng viên.</p>
       <div class="card" style="margin-top:12px"><b>+ Thêm agency (nhóm) vào lớp ${esc(c.code)}</b>
         <div class="grid2" style="margin-top:8px"><input id="ngName" placeholder="Tên agency" style="${inputCss}"><select id="ngBrief" style="${inputCss}">${Object.entries(BRIEFS).map(([k, x]) => `<option value="${k}">${esc(x.brand)} — ${x.target.map((t) => SEGMENTS[t].short).join(' + ')}</option>`).join('')}</select></div>
         <textarea id="ngMem" placeholder="Mỗi dòng một thành viên: Họ tên - MSSV&#10;Nguyễn Văn A - 2201001&#10;Trần Thị B - 2201002&#10;Lê Văn C - 2201003" style="width:100%;min-height:92px;margin-top:8px;border-radius:10px;border:1px solid var(--line);background:#1c1b23;color:var(--ink);font:inherit;font-size:13px;padding:8px 10px"></textarea>
-        <div class="row"><span style="font-size:12px;color:var(--dim)" class="grow">Mỗi agency có một hòn đảo riêng · 3–5 thành viên · mã vào đảo tạo tự động.</span><button class="btn gold sm" id="ngAdd">Thêm agency</button></div></div>`}`;
+        <div class="row"><span style="font-size:12px;color:var(--dim)" class="grow">Mỗi agency có một hòn đảo riêng · từ 1 thành viên, không giới hạn · thêm/bớt sau trong “Chi tiết” · mã vào đảo tạo tự động.</span><button class="btn gold sm" id="ngAdd">Thêm agency</button></div></div>`}`;
     } else if (admTab === 'ch') {
       const lv = (v) => v >= .85 ? 'Cao' : v >= .5 ? 'Vừa' : 'Thấp';
       body = `<div class="tblw"><table class="tbl" style="min-width:560px"><thead><tr><th>Công cụ</th><th>CPM</th><th>Phủ Gen Z / VP / GĐ / TN</th><th>Nhận biết</th><th>Thuyết phục</th><th></th></tr></thead><tbody>
@@ -2723,19 +2757,19 @@ async function openAdmin() {
       body = parts.join('') || '<div class="empty">Chưa có lớp.</div>';
     }
     return `<h2>⚙ Quản trị Medisland <span class="pill gold">Giảng viên</span></h2><p class="sub">Dữ liệu lưu trên Supabase. Điểm và kết quả được tính lại từ kế hoạch đã chốt của từng nhóm.</p>
-    <div class="tabs" style="margin-top:0">${[['cls', 'Lớp & agency'], ['ch', 'Công cụ truyền thông'], ['lb', 'Bảng xếp hạng']].map(([k, l]) => `<button data-at="${k}" class="${admTab === k ? 'on' : ''}">${l}</button>`).join('')}<span class="grow"></span><button data-play="1">▶ Vào đảo như sinh viên</button></div>${body}`;
+    <div class="tabs" style="margin-top:0">${[['cls', 'Lớp & agency'], ['ch', 'Công cụ truyền thông'], ['lb', 'Bảng xếp hạng']].map(([k, l]) => `<button data-at="${k}" class="${admTab === k ? 'on' : ''}">${l}</button>`).join('')}<span class="grow"></span><button data-play="1">🏝 Chọn đảo để vào</button></div>${body}`;
   };
   const re = async () => { const sc = panel.scrollTop; panel.innerHTML = (await html()) + '<button class="x">✕</button>'; panel.querySelector('.x').onclick = closeModal; wire(); panel.scrollTop = sc; };
   const reload = async () => { await load(); await re(); };
   const wire = () => {
     panel.querySelectorAll('[data-at]').forEach((b) => b.onclick = () => { admTab = b.dataset.at; re(); });
-    const pl = panel.querySelector('[data-play]'); if (pl) pl.onclick = () => { closeModal(); openLogin(!st.gid); };
+    const pl = panel.querySelector('[data-play]'); if (pl) pl.onclick = () => { closeModal(); openLogin(false); };
     panel.querySelectorAll('[data-cl]').forEach((b) => b.onclick = () => { admCls = b.dataset.cl === 'new' ? 'new' : +b.dataset.cl; re(); });
     const nc = panel.querySelector('#ncAdd'); if (nc) nc.onclick = async () => { const n = panel.querySelector('#ncName').value.trim(); if (!n) return toast('Nhập mã lớp.'); try { await api.adminCreateClass({ code: n, term: panel.querySelector('#ncTerm').value.trim() }); toast('Đã tạo lớp ' + n); await load(); admCls = ADMIN.classes.findIndex((x) => x.code === n); if (admCls < 0) admCls = 0; re(); } catch (e) { toast('Không tạo được lớp: ' + (e.message || e)); } };
     const ng = panel.querySelector('#ngAdd'); if (ng) ng.onclick = async () => {
       const c = ADMIN.classes[admCls], name = panel.querySelector('#ngName').value.trim();
       const mem = panel.querySelector('#ngMem').value.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const m = l.match(/^(.*?)\s*[-–,;:\t]\s*([A-Za-z0-9]+)\s*$/); return m ? { name: m[1].trim(), mssv: m[2].trim().toUpperCase() } : { name: l, mssv: '' }; }).filter((m) => m.name);
-      if (!name) return toast('Nhập tên agency.'); if (mem.length < 3 || mem.length > 5) return toast('Mỗi agency cần 3–5 thành viên.');
+      if (!name) return toast('Nhập tên agency.'); if (!mem.length) return toast('Nhập ít nhất 1 thành viên.');
       if (mem.some((m) => !m.mssv)) return toast('Mỗi dòng cần có MSSV: “Họ tên - MSSV”.');
       if (c.groups.some((g) => g.name.toLowerCase() === name.toLowerCase())) return toast('Tên agency đã có trong lớp.');
       const cols = ['#ffd27a', '#ff8fb1', '#7ee8ff', '#5ee0a0', '#c6bfff', '#ffb35c'];
@@ -2744,6 +2778,7 @@ async function openAdmin() {
     panel.querySelectorAll('[data-gb]').forEach((s2) => s2.onchange = async () => { const g = ADMIN.classes[admCls].groups[+s2.dataset.gb]; await api.adminUpdateGroup(g.id, { brief: s2.value }); toast(`${g.name} → ${BRIEFS[s2.value].brand}`); reload(); });
     panel.querySelectorAll('[data-gh]').forEach((s2) => s2.onchange = async () => { const g = ADMIN.classes[admCls].groups[+s2.dataset.gh], v = Math.max(.02, +s2.value || 48); await api.adminUpdateGroup(g.id, { run_hours: v }); toast(`${g.name}: mỗi lần chạy ${nf(v, 2)} giờ`); reload(); });
     panel.querySelectorAll('[data-gd]').forEach((b) => b.onclick = async () => { const g = ADMIN.classes[admCls].groups[+b.dataset.gd]; if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Chắc chưa?'; return; } await api.adminDeleteGroup(g.id); reload(); });
+    panel.querySelectorAll('[data-ge]').forEach((b) => b.onclick = () => adminEnter(ADMIN.classes[admCls].groups[+b.dataset.ge].id));
     panel.querySelectorAll('[data-gv]').forEach((b) => b.onclick = () => openGroupDetail(ADMIN.classes[admCls].groups[+b.dataset.gv]));
     const saveCh = async () => { await api.saveChannels({ list: ADM.channels, off: ADM.offBuiltin || [] }); setCustomChannels(ADM.channels, ADM.offBuiltin); };
     panel.querySelectorAll('[data-btog]').forEach((b) => b.onclick = async () => { const c = b.dataset.btog, o = ADM.offBuiltin || []; ADM.offBuiltin = o.includes(c) ? o.filter((x) => x !== c) : [...o, c]; await saveCh(); re(); });
@@ -2761,18 +2796,47 @@ async function openAdmin() {
   await re();
 }
 function openGroupDetail(g) {
-  const s2 = groupStatus(g), o = s2.o, n = g.members.length;
+  const s2 = groupStatus(g), o = s2.o, n = g.members.filter((m) => !m.out).length;
   const cnt = g.members.map((_, i) => { const c = {}; (o.log || []).filter((l) => l.m === i).forEach((l) => c[l.a] = (c[l.a] || 0) + 1); return c; });
   const peerAvg = g.members.map((_, i) => { const v = Object.values(o.peer || {}).map((p) => p && p.r && p.r[i]).filter(Boolean); return v.length ? (v.reduce((a, b) => a + b, 0) / v.length).toFixed(1) : '—'; });
   const cols = ['login', 'draft', 'approve', 'lock', 'board', 'concept', 'talk'];
   openModal(`<h2><span style="color:${g.color}">●</span> ${esc(g.name)} <span class="pill">${esc(BRIEFS[g.brief].brand)}</span></h2><p class="sub">${s2.txt}${s2.score !== null ? ' · Điểm ' + s2.score : ''} · Mã vào đảo: <b style="color:var(--gold)">${esc(g.join_code)}</b></p>
-  <h3 style="margin-top:0">Nhật ký đóng góp</h3>
+  <h3 style="margin-top:0">Thành viên (${g.members.filter((m) => !m.out).length})</h3>
+  <div class="kpi-list">${g.members.map((m, i) => `<div class="kpi-row"><span style="${m.out ? 'opacity:.5;text-decoration:line-through' : ''}">${esc(m.name)} <span style="color:var(--dim);font-size:12px">${esc(m.mssv || m.mssv_old || '')}</span>${m.out ? ' <span class="pill">đã rời nhóm</span>' : ''}</span>${m.out ? `<button class="btn sm" data-mback="${i}">Cho quay lại</button>` : `<button class="btn sm" data-mout="${i}">Cho rời nhóm</button>`}</div>`).join('')}</div>
+  <textarea id="gdAdd" placeholder="Thêm thành viên — mỗi dòng: Họ tên - MSSV" style="width:100%;min-height:60px;margin-top:8px;border-radius:10px;border:1px solid var(--line);background:#1c1b23;color:var(--ink);font:inherit;font-size:13px;padding:8px 10px"></textarea>
+  <div class="row"><span class="grow" style="font-size:12px;color:var(--dim)">Thêm/bớt lúc nào cũng được. Người rời nhóm vẫn giữ lịch sử đóng góp nhưng không đăng nhập được và không tính vào biểu quyết.</span><button class="btn gold sm" id="gdAddGo">+ Thêm thành viên</button></div>
+  <h3>Nhật ký đóng góp</h3>
   <div class="tblw"><table class="tbl" style="min-width:640px"><thead><tr><th>Thành viên</th>${cols.map((c) => `<th>${ACT_LABEL[c]}</th>`).join('')}<th>Đồng đội chấm (TB)</th></tr></thead><tbody>${g.members.map((m, i) => `<tr><td style="text-align:left">${esc(m.name)}<div style="color:var(--dim);font-size:11px">${esc(m.mssv || '')}</div></td>${cols.map((c) => `<td>${cnt[i][c] || 0}</td>`).join('')}<td>${peerAvg[i]}</td></tr>`).join('')}</tbody></table></div>
   <h3>Lý do điều chỉnh từng tuần</h3>${[0, 1, 2, 3].filter((w) => o.plans[w] && o.launches[w]).map((w) => `<div class="qs" style="margin:0 0 8px"><b>Tuần ${w + 1}</b> · chốt bởi ${esc(o.plans[w].byName || '')} lúc ${fmtClock(o.launches[w])} · ${(o.plans[w].approvals || []).length}/${n} đồng ý · ${MSGS[o.plans[w].msg] ? MSGS[o.plans[w].msg].label : ''} · ${STYLES[o.plans[w].style] ? STYLES[o.plans[w].style].label : ''} · ${tr(planSpend(o.plans[w]))}<br>“${esc(o.plans[w].reason || '')}”</div>`).join('') || '<p class="note">Chưa chốt tuần nào.</p>'}
   <h3>Nhận xét đồng đội</h3>${Object.entries(o.peer || {}).filter(([, p]) => p && p.c).map(([i, p]) => `<div class="kpi-row" style="margin-bottom:6px"><span>${esc((g.members[i] || {}).name || '?')}: “${esc(p.c)}”</span></div>`).join('') || '<p class="note">Chưa có.</p>'}
   <h3>Bảng ý tưởng (${(o.board || []).length} ghi chú)</h3><div class="board">${(o.board || []).slice(-12).reverse().map((x) => `<div class="sticky" style="background:${x.c}"><div class="m">${esc((g.members[x.m] || {}).name || '?')} · ${fmtClock(x.t)}</div>${esc(x.text)}</div>`).join('') || '<div class="empty">Trống.</div>'}</div>
   <div class="row"><button class="btn" id="gdBack">← Quay lại</button></div>`, 'wide', 'gdetail');
   modal.querySelector('#gdBack').onclick = openAdmin;
+  const api = API();
+  const saveMem = async (members, msg) => {
+    try { await api.adminUpdateGroup(g.id, { members }); g.members = members; toast(msg); sfx.note(); openGroupDetail(g); }
+    catch (e) { toast('Không lưu được: ' + (e.message || e)); }
+  };
+  modal.querySelectorAll('[data-mout]').forEach((b) => b.onclick = () => {
+    const i = +b.dataset.mout, m = g.members[i];
+    if (g.members.filter((x) => !x.out).length <= 1) return toast('Nhóm cần còn ít nhất 1 thành viên.');
+    if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Chắc chưa?'; return; }
+    const members = g.members.map((x, j) => (j === i ? { name: x.name, mssv: null, mssv_old: x.mssv, out: true } : x));
+    saveMem(members, `${m.name} đã rời nhóm.`);
+  });
+  modal.querySelectorAll('[data-mback]').forEach((b) => b.onclick = () => {
+    const i = +b.dataset.mback, m = g.members[i];
+    if (g.members.some((x) => !x.out && x.mssv && x.mssv === m.mssv_old)) return toast('MSSV này đã có trong nhóm.');
+    saveMem(g.members.map((x, j) => (j === i ? { name: x.name, mssv: x.mssv_old } : x)), `${m.name} đã quay lại nhóm.`);
+  });
+  modal.querySelector('#gdAddGo').onclick = () => {
+    const add = modal.querySelector('#gdAdd').value.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const m = l.match(/^(.*?)\s*[-–,;:\t]\s*([A-Za-z0-9]+)\s*$/); return m ? { name: m[1].trim(), mssv: m[2].trim().toUpperCase() } : { name: l, mssv: '' }; });
+    if (!add.length) return toast('Nhập “Họ tên - MSSV”.');
+    if (add.some((m) => !m.mssv || !m.name)) return toast('Mỗi dòng cần có MSSV: “Họ tên - MSSV”.');
+    const have = new Set(g.members.filter((x) => !x.out).map((x) => x.mssv));
+    const dup = add.find((m) => have.has(m.mssv)); if (dup) return toast(`MSSV ${dup.mssv} đã có trong nhóm.`);
+    saveMem([...g.members, ...add], `Đã thêm ${add.length} thành viên.`);
+  };
 }
 
 /* ---------- nút trên thanh ---------- */
