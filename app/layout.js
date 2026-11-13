@@ -5,6 +5,7 @@ import { AuthProvider } from './components/AuthProvider';
 import ReviewWidget from './components/ReviewWidget';
 import VisitorGate from './components/VisitorGate';
 import EngagementLayer from './components/EngagementLayer';
+import HolidayLayer from './components/holiday/HolidayLayer';
 
 export const metadata = {
   title: 'Knoworld — Explore knowledge like a universe',
@@ -22,6 +23,7 @@ export default function RootLayout({ children }) {
           <ReviewWidget />
           <VisitorGate />
           <EngagementLayer />
+          <HolidayLayer />
         </AuthProvider>
       </body>
     </html>

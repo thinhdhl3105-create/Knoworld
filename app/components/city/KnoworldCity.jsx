@@ -7,6 +7,7 @@ import { useAuth } from '../AuthProvider';
 import { fetchNews } from '@/lib/news';
 import CityNoticeBoard from './CityNoticeBoard';
 import CityAgendaBoard from './CityAgendaBoard';
+import { useHoliday } from '../holiday/useHoliday';
 import './city.css';
 
 const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
@@ -22,6 +23,8 @@ export default function KnoworldCity({ mode = 'hero', className = '', underNav =
   const router = useRouter();
   const { user, loading } = useAuth();
   const isAdmin = user?.email === ADMIN_EMAIL;
+  const holiday = useHoliday(); // v48: trang trí ngày lễ trong thành phố
+  const holidayKey = holiday ? holiday.key + ':' + (holiday.title || '') : '';
 
   // Real headlines for the News tower's LED ticker.
   useEffect(() => {
@@ -43,6 +46,7 @@ export default function KnoworldCity({ mode = 'hero', className = '', underNav =
         mode,
         isAdmin,
         news: news.current,
+        holiday: mode === 'hero' ? holiday : null,
         focus: mode === 'hero' ? new URLSearchParams(window.location.search).get('b') : null,
         onNavigate: mode === 'hero' ? (route) => router.push(route) : null,
       });
@@ -53,7 +57,7 @@ export default function KnoworldCity({ mode = 'hero', className = '', underNav =
       api.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, isAdmin, loading]);
+  }, [mode, isAdmin, loading, holidayKey]);
 
   const cls = `kwc ${mode === 'backdrop' ? 'kwc-backdrop' : ''} ${underNav ? 'kwc-under-nav' : ''}`;
   if (!board) return <div ref={ref} className={`${cls} ${className}`} />;

@@ -2,6 +2,7 @@
 export function cityTemplate(hasAdmin) {
   return `
 <canvas class="kwc-sky" data-id="sky" aria-hidden="true"></canvas>
+<div class="kwc-earth" aria-hidden="true"></div>
 <div class="kwc-stage" data-id="stage"></div>
 <div class="kwc-labels" data-id="labels"></div>
 
@@ -15,6 +16,15 @@ export function cityTemplate(hasAdmin) {
   <button type="button" data-city="medisland"><span class="dot" style="background:#ff8f6b"></span>Medisland</button>
   ${hasAdmin ? '<button type="button" data-city="island"><span class="dot" style="background:#ffd27a"></span>Thinh\'s Island 🔒</button>' : ''}
   <button type="button" data-city="home">Overview</button>
+</div>
+
+<div class="kwc-levels kwc-panel kwc-ui" role="group" aria-label="City levels">
+  <span class="cap">Levels</span>
+  <button type="button" data-layer="sky" class="on" title="Skyline — the city above ground"><b>☁</b><span>Skyline</span></button>
+  <i class="shaft" aria-hidden="true"></i>
+  <button type="button" data-layer="b1" title="B1 — Metro concourse"><b>B1</b><span>Metro</span></button>
+  <button type="button" data-layer="b2" title="B2 — Deep express"><b>B2</b><span>Express</span></button>
+  <span class="now" data-id="lvlNow">Skyline · street level</span>
 </div>
 
 <div class="kwc-clock kwc-panel kwc-ui" data-id="clock" aria-label="Time, weather and land">

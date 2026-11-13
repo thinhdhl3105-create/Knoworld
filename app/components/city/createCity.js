@@ -4,6 +4,8 @@
 import * as THREE_NS from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { cityTemplate } from './template';
+import { createMetro } from './createMetro';
+import { createHolidayFx } from './cityHoliday';
 
 const THREE = { ...THREE_NS, OrbitControls };
 
@@ -33,6 +35,10 @@ export function createCity(root, opts = {}) {
   renderer.shadowMap.enabled = !small;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   $('stage').appendChild(renderer.domElement);
+  // v48: mặt cắt ngang — khi xuống hầm, mọi thứ phía trên mặt phẳng này bị cắt bỏ (cut-away).
+  const clip = new THREE.Plane(new THREE.Vector3(0, -1, 0), 400);
+  renderer.clippingPlanes = [clip];
+  let under = 0; // 0 = Skyline, 1 = dưới hầm (làm mượt ánh sáng)
 
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 600);
@@ -1201,6 +1207,7 @@ export function createCity(root, opts = {}) {
   const BACK = new THREE.Vector3(-CAM_DIR.x, 0, -CAM_DIR.z).normalize();
   const cloudNight = new THREE.Color('#2e3352'), cloudRain = new THREE.Color('#646b78');
   let flash = 0;
+  const UNDER_HS = new THREE.Color('#e9e4f4'), UNDER_HG = new THREE.Color('#4a4038'), UNDER_SUN = new THREE.Color('#fff6e8');
   function applyEnv(h, rain) {
     const e = envAt(h, rain);
     hemi.color.copy(e.hs); hemi.groundColor.copy(e.hg); hemi.intensity = e.hi + flash * 1.4;
@@ -1220,6 +1227,13 @@ export function createCity(root, opts = {}) {
     e.rcloud = cloudRain.clone().lerp(cloudNight, e.n * 0.7);
     rainMat.opacity = rain * 0.7;
     byKey.journey.light.intensity = n * 1.4;
+    if (under > 0.001) { // v48: dưới hầm luôn sáng đèn, không có bóng nắng từ thành phố phía trên
+      hemi.color.lerp(UNDER_HS, under); hemi.groundColor.lerp(UNDER_HG, under); hemi.intensity += (0.95 - hemi.intensity) * under;
+      sun.color.lerp(UNDER_SUN, under); sun.intensity += (0.55 - sun.intensity) * under; moon.intensity *= 1 - under;
+      if (under > 0.5) sun.castShadow = false;
+      const fu = Math.max(f, under * 0.9);
+      for (const o of neons) o.m.color.copy(o.day).lerp(o.night, fu);
+    }
     return e;
   }
 
@@ -1266,6 +1280,53 @@ export function createCity(root, opts = {}) {
     if (mode !== 'manual') slider.value = hours.toFixed(2);
   }
 
+  // ================= v48: metro (B1, B2) & holiday decorations =================
+  const metro = createMetro({ THREE, box, cyl, sign, neonMat, neonBox, mat, HAS_ADMIN, islands: ISL });
+  scene.add(metro.root);
+  const holidayFx = opts.holiday ? createHolidayFx({ THREE, scene, box, cyl, sign, neonMat, neonBox, mat, glowTex, ROADS, onLand, nearCross, Y0, small, reduce, holiday: opts.holiday }) : null;
+  if (holidayFx && billboard && holidayFx.ticker) billboard.text = holidayFx.ticker;
+  const LAYER_Y = { sky: 0, b1: metro.levels.b1.y, b2: metro.levels.b2.y };
+  const CUT = { sky: 400, b1: metro.levels.b1.y + 11.4, b2: metro.levels.b2.y + 10.4 };
+  let layer = 'sky', cutNow = 400;
+  const mLabels = metro.stations.map((st) => {
+    const l = document.createElement('button'); l.type = 'button'; l.className = 'mlbl';
+    l.innerHTML = `<span class="dot" style="background:${st.color}"></span>${st.name}`;
+    l.addEventListener('click', () => selectStation(st.id)); $('labels').appendChild(l);
+    return { st, l };
+  });
+  function setLayer(l, fly = true) {
+    if (!LAYER_Y.hasOwnProperty(l)) return;
+    const prev = layer; layer = l;
+    root.classList.toggle('kwc-is-under', l !== 'sky');
+    root.dataset.layer = l;
+    root.querySelectorAll('[data-layer]').forEach((b) => b.classList.toggle('on', b.dataset.layer === l));
+    const lv = metro.levels[l];
+    $('lvlNow').innerHTML = l === 'sky' ? 'Skyline · street level' : `<b style="color:${lv.color}">${lv.code}</b> · ${lv.name}`;
+    clearTimeout(navT); selected = null; selectedCity = null; selectedStation = null; card.hidden = true; hovered = '__'; setHover(null); refreshMarks();
+    if (!fly) return;
+    void prev;
+    flyTo(HOME_T.clone().setY(LAYER_Y[l] + (l === 'sky' ? 0 : 1)), small ? zoomFor(l === 'sky' ? 64 : 80) : 1);
+    if (l !== 'sky') showCard({ eyebrow: `<span class="dot" style="background:${lv.color}"></span>Underground · ${lv.code}`, name: lv.name, desc: lv.desc, list: lv.stations.map((st) => ({ key: 'metro:' + st.id, name: st.name, dot: st.color })) });
+  }
+  root.querySelectorAll('[data-layer]').forEach((b) => b.addEventListener('click', () => setLayer(b.dataset.layer)));
+  let selectedStation = null;
+  function selectStation(id) {
+    const st = metro.stations.find((x) => x.id === id); if (!st) return;
+    clearTimeout(navT);
+    if (layer !== st.level) setLayer(st.level, false);
+    selected = null; selectedCity = null; selectedStation = id; refreshMarks();
+    flyTo(new THREE.Vector3(st.x, st.y + 1, st.z), zoomFor(st.kind === 'facility' ? 30 : 24));
+    const ready = !!st.route;
+    showCard({
+      eyebrow: `<span class="dot" style="background:${st.color}"></span>${st.levelCode} · ${st.lineName}`,
+      name: st.name + (st.kind === 'station' ? ' Station' : ''),
+      desc: st.desc || (st.kind === 'station' ? 'This platform is built and the trains already stop here. Its function will be added soon.' : 'The depot is built. Its function will be added soon.'),
+      route: st.route || null,
+      note: ready ? '' : '🚧 Function coming soon',
+    });
+  }
+  function stationUnder(islandId) { return metro.stations.find((st) => st.level === layer && st.island === islandId); }
+
   // ================= nav, labels, hover, select =================
   const labelsEl = $('labels'), tip = $('tip');
   for (const b of MAIN) { const l = document.createElement('div'); l.className = 'lbl'; l.textContent = b.name; labelsEl.appendChild(l); b.lbl = l; }
@@ -1309,17 +1370,22 @@ export function createCity(root, opts = {}) {
     const r = renderer.domElement.getBoundingClientRect();
     ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
-    const h = ray.intersectObjects(pickables, false)[0];
+    const h = ray.intersectObjects(layer === 'sky' ? pickables : metroPick[layer], false)[0];
     return h ? h.object.userData.key : null;
   }
+  const metroLevelOf = (key) => { const st = metro.stations.find((x) => 'metro:' + x.id === key); return st ? st.level : null; };
+  const metroPick = { b1: [], b2: [] };
+  for (const o of metro.pickables) { const lv = metroLevelOf(o.userData.key); if (lv) metroPick[lv].push(o); }
   const cv = renderer.domElement;
   let down = null;
   cv.addEventListener('pointermove', (e) => {
     if (e.pointerType !== 'mouse') return;
     const k = hit(e); setHover(k);
     if (k && !down) {
-      const b = byKey[k];
-      tip.hidden = false; tip.innerHTML = `<b>${b.name}</b><br><span>${b.city === 'main' ? '' : (cityOf(b.city)?.name || '') + ' · '}Click to enter</span>`;
+      const b = byKey[k], st = !b && metro.stations.find((x) => 'metro:' + x.id === k);
+      tip.hidden = false;
+      if (st) tip.innerHTML = `<b>${st.name}</b><br><span>${st.levelCode} · ${st.lineName}</span>`;
+      else tip.innerHTML = `<b>${b.name}</b><br><span>${b.city === 'main' ? '' : (cityOf(b.city)?.name || '') + ' · '}Click to enter</span>`;
       const rr = root.getBoundingClientRect();
       tip.style.left = Math.min(e.clientX - rr.left + 14, RW() - 190) + 'px'; tip.style.top = (e.clientY - rr.top + 14) + 'px';
     } else tip.hidden = true;
@@ -1332,6 +1398,17 @@ export function createCity(root, opts = {}) {
     if (moved > 6) return;
     const k = hit(e); if (k) select(k);
   });
+  // labels for the underground: placed only while that level is shown
+  function placeMetroLabels() {
+    for (const { st, l } of mLabels) {
+      const on = layer === st.level && !fly;
+      l.classList.toggle('on', on);
+      if (!on) continue;
+      v3.set(st.x, st.y + 4.2, st.z).project(camera);
+      l.style.left = ((v3.x + 1) / 2 * RW()) + 'px'; l.style.top = ((1 - v3.y) / 2 * RH()) + 'px';
+      l.classList.toggle('sel', selectedStation === st.id);
+    }
+  }
 
   let fly = null;
   function flyTo(target, zoom) {
@@ -1350,6 +1427,7 @@ export function createCity(root, opts = {}) {
     card.hidden = false;
   }
   function select(key, nav = true) {
+    if (String(key).startsWith('metro:')) return selectStation(key.slice(6));
     const b = byKey[key]; selected = key; selectedCity = null; hovered = null; refreshMarks(); closeMenus();
     flyTo(new THREE.Vector3(b.cx, Math.min(b.top * 0.4, 7), b.cz), zoomFor(b.top > 12 ? 28 : 21));
     const I = cityOf(b.city);
@@ -1363,6 +1441,7 @@ export function createCity(root, opts = {}) {
   }
   function selectCity(id) {
     clearTimeout(navT);
+    if (layer !== 'sky') { const st = stationUnder(id); if (st) return selectStation(st.id); setLayer('sky', false); }
     const I = cityOf(id); selected = null; selectedCity = id; hovered = null; refreshMarks(); closeMenus();
     flyTo(new THREE.Vector3(I.cx, 2, I.cz), zoomFor(I.size));
     showCard({
@@ -1373,12 +1452,13 @@ export function createCity(root, opts = {}) {
   function home() {
     clearTimeout(navT);
     selected = null; selectedCity = null; card.hidden = true; hovered = '__'; setHover(null); refreshMarks(); closeMenus();
-    flyTo(HOME_T.clone(), small ? zoomFor(64) : 1);
+    selectedStation = null;
+    flyTo(HOME_T.clone().setY(LAYER_Y[layer] + (layer === 'sky' ? 0 : 1)), small ? zoomFor(64) : 1);
   }
   $('cBack').addEventListener('click', home);
-  $('cOpen').addEventListener('click', (e) => { if (opts.onNavigate && selected) { e.preventDefault(); clearTimeout(navT); opts.onNavigate(byKey[selected].route); } });
+  $('cOpen').addEventListener('click', (e) => { const r = selected ? byKey[selected].route : selectedStation ? metro.stations.find((x) => x.id === selectedStation)?.route : null; if (opts.onNavigate && r) { e.preventDefault(); clearTimeout(navT); opts.onNavigate(r); } });
   root.querySelectorAll('[data-city]').forEach((el) => el.addEventListener('click', () => (el.dataset.city === 'home' ? home() : selectCity(el.dataset.city))));
-  const onKey = (e) => { if (e.key === 'Escape' && (selected || selectedCity)) home(); };
+  const onKey = (e) => { if (e.key === 'Escape' && (selected || selectedCity || selectedStation)) home(); };
   window.addEventListener('keydown', onKey); cleanups.push(() => window.removeEventListener('keydown', onKey));
   function closeMenus() {}
 
@@ -1452,6 +1532,17 @@ export function createCity(root, opts = {}) {
     }
     if (billboard && frame % 2 === 0) drawBillboard(dt * 2);
     updateBiome(dt, elapsed);
+    // v48: cắt dần thành phố khi xuống hầm / dựng lại khi lên Skyline
+    const cutT = CUT[layer];
+    if (cutNow !== cutT) {
+      if (cutT < cutNow) { cutNow = Math.max(cutT, Math.min(cutNow, 34) - dt * 34); }           // đào xuống: cắt từ nóc nhà cao nhất
+      else { cutNow = Math.min(cutT, cutNow + dt * 40); if (cutNow > 34) cutNow = cutT; }       // lên Skyline: dựng lại thành phố
+    }
+    clip.constant = cutNow;
+    metro.root.visible = cutNow < 30;
+    under += ((layer === 'sky' ? 0 : 1) - under) * Math.min(1, dt * 2.5);
+    if (metro.root.visible) metro.update(dt * sMul, elapsed);
+    if (holidayFx) holidayFx.update(dt * sMul, elapsed, N, layer === 'sky');
     if (biome === 'sea' && frame % 2 === 0) {
       const arr = waterGeo.attributes.position.array, tt = elapsed * 0.9;
       for (let i = 0; i < arr.length; i += 3) arr[i + 1] = Math.sin(waterBase[i] * 0.45 + waterBase[i + 2] * 0.2 + tt) * 0.07 + Math.cos(waterBase[i + 2] * 0.5 - waterBase[i] * 0.15 + tt * 1.3) * 0.07;
@@ -1476,6 +1567,7 @@ export function createCity(root, opts = {}) {
     }
     controls.update();
     placeLabels();
+    placeMetroLabels();
     renderer.render(scene, camera);
     raf = requestAnimationFrame(tick);
   }
@@ -1496,6 +1588,7 @@ export function createCity(root, opts = {}) {
     destroy() {
       alive = false; cancelAnimationFrame(raf); clearTimeout(navT);
       cleanups.forEach((f) => f());
+      holidayFx?.dispose?.();
       controls.dispose(); renderer.dispose(); renderer.forceContextLoss();
       root.innerHTML = '';
     },
