@@ -36,14 +36,14 @@ const links = [
   { href: '/discussion', label: 'Discussion', dot: '#ff9bd2' },
   { href: '/games', label: 'Game Island', dot: '#5ee0a0' },
   { href: '/temple', label: 'Temple', dot: '#ffb347' },
-  { href: '/museum', label: 'Museum', dot: '#e9a8ff' },
+  { href: '/home', label: 'My Home', dot: '#e9a8ff' },
   { href: '/medisland', label: 'Medisland', dot: '#ff8f6b' },
   { group: 'admin', label: 'Admin', admin: true, dot: '#7ee8ff', lock: true, children: ADMIN_LINKS },
 ];
 
 const CITY_ROUTES = [
   '/news', '/knowledge-hub', '/videos', '/students', '/images', '/discussion', '/research', '/search',
-  '/journey', '/profile', '/upload', '/dashboard', '/admin', '/island', '/games', '/temple', '/museum', '/medisland',
+  '/journey', '/profile', '/upload', '/dashboard', '/admin', '/island', '/games', '/temple', '/home', '/medisland',
 ];
 
 function Dot({ c }) {

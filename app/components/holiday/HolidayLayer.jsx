@@ -14,7 +14,7 @@ import { saveHolidaySettings } from '@/lib/holidayWishes';
 import './holiday.css';
 
 const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
-const QUIET = ['/medisland', '/temple', '/museum', '/login'];
+const QUIET = ['/medisland', '/temple', '/home', '/login'];
 const FX_COLORS = {
   tet: ['#ff9fb5', '#ffc2d1', '#ffd23f'],
   newyear: ['#ffd27a', '#9be7ff', '#ff9bd2', '#c6bfff'],

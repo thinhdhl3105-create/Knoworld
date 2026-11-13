@@ -16,7 +16,7 @@ const DISTRICT = {
   island: { name: "Thinh's Island", dot: '#ffd27a' },
   games: { name: 'Game Island', dot: '#5ee0a0' },
   temple: { name: 'Temple Isle', dot: '#ffb347' },
-  museum: { name: 'Museum Isle', dot: '#e9a8ff' },
+  museum: { name: 'Home Isle', dot: '#e9a8ff' },
   medisland: { name: 'Medisland', dot: '#ff8f6b' },
 };
 
@@ -40,7 +40,7 @@ export const PLACES = {
   island: { district: 'island', place: 'Harbour Office', hero: 'island' },
   games: { district: 'games', place: 'Harbour Arcade', hero: 'arcade' },
   temple: { district: 'temple', place: 'Knoworld Temple', hero: 'sign', label: 'Temple', accent: '#ffb347' },
-  museum: { district: 'museum', place: 'Knoworld Museum', hero: 'sign', label: 'Museum', accent: '#e9a8ff' },
+  museum: { district: 'museum', place: 'My Home', hero: 'house' },
   medisland: { district: 'medisland', place: 'Agency Hub', hero: 'sign', label: 'Medisland', accent: '#ff8f6b' },
   import: { district: 'admin', place: 'Library Annex', hero: 'sign', label: 'Import', accent: '#b7f07e' },
   metro: { district: 'main', place: 'Metro Ad Wall', hero: 'sign', label: 'Metro', accent: '#b388ff', back: null },

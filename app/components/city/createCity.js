@@ -189,8 +189,8 @@ export function createCity(root, opts = {}) {
     { id: 'temple', name: 'Temple Isle', cx: 28, cz: 58, n: 1, walk: '#5a5048', color: '#ffb347', size: 24,
       desc: 'A quiet temple island, reached by ferry from Game Island: tap the wooden fish for merit, buy incense at the gate, draw a fortune stick or ask Thầy Phán.' },
     // v40: đảo bảo tàng — giữa Main City và Temple Isle, nối cả hai bằng cầu.
-    { id: 'museum', name: 'Museum Isle', cx: 26, cz: 40, n: 1, walk: '#5a4e66', color: '#e9a8ff', size: 24,
-      desc: 'The museum island between Main City and Temple Isle, linked to both by bridges: galleries of classes, student programmes, milestones and photos, plus 10 hidden ducks a day.' },
+    { id: 'museum', name: 'Home Isle', cx: 26, cz: 40, n: 1, walk: '#5a4e66', color: '#e9a8ff', size: 24,
+      desc: "Thinh's home island between Main City and Temple Isle, linked to both by bridges: a house full of photos and achievements, plus 10 hidden ducks a day." },
     // v44: Medisland — đảo mô phỏng chiến dịch truyền thông (Media Strategy & Tactics), đảo riêng ở phía tây nam.
     { id: 'medisland', name: 'Medisland', cx: -24, cz: 50, n: 1, walk: '#4a5566', color: '#ff8f6b', size: 24,
       desc: 'The media island for Media Strategy & Tactics: each student agency gets its own island, a brand and four weeks to run TV, OOH, social, KOL, search and activation campaigns.' },
@@ -274,7 +274,7 @@ export function createCity(root, opts = {}) {
     scene.add(new THREE.LineSegments(g, cableMat));
   }
 
-  { // v40: Cầu Ký Ức (Main City -> Museum Isle) + cầu Museum Isle -> Temple Isle
+  { // v40: cầu Main City -> Home Isle (trước là Museum Isle) + cầu Home Isle -> Temple Isle
     const MU = ISL.find((I) => I.id === 'museum'), TE = ISL.find((I) => I.id === 'temple');
     if (MU) {
       bridgeDeck(MU.cx, M.half, MU.cx, MU.cz - MU.half);
@@ -566,8 +566,8 @@ export function createCity(root, opts = {}) {
       desc: 'The Lecture Hall keeps your teaching timetable, City Hall your meetings, the Lighthouse the dates you must not miss.' },
     { key: 'temple', city: 'temple', name: 'Knoworld Temple', route: '/temple', dot: '#ffb347', cx: 28, cz: 58,
       desc: 'Walk around the temple: tap the wooden fish for merit, buy incense at the gate stall, then draw a fortune stick or ask Thầy Phán.' },
-    { key: 'museum', city: 'museum', name: 'Knoworld Museum', route: '/museum', dot: '#e9a8ff', cx: 26, cz: 40,
-      desc: 'Walk through the galleries with everyone inside: classes, student programmes, milestones and photos. Earn exploration points and find the 10 hidden ducks.' },
+    { key: 'museum', city: 'museum', name: 'My Home', route: '/home', dot: '#e9a8ff', cx: 26, cz: 40,
+      desc: "Thinh's home: photos and achievements in every room. Knock if the door is locked, and find the 10 ducks hiding around the house." },
     { key: 'medisland', city: 'medisland', name: 'Medisland', route: '/medisland', dot: '#ff8f6b', cx: -24, cz: 50,
       desc: 'Your agency office, the brand client and four districts of customers. Plan, vote and lock a weekly media plan, then watch how the city reacts.' },
   ];
@@ -785,28 +785,27 @@ export function createCity(root, opts = {}) {
       b.top = Y0 + 6;
     },
     museum(b, g, cx, cz) {
-      // v40: bảo tàng kiểu đền cổ — bậc thềm, 6 cột, trán tường tam giác, biểu ngữ 4 phòng, đài phun nước
-      const mx = cx - 0.6, mz = cz - 1.2;
-      box(mx, Y0, mz, 8.6, 0.32, 6.0, '#cfc6b4', g);
-      box(mx, Y0 + 0.32, mz, 8.0, 0.3, 5.5, '#e0d8c6', g);
-      box(mx, Y0 + 0.62, mz - 0.45, 6.6, 2.8, 4.0, '#efe7d6', g);
-      neonBox(mx, Y0 + 0.62, mz + 1.57, 1.25, 1.75, 0.06, '#ffd27a', g, '#6a5030');
-      for (let i = 0; i < 6; i++) cyl(mx - 3.3 + i * 1.32, Y0 + 0.62, mz + 2.25, 0.21, 2.8, '#f6f1e6', g, 10);
-      [['#a99cff', -2.64], ['#5ee0a0', -1.32], ['#ffd27a', 1.32], ['#7ee8ff', 2.64]].forEach(([c, x]) => neonBox(mx + x, Y0 + 1.5, mz + 1.6, 0.55, 1.2, 0.05, c, g, c));
-      box(mx, Y0 + 3.42, mz, 8.0, 0.5, 5.5, '#e6dfd0', g);
-      sign('KNOWORLD MUSEUM', mx, Y0 + 3.67, mz + 2.76, 5.8, 0.4, 'z', g, { fg: '#5b4a3a', bg: '#efe7d6', day: '#ffffff' });
-      const sh = new THREE.Shape(); sh.moveTo(-4.05, 0); sh.lineTo(4.05, 0); sh.lineTo(0, 1.35); sh.closePath();
-      const ped = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 5.5, bevelEnabled: false }), mat('#e9e2d2'));
-      ped.position.set(mx, Y0 + 3.92, mz - 2.75); ped.castShadow = true; ped.receiveShadow = true; g.add(ped);
-      neonBox(mx, Y0 + 4.2, mz + 2.77, 0.8, 0.5, 0.05, '#e9a8ff', g, '#8a7a9a');
-      // đài phun nước + một em vịt
-      const fx = cx + 3.3, fz = cz + 1.9;
-      cyl(fx, Y0, fz, 1.0, 0.32, '#d6cfc0', g, 16);
-      const pool = new THREE.Mesh(new THREE.CylinderGeometry(0.82, 0.82, 0.06, 16), neonMat('#4fc3e0', '#3a9cc0')); pool.position.set(fx, Y0 + 0.33, fz); g.add(pool);
-      cyl(fx, Y0 + 0.3, fz, 0.14, 0.8, '#e6dfd0', g, 8);
-      box(fx + 0.45, Y0 + 0.36, fz + 0.3, 0.26, 0.2, 0.18, '#ffffff', g); box(fx + 0.58, Y0 + 0.5, fz + 0.3, 0.14, 0.14, 0.14, '#ffffff', g); box(fx + 0.7, Y0 + 0.52, fz + 0.3, 0.1, 0.05, 0.07, '#f08a1c', g);
+      // v51: My Home — nhà mái ngói đỏ, tường gạch, cửa sổ sáng đèn, hàng rào trắng, hộp thư, một em vịt
+      const hx = cx - 0.4, hz = cz - 1.0;
+      box(hx, Y0, hz, 8.4, 0.25, 6.2, '#9a8f79', g);
+      box(hx, Y0 + 0.25, hz, 7.6, 2.9, 5.4, '#d7a77c', g);
+      box(hx, Y0 + 0.25, hz + 2.71, 7.6, 0.3, 0.02, '#9a8f79', g);
+      const sh = new THREE.Shape(); sh.moveTo(-4.3, 0); sh.lineTo(4.3, 0); sh.lineTo(0, 2.4); sh.closePath();
+      const roof = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 6.0, bevelEnabled: false }), mat('#b5523b'));
+      roof.position.set(hx, Y0 + 3.15, hz - 3.0); roof.castShadow = true; roof.receiveShadow = true; g.add(roof);
+      box(hx + 2.1, Y0 + 3.5, hz - 1.0, 0.7, 2.1, 0.7, '#6b5a50', g);
+      box(hx, Y0 + 0.25, hz + 2.72, 1.1, 1.8, 0.08, '#8a5c36', g);
+      neonBox(hx + 0.38, Y0 + 1.1, hz + 2.78, 0.1, 0.1, 0.04, '#ffd27a', g, '#c99a3a');
+      neonBox(hx - 2.3, Y0 + 1.1, hz + 2.72, 1.3, 0.95, 0.06, '#ffe39a', g, '#9fd3f0');
+      neonBox(hx + 2.3, Y0 + 1.1, hz + 2.72, 1.3, 0.95, 0.06, '#ffe39a', g, '#9fd3f0');
+      sign('MY HOME', hx, Y0 + 2.55, hz + 2.76, 2.2, 0.38, 'z', g, { fg: '#5b4a3a', bg: '#f1e6d6', day: '#ffffff' });
+      for (let i = -6; i <= 6; i++) if (Math.abs(i) > 1) box(hx + i * 0.62, Y0, hz + 4.4, 0.12, 0.62, 0.12, '#ffffff', g);
+      box(hx - 2.48, Y0 + 0.42, hz + 4.4, 3.2, 0.08, 0.08, '#ffffff', g); box(hx + 2.48, Y0 + 0.42, hz + 4.4, 3.2, 0.08, 0.08, '#ffffff', g);
+      cyl(hx + 1.6, Y0, hz + 4.0, 0.06, 0.8, '#7a4e2c', g, 6); box(hx + 1.6, Y0 + 0.8, hz + 4.0, 0.36, 0.26, 0.26, '#c8553d', g);
+      const dx = cx + 3.4, dz = cz + 3.4;
+      box(dx, Y0, dz, 0.3, 0.22, 0.2, '#ffffff', g); box(dx + 0.14, Y0 + 0.18, dz, 0.16, 0.16, 0.16, '#ffffff', g); box(dx + 0.27, Y0 + 0.22, dz, 0.1, 0.05, 0.07, '#f08a1c', g);
       tree(cx - 4.7, cz + 3.4, g); tree(cx + 4.6, cz - 4.2, g); tree(cx - 4.6, cz - 4.4, g);
-      b.top = Y0 + 6.2;
+      b.top = Y0 + 6;
     },
     medisland(b, g, cx, cz) {
       // v44: thành phố truyền thông thu nhỏ — Agency Hub tím, 2 tháp có biển quảng cáo, đài truyền hình, cọ

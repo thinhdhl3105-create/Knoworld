@@ -31,7 +31,7 @@ export default function TemplePage() {
       save: saveTempleRemote,
       flush: flushTempleRemote,
       onExit: () => router.push('/games'),
-      onMuseum: () => router.push('/museum?from=temple'), // v40
+      onMuseum: () => router.push('/home?from=temple'), // v51: My Home
       me,
       online: (handlers) => { roomRef.current = connectTempleRoom(me, handlers); return roomRef.current; },
     });
