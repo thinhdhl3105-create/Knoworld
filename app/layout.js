@@ -10,6 +10,12 @@ import HolidayLayer from './components/holiday/HolidayLayer';
 export const metadata = {
   title: 'Knoworld — Explore knowledge like a universe',
   description: 'A celestial platform for scientific precision in knowledge discovery.',
+  applicationName: 'Knoworld',
+  appleWebApp: { capable: true, title: 'Knoworld', statusBarStyle: 'black-translucent' },
+};
+
+export const viewport = {
+  themeColor: '#0e0b1f',
 };
 
 export default function RootLayout({ children }) {
