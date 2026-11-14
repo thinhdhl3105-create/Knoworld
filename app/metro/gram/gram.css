@@ -1,0 +1,9 @@
+/* v52: MetroGram — khung iframe */
+.kwmg{display:flex;flex-direction:column;gap:8px}
+.kwmg-bar{display:flex;align-items:center;gap:10px;justify-content:space-between;font-size:12.5px;color:#c8c4d7}
+.kwmg-bar button{height:30px;padding:0 12px;border-radius:999px;border:1px solid #3a3842;background:rgba(42,41,50,.75);color:#e5e0ed;font:inherit;font-size:12.5px;cursor:pointer}
+.kwmg-bar button:hover{border-color:#ff8fb1}
+.kwmg-frame{width:100%;height:min(88vh,920px);min-height:600px;border:1px solid #2a3142;border-radius:18px;background:#0c0f16;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.kwmg.full{position:fixed;inset:0;z-index:1000;background:#0c0f16;padding:8px}
+.kwmg.full .kwmg-frame{flex:1;height:auto;min-height:0;border-radius:10px}
+@media (max-width:760px){.kwmg-bar span{display:none}.kwmg-frame{height:86vh;min-height:560px}}
