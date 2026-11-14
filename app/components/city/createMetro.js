@@ -13,6 +13,8 @@ export function createMetro(K) {
   const root = new THREE.Group();
   const levels = {}, pickables = [], stations = [], trains = [], blink = [], walkers = [];
   const adSlots = []; // v50: hộp đèn quảng cáo trên tường sau của mỗi ga
+  const mgFx = [];     // v53: hiệu ứng riêng của ga MetroGram (logo xoay, cột sáng nhấp nháy)
+  const MGP = '#ff4fa3', MGV = '#a66bff', MGC = '#5ef0ff'; // neon MetroGram: hồng, tím, xanh
   const sleeperG = new THREE.BoxGeometry(1, 1, 1);
 
   const tag = (g, key) => g.traverse((o) => { if (o.isMesh) { o.userData.key = key; pickables.push(o); } });
@@ -155,21 +157,23 @@ export function createMetro(K) {
   }
   function hall(st, line, y, alongX, g, ceil) {
     const [px, pz] = st.at;
+    const MG = st.feature === 'metrogram';
     const P = (t, o) => (alongX ? [px + t, pz + o] : [px + o, pz + t]);
     const B = (t, o, len, w, h, yy, c, opt) => { const [x, z] = P(t, o); return box(x, yy, z, alongX ? len : w, h, alongX ? w : len, c, g, opt); };
-    B(0, 0, ST_LEN, ST_HALF_W * 2, 0.1, y, '#57535e', { shadow: false });
+    B(0, 0, ST_LEN, ST_HALF_W * 2, 0.1, y, MG ? '#2a1838' : '#57535e', { shadow: false });
     for (const s of [-1, 1]) {
-      B(0, s * 2.9, ST_LEN, 2.7, 0.72, y, '#ddd6ca');                        // sân ga
+      B(0, s * 2.9, ST_LEN, 2.7, 0.72, y, MG ? '#3b2550' : '#ddd6ca');       // sân ga
       B(0, s * 1.62, ST_LEN, 0.18, 0.02, y + 0.72, '#ffd24d', { shadow: false }); // vạch vàng
-      for (const t of [-5, 0, 5]) { const [x, z] = P(t, s * 3.6); cyl(x, y + 0.72, z, 0.2, s < 0 ? 2.7 : 0.9, '#c9c2d2', g, 8); }
+      for (const t of [-5, 0, 5]) { const [x, z] = P(t, s * 3.6); cyl(x, y + 0.72, z, 0.2, s < 0 ? 2.7 : 0.9, MG ? neonMat(t === 0 ? MGV : MGP, '#c78bb0') : '#c9c2d2', g, 8); }
       for (const t of [-3, 3]) B(t, s * 3.5, 1.4, 0.4, 0.35, y + 0.72, '#8a6a4c');   // ghế
     }
-    B(0, -ST_HALF_W, ST_LEN, 0.3, 3.4, y, '#e8e2d6');                          // tường sau (xa camera)
-    B(0, -ST_HALF_W + 0.17, ST_LEN, 0.04, 0.1, y + 3.28, neonMat(line.color, '#6a6478'), { shadow: false });
-    B(0, ST_HALF_W, ST_LEN, 0.3, 0.95, y, '#cfc9be');                          // lan can phía camera
+    B(0, -ST_HALF_W, ST_LEN, 0.3, 3.4, y, MG ? '#1c1226' : '#e8e2d6');          // tường sau (xa camera)
+    B(0, -ST_HALF_W + 0.17, ST_LEN, 0.04, 0.1, y + 3.28, neonMat(MG ? MGP : line.color, '#6a6478'), { shadow: false });
+    B(0, ST_HALF_W, ST_LEN, 0.3, 0.95, y, MG ? '#2c1d3c' : '#cfc9be');         // lan can phía camera
     // biển tên ga
     const [sx, sz] = P(-1.4, -ST_HALF_W + 0.17);
-    sign(st.name.toUpperCase(), sx, y + 2.8, sz, 7.2, 0.86, alongX ? 'z' : 'x', g, { fg: '#ffffff', bg: '#15121c', border: line.color, day: '#ece7f2' });
+    if (!MG) sign(st.name.toUpperCase(), sx, y + 2.8, sz, 7.2, 0.86, alongX ? 'z' : 'x', g, { fg: '#ffffff', bg: '#15121c', border: line.color, day: '#ece7f2' });
+    else metroGramDecor(st, line, y, alongX, g, ceil, P, B);
     // v50: Metro Ad Wall — 2 hộp đèn poster giữa các cột, nội dung xoay vòng (admin quản lý ở /metro/ads)
     for (const t of [-2.5, 2.5]) {
       const [fx, fz] = P(t, -ST_HALF_W + 0.16);
@@ -190,7 +194,7 @@ export function createMetro(K) {
     const [ex, ez] = P(-ST_LEN / 2 + 0.6, -3.4);
     const SH = Math.max(9, ceil - y); // v49: giếng sáng nối thẳng lên tầng trên
     const shaft = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 1.4 : 1.6, SH, alongX ? 1.6 : 1.4),
-      new THREE.MeshBasicMaterial({ color: line.color, transparent: true, opacity: 0.16, depthWrite: false }));
+      new THREE.MeshBasicMaterial({ color: MG ? MGP : line.color, transparent: true, opacity: 0.16, depthWrite: false }));
     shaft.position.set(ex, y + SH / 2, ez); g.add(shaft);
     const cap = neonBox(ex, y + 3.4, ez, alongX ? 1.5 : 1.7, 0.08, alongX ? 1.7 : 1.5, line.color, g, '#6a6478');
     blink.push(cap);
@@ -201,9 +205,73 @@ export function createMetro(K) {
     }
   }
 
+  // ---------- v53: ga MetroGram — neon hồng/tím/xanh, biển chữ lớn, logo xoay, cột sáng lên thành phố ----------
+  function mgTex(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t; }
+  const mgLogoTex = mgTex(256, 256, (x, w, h) => {
+    const gr = x.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#ff6fa8'); gr.addColorStop(0.55, '#a66bff'); gr.addColorStop(1, '#5ec8ff');
+    x.fillStyle = gr; x.beginPath(); x.roundRect(8, 8, w - 16, h - 16, 56); x.fill();
+    // trái tim + hai thanh ray: biểu tượng riêng của MetroGram
+    x.fillStyle = '#ffffff'; x.beginPath(); x.moveTo(128, 186);
+    x.bezierCurveTo(60, 140, 52, 92, 86, 72); x.bezierCurveTo(108, 60, 124, 74, 128, 90);
+    x.bezierCurveTo(132, 74, 148, 60, 170, 72); x.bezierCurveTo(204, 92, 196, 140, 128, 186); x.fill();
+    x.fillRect(66, 204, 124, 9); x.fillRect(66, 222, 124, 9);
+  });
+  const mgWordTex = (sub) => mgTex(1024, 220, (x, w, h) => {
+    x.fillStyle = '#0d0714'; x.fillRect(0, 0, w, h);
+    const gr = x.createLinearGradient(0, 0, w, 0); gr.addColorStop(0, '#ff4fa3'); gr.addColorStop(0.5, '#b07bff'); gr.addColorStop(1, '#5ef0ff');
+    x.strokeStyle = gr; x.lineWidth = 12; x.strokeRect(6, 6, w - 12, h - 12);
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = '800 118px "Space Grotesk", Inter, sans-serif'; x.shadowColor = '#ff4fa3'; x.shadowBlur = 24; x.fillStyle = gr; x.fillText('METROGRAM', w / 2, sub ? h * 0.42 : h / 2 + 4);
+    if (sub) { x.shadowBlur = 0; x.font = '600 34px Inter, sans-serif'; x.fillStyle = '#f3e9ff'; x.fillText(sub, w / 2, h * 0.82); }
+  });
+  function metroGramDecor(st, line, y, alongX, g, ceil, P, B) {
+    const face = alongX ? 'z' : 'x';
+    // biển chữ METROGRAM lớn trên tường sau + dòng tên ga
+    const [sx, sz] = P(-1.2, -ST_HALF_W + 0.18);
+    const wm = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 1.63), new THREE.MeshBasicMaterial({ map: mgWordTex('MAIN CITY CENTRAL · B1'), transparent: true }));
+    wm.position.set(sx, y + 2.72, sz); if (!alongX) wm.rotation.y = Math.PI / 2; g.add(wm);
+    // dải neon 3 màu chạy dọc tường, lan can và mép sân ga (khác hẳn các ga khác)
+    [[MGP, 3.05], [MGV, 2.0], [MGC, 0.62]].forEach(([c, hy]) => B(0, -ST_HALF_W + 0.17, ST_LEN, 0.05, 0.07, y + hy, neonMat(c, '#8a6a90'), { shadow: false }));
+    B(0, ST_HALF_W - 0.16, ST_LEN, 0.06, 0.08, y + 0.95, neonMat(MGP, '#8a6a90'), { shadow: false });
+    for (const s of [-1, 1]) B(0, s * 1.56, ST_LEN, 0.08, 0.03, y + 0.73, neonMat(s < 0 ? MGC : MGV, '#8a6a90'), { shadow: false });
+    // khung cổng neon hai đầu sảnh
+    for (const t of [-ST_LEN / 2 + 0.2, ST_LEN / 2 - 0.2]) {
+      B(t, -ST_HALF_W + 0.3, 0.14, 0.14, 3.4, y, neonMat(MGP, '#8a6a90'), { shadow: false });
+      B(t, ST_HALF_W - 0.3, 0.14, 0.14, 1.6, y, neonMat(MGV, '#8a6a90'), { shadow: false });
+    }
+    // logo MetroGram nổi trên mái ga, xoay chậm
+    const [lx, lz] = P(0, -1.2);
+    const logo = new THREE.Group();
+    const lm = new THREE.MeshBasicMaterial({ map: mgLogoTex, transparent: true, side: THREE.DoubleSide });
+    const plate = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), lm); logo.add(plate);
+    logo.position.set(lx, y + 5.4, lz); g.add(logo);
+    // cột sáng hồng xuyên lên tầng trên — nhìn từ Skyline cũng thấy ga MetroGram
+    const H = Math.max(10, ceil - y + 4);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.6, H, 24, 1, true),
+      new THREE.MeshBasicMaterial({ color: MGP, transparent: true, opacity: 0.13, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+    beam.position.set(lx, y + H / 2, lz); g.add(beam);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.8, 0.07, 8, 40), neonMat(MGC, '#8a6a90'));
+    ring.rotation.x = Math.PI / 2; ring.position.set(lx, y + 0.15, lz); g.add(ring);
+    // vòng sàn sáng ở giữa sảnh
+    mgFx.push({ logo, beam, ring, y0: y + 5.4 });
+    void face; void st; void line;
+  }
+
   // ---------- train cars ----------
-  function trainCar(color, head) {
+  function trainCar(color, head, mg) {
     const g = new THREE.Group();
+    if (mg) { // v53: toa MetroGram — thân tím đậm, neon hồng/xanh, chữ METROGRAM hai bên
+      box(0, 0.22, 0, 2.75, 1.12, 1.15, '#2a1838', g, { shadow: false });
+      box(0, 1.34, 0, 2.55, 0.1, 0.95, '#4a2f63', g, { shadow: false });
+      for (const s of [-1, 1]) {
+        neonBox(0, 0.3, s * 0.585, 2.75, 0.08, 0.02, MGP, g, '#a0607f');
+        neonBox(0, 1.27, s * 0.585, 2.75, 0.06, 0.02, MGC, g, '#5f8a90');
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(2.55, 0.55), new THREE.MeshBasicMaterial({ map: mgCarTex, transparent: true }));
+        m.position.set(0, 0.78, s * 0.59); if (s < 0) m.rotation.y = Math.PI; g.add(m);
+      }
+      neonBox(0, 1.42, 0, 0.5, 0.08, 0.5, MGP, g, '#a0607f');
+      return g;
+    }
     box(0, 0.22, 0, 2.75, 1.12, 1.15, '#e9e7ee', g, { shadow: false });
     box(0, 1.34, 0, 2.55, 0.1, 0.95, '#bdbac6', g, { shadow: false });
     for (const s of [-1, 1]) {
@@ -216,6 +284,12 @@ export function createMetro(K) {
     }
     return g;
   }
+
+  const mgCarTex = mgTex(512, 110, (x, w, h) => {
+    const gr = x.createLinearGradient(0, 0, w, 0); gr.addColorStop(0, '#ff4fa3'); gr.addColorStop(0.5, '#a66bff'); gr.addColorStop(1, '#5ec8ff');
+    x.fillStyle = gr; x.beginPath(); x.roundRect(2, 2, w - 4, h - 4, 24); x.fill();
+    x.fillStyle = '#ffffff'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = '800 62px "Space Grotesk", Inter, sans-serif'; x.fillText('METROGRAM', w / 2, h / 2 + 3);
+  });
 
   // ---------- lines ----------
   for (const line of METRO_LINES) {
@@ -249,7 +323,11 @@ export function createMetro(K) {
     // tàu
     for (let k = 0; k < line.trains; k++) {
       const cars = [];
-      for (let i = 0; i < 4; i++) { const c = trainCar(line.color, i === 0); g.add(c); cars.push(c); }
+      for (let i = 0; i < 4; i++) {
+        const mg = line.level === 'b1' && i === 2; // v53: toa thứ 3 của mỗi đoàn tàu B1 là toa MetroGram (bấm vào mở MetroGram)
+        const c = trainCar(line.color, i === 0, mg); g.add(c); cars.push(c);
+        if (mg) tag(c, 'metro:b1-main');
+      }
       trains.push({ cars, path, stops, y, s: (path.L / line.trains) * k + 2, dwell: 0, vmax: line.id === 'l3' ? 11 : 7 });
     }
   }
@@ -344,6 +422,11 @@ export function createMetro(K) {
       T.cars.forEach((c, i) => placeCar(c, path.at(T.s - i * CAR - CAR / 2), T.y));
     }
     for (const b of blink) b.visible = Math.sin(t * 3) > -0.6;
+    for (const f of mgFx) { // v53: logo MetroGram xoay + nhún, cột sáng thở
+      f.logo.rotation.y = t * 0.8; f.logo.position.y = f.y0 + Math.sin(t * 1.6) * 0.25;
+      f.beam.material.opacity = 0.1 + 0.06 * (0.5 + 0.5 * Math.sin(t * 2.2));
+      f.ring.scale.setScalar(1 + 0.08 * Math.sin(t * 3));
+    }
     adClock += dt;
     if (ads.length > 1 && adClock > adEvery) { adClock = 0; adCycle++; for (const s of adSlots) s.shown = -2; }
     { let n = 0; for (const s of adSlots) if (s.shown === -2 && n < 4) { drawSlot(s); s.shown = 0; n++; } } // vẽ dần vài hộp mỗi khung hình

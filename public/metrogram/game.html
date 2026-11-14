@@ -785,7 +785,7 @@ function draw(now){
   ctx.fillStyle=lg(sx,0,sx+sw,0,[[0,'#ff6fa3'],[.55,'#b388ff'],[1,'#6fd6ff']]);ctx.fillRect(sx,sy,sw,15);
   ctx.restore();
   ctx.fillStyle='#fff';ctx.font=f_(700,8);ctx.fillText('MetroGram',sx+20,sy+7.8);
-  ctx.strokeStyle='#fff';ctx.lineWidth=1.2;rr(sx+8,sy+3.4,8,8,2.5);ctx.stroke();ctx.beginPath();ctx.arc(sx+12,sy+7.4,1.8,0,7);ctx.stroke();
+  ctx.fillStyle='#fff';heartPath(sx+12,sy+3.6,8);ctx.fill();
   drawScreenBody(sx,sy,sw,now);
   // ===== sàn đá mài
   ctx.fillStyle=lg(0,90,0,262,[[0,'#2c3242'],[1,'#222736']]);ctx.fillRect(0,90,W,172);
