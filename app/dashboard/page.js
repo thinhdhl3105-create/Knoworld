@@ -13,6 +13,7 @@ import { fetchViewStats } from '@/lib/views';
 import { fetchHeartMap } from '@/lib/hearts';
 import CityPage from '../components/city/CityPage';
 import ClassStats from '../components/ClassStats';
+import ActivityCharts from '../components/ActivityCharts';
 import { useAuth } from '../components/AuthProvider';
 
 const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
@@ -207,6 +208,9 @@ function DashboardInner() {
 
           {/* v43: Classes by school (chỉ admin) */}
           {isAdmin && <ClassStats showIslandLink />}
+
+          {/* v55: Activity over time (chỉ admin) */}
+          {isAdmin && <ActivityCharts />}
 
           {/* v22: Most viewed */}
           <section className="mb-6">
