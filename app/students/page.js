@@ -1,6 +1,7 @@
 'use client';
 
 // v16: hearts on student case studies
+// v57: cards restyled to match Image Case Studies
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { fetchContent } from '@/lib/content';
@@ -93,27 +94,34 @@ export default function StudentsPage() {
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10 pt-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map((item, i) => {
               const authors = Array.isArray(item.authors) ? item.authors.filter((a) => a && a.name).map((a) => a.name) : [];
+              const count = Array.isArray(item.images) ? item.images.length : 0;
               return (
-                <div key={item.id} className="kw-exhibit">
-                  <Link href={`/students/${item.id}`} className="group block">
-                    <div className="kw-frame transition-transform group-hover:-translate-y-0.5">
-                      <div className={`relative aspect-[4/3] overflow-hidden rounded-[2px] bg-gradient-to-br ${FRAME_GRADS[i % FRAME_GRADS.length]}`}>
-                        {item.cover_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={item.cover_url} alt={item.title} className="absolute inset-0 w-full h-full object-cover" />
-                        ) : (
-                          <span className="absolute inset-0 grid place-items-center material-symbols-outlined text-5xl text-white/40">auto_awesome</span>
-                        )}
-                      </div>
+                <div key={item.id} className="group glass-card pulse-hover rounded-card overflow-hidden relative">
+                  <Link href={`/students/${item.id}`} className="flex flex-col h-full text-left">
+                    <div className={`relative aspect-[16/10] bg-gradient-to-br ${FRAME_GRADS[i % FRAME_GRADS.length]} overflow-hidden`}>
+                      {item.cover_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.cover_url} alt={item.title} className="absolute inset-0 w-full h-full object-cover" />
+                      ) : (
+                        <span className="absolute inset-0 grid place-items-center material-symbols-outlined text-5xl text-white/40">auto_awesome</span>
+                      )}
+                      {count > 1 && (
+                        <span className="absolute top-3 left-3 inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full bg-background/70 backdrop-blur text-secondary">
+                          <span className="material-symbols-outlined text-sm">photo_library</span> {count}
+                        </span>
+                      )}
                     </div>
-                    <div className="kw-plaque">
-                      <span className="font-display text-[14px] font-semibold leading-snug line-clamp-2">{item.title}</span>
-                      <span className="text-[11.5px] text-[#4b445c] line-clamp-1">
-                        {[item.category, authors.join(', ')].filter(Boolean).join(' · ') || 'Student work'}
-                      </span>
+                    <div className="p-5 flex flex-col gap-2 flex-1">
+                      <span className="label-sm text-secondary">{item.category || 'Student work'}</span>
+                      <h3 className="font-display text-base font-medium leading-snug group-hover:text-primary transition-colors line-clamp-1">{item.title}</h3>
+                      {authors.length > 0 && (
+                        <span className="inline-flex items-center gap-1 text-xs text-secondary line-clamp-1">
+                          <span className="material-symbols-outlined text-sm">group</span> {authors.join(', ')}
+                        </span>
+                      )}
                     </div>
                   </Link>
                   <HeartButton
@@ -121,7 +129,7 @@ export default function StudentsPage() {
                     id={item.id}
                     data={hearts[item.id]}
                     size="sm"
-                    className="absolute top-[42px] right-4 z-10 bg-background/70 backdrop-blur-sm"
+                    className="absolute top-3 right-3 z-10 bg-background/70 backdrop-blur-sm"
                   />
                 </div>
               );
