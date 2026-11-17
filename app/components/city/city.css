@@ -77,9 +77,20 @@
 .kwc-card .list { display: flex; flex-wrap: wrap; gap: 6px; }
 .kwc-card .list button { flex: none; }
 
-.kwc .lbl { position: absolute; transform: translate(-50%, -100%); white-space: nowrap; opacity: 0; font: 600 11px/1 Inter, sans-serif; padding: 5px 8px; border-radius: 999px; background: var(--kwc-accent); color: var(--kwc-ink); transition: opacity .15s; }
+.kwc .lbl { position: absolute; transform: translate(-50%, -100%); white-space: nowrap; opacity: 0; font: 600 10.5px/1 Inter, sans-serif; padding: 4px 8px; border-radius: 999px; background: rgba(198,191,255,0.92); color: var(--kwc-ink); box-shadow: 0 3px 10px rgba(0,0,0,.25); transition: opacity .15s; }
 .kwc .lbl.on { opacity: 1; }
-.kwc .clbl { position: absolute; transform: translate(-50%, 12px); pointer-events: auto; background: var(--kwc-panel); backdrop-filter: blur(8px); font-size: 12.5px; padding: 7px 12px; }
+/* v56: island labels — compact chips; overlapping ones collapse to a dot and expand on hover */
+.kwc .clbl { position: absolute; transform: translate(-50%, 10px); pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  background: rgba(19, 17, 28, 0.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font-size: 11.5px; font-weight: 600;
+  padding: 5px 10px 5px 8px; border-color: rgba(255,255,255,0.09); box-shadow: 0 4px 14px rgba(0,0,0,.25); transition: opacity .2s; }
+.kwc .clbl .dot { width: 7px; height: 7px; box-shadow: 0 0 0 2px rgba(255,255,255,0.08); }
+.kwc .clbl .lk { font-size: 12px; line-height: 1; color: var(--kwc-warm); margin-left: -2px; }
+.kwc .clbl.mini { padding: 6px; gap: 0; }
+.kwc .clbl.mini .nm, .kwc .clbl.mini .lk { display: none; }
+.kwc .clbl.mini .dot { width: 9px; height: 9px; }
+.kwc .clbl.mini:hover, .kwc .clbl.mini:focus-visible { padding: 5px 10px 5px 8px; gap: 6px; z-index: 4; }
+.kwc .clbl.mini:hover .nm, .kwc .clbl.mini:focus-visible .nm, .kwc .clbl.mini:hover .lk, .kwc .clbl.mini:focus-visible .lk { display: inline; }
+.kwc .clbl.gone { opacity: 0; pointer-events: none; }
 .kwc-tip { position: absolute; pointer-events: none; padding: 7px 10px; font-size: 12px; border-radius: 10px; z-index: 5; }
 .kwc-tip b { font-family: 'Space Grotesk', sans-serif; }
 .kwc-tip span { color: var(--kwc-muted); }

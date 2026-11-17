@@ -990,7 +990,14 @@ export function createCity(root, opts = {}) {
     board(b, g);
     b.group = g; byKey[b.key] = b; used.add(b.cx + ',' + b.cz);
     g.traverse((o) => { if (o.isMesh) { o.userData.key = b.key; pickables.push(o); } });
-    const helper = new THREE.BoxHelper(g, '#c6bfff'); helper.visible = false; scene.add(helper); b.helper = helper;
+    // v56: khung hover ôm sát công trình (trước đây BoxHelper ôm cả nền đảo/bảng hiệu nên khung bị to).
+    const bb = new THREE.Box3().setFromObject(g);
+    const R = 4.6;
+    bb.min.x = Math.max(bb.min.x, b.cx - R); bb.max.x = Math.min(bb.max.x, b.cx + R);
+    bb.min.z = Math.max(bb.min.z, b.cz - R); bb.max.z = Math.min(bb.max.z, b.cz + R);
+    bb.min.y = Math.max(bb.min.y, Y0); if (b.top) bb.max.y = Math.min(bb.max.y, b.top + 0.2);
+    if (bb.isEmpty()) bb.set(new THREE.Vector3(b.cx - 2, Y0, b.cz - 2), new THREE.Vector3(b.cx + 2, (b.top || Y0 + 4), b.cz + 2));
+    const helper = new THREE.Box3Helper(bb, new THREE.Color('#c6bfff')); helper.visible = false; scene.add(helper); b.helper = helper;
     if (b.key === 'island' || b.key === 'games' || b.key === 'temple' || b.key === 'museum' || b.key === 'medisland') continue; // đảo: chỉ có các công trình của đảo
     filler(b.cx - 4.2, b.cz - 4.2, b.key === 'hub' ? 11 : 9);
     filler(b.cx + 4.2, b.cz - 4.2, 7);
@@ -1361,14 +1368,44 @@ export function createCity(root, opts = {}) {
   const v3 = new THREE.Vector3();
   for (const I of ISL) {
     const l = document.createElement('button'); l.type = 'button'; l.className = 'clbl';
-    l.innerHTML = `<span class="dot" style="background:${I.color}"></span>${I.name}${I.lock ? ' 🔒' : ''}`;
+    // v56: nhãn gọn — chấm màu + tên; đảo khoá có icon khoá nhỏ. Nhãn nào đè nhau thì thu về chấm, rê chuột mới hiện tên.
+    l.innerHTML = `<span class="dot" style="background:${I.color}"></span><span class="nm">${I.name}</span>${I.lock ? '<span class="lk material-symbols-outlined" aria-hidden="true">lock</span>' : ''}`;
+    l.title = I.name; l.setAttribute('aria-label', I.name);
     l.addEventListener('click', () => selectCity(I.id)); labelsEl.appendChild(l); I.lbl = l;
   }
+  // Ưu tiên giữ tên đầy đủ cho đảo lớn; đảo nhỏ đè lên nhau thì chỉ còn chấm màu.
+  const LBL_ORDER = [...ISL].sort((a, b) => (b.size || 0) - (a.size || 0));
+  let lblW = null;
+  const remeasure = () => { lblW = null; };
+  window.addEventListener('resize', remeasure);
+  const remeasureT = setTimeout(remeasure, 1200); // sau khi font tải xong
+  cleanups.push(() => { window.removeEventListener('resize', remeasure); clearTimeout(remeasureT); });
+  function measureCityLabels() {
+    for (const I of ISL) I.lbl.classList.remove('mini', 'gone');
+    const m = new Map();
+    for (const I of ISL) m.set(I, I.lbl.offsetWidth);
+    if ([...m.values()].some((w) => !w)) return; // nhãn đang ẩn (dưới lòng đất)
+    lblW = m;
+  }
   function placeCityLabels() {
-    for (const I of ISL) {
+    if (!lblW) measureCityLabels();
+    const placed = [];
+    const hit2 = (r) => placed.some((q) => r.l < q.r + 4 && r.r > q.l - 4 && r.t < q.b + 3 && r.b > q.t - 3);
+    for (const I of LBL_ORDER) {
       v3.set(I.cx + I.half, -1.4, I.cz + I.half).project(camera);
-      I.lbl.style.left = ((v3.x + 1) / 2 * RW()) + 'px';
-      I.lbl.style.top = ((1 - v3.y) / 2 * RH()) + 'px';
+      const x = (v3.x + 1) / 2 * RW(), y = (1 - v3.y) / 2 * RH();
+      I.lbl.style.left = x + 'px';
+      I.lbl.style.top = y + 'px';
+      if (!lblW) continue;
+      const w = lblW.get(I) || 90, t = y + 10, h = 24;
+      const full = { l: x - w / 2, r: x + w / 2, t, b: t + h };
+      const dot = { l: x - 11, r: x + 11, t, b: t + 22 };
+      const keep = selectedCity === I.id || I.lbl.matches(':hover');
+      let mode = '';
+      if (!keep && hit2(full)) mode = hit2(dot) ? 'gone' : 'mini';
+      I.lbl.classList.toggle('mini', mode === 'mini');
+      I.lbl.classList.toggle('gone', mode === 'gone');
+      if (mode !== 'gone') placed.push(mode === 'mini' ? dot : full);
     }
   }
   function placeLabels() {
