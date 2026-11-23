@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { recordDailyVisit, earnedBadges, toast } from '@/lib/engagement';
-import { hasRegistered } from '@/lib/visitor';
 import CommandPalette from './CommandPalette';
+import Onboarding from './onboarding/Onboarding';
 import useProgress from './useProgress';
 
 // v24: Lớp tương tác toàn cục — ghi "đã ghé hôm nay", toast, Ctrl+K,
-// tour cho người mới, thông báo mở khoá huy hiệu, thanh điều hướng dưới (mobile).
+// hướng dẫn người mới cùng Lumi (v58), thông báo mở khoá huy hiệu, thanh điều hướng dưới (mobile).
 const SKIP = ['/login', '/admin', '/upload'];
 
 function Toaster() {
@@ -61,61 +61,12 @@ function BadgeWatcher() {
   return null;
 }
 
-const TOUR = [
-  { icon: 'hub', title: 'Explore the constellation', text: 'The Knowledge Hub is a living map. Hover a concept to light up its connections, scroll to zoom, and fly to any idea with the search box.' },
-  { icon: 'psychology', title: 'Think first, then reveal', text: 'Student case studies let you pause and form your own idea before revealing the insight. React with 💡 🤔 🔥 to what moves you.' },
-  { icon: 'local_fire_department', title: 'Grow your journey', text: 'Every concept and case you open builds your streak and unlocks discovery badges — no tests, just curiosity. Press Ctrl + K anytime to search.' },
-];
-
-function OnboardingTour() {
-  const [step, setStep] = useState(-1);
-  useEffect(() => {
-    let done = false;
-    try { done = localStorage.getItem('kw_tour_done') === '1'; } catch { /* ignore */ }
-    if (done) return;
-    // Chờ người dùng qua cổng đăng ký rồi mới chào.
-    const t = setInterval(() => {
-      if (hasRegistered()) { clearInterval(t); setTimeout(() => setStep(0), 1200); }
-    }, 1000);
-    return () => clearInterval(t);
-  }, []);
-  const finish = () => { setStep(-1); try { localStorage.setItem('kw_tour_done', '1'); } catch { /* ignore */ } };
-  if (step < 0) return null;
-  const s = TOUR[step];
-  return (
-    <div className="fixed inset-x-4 bottom-20 md:bottom-6 md:left-6 md:right-auto md:w-[380px] z-[70] glass-card rounded-xl p-5 shadow-2xl shadow-black/50 kw-rise" role="dialog" aria-label="Welcome tour">
-      <div className="flex items-start gap-3">
-        <span className="w-10 h-10 shrink-0 rounded-full bg-primary/15 grid place-items-center">
-          <span className="material-symbols-outlined text-primary">{s.icon}</span>
-        </span>
-        <div className="flex-1">
-          <p className="label-sm text-secondary mb-1">Welcome · {step + 1}/{TOUR.length}</p>
-          <h3 className="font-display text-lg font-medium mb-1">{s.title}</h3>
-          <p className="text-sm text-on-surface-variant leading-relaxed">{s.text}</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 mt-4">
-        <div className="flex gap-1.5">
-          {TOUR.map((_, i) => <span key={i} className={`h-1.5 rounded-full transition-all ${i === step ? 'w-5 bg-primary' : 'w-1.5 bg-white/20'}`} />)}
-        </div>
-        <button onClick={finish} className="ml-auto text-xs text-on-surface-variant hover:text-primary px-2">Skip</button>
-        <button
-          onClick={() => (step < TOUR.length - 1 ? setStep(step + 1) : finish())}
-          className="bg-primary text-on-primary px-4 py-2 rounded-lg text-sm font-bold hover:scale-95 transition-transform"
-        >
-          {step < TOUR.length - 1 ? 'Next' : "Let's explore"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 const BOTTOM = [
   { href: '/', icon: 'home', label: 'Home' },
-  { href: '/knowledge-hub', icon: 'hub', label: 'Hub' },
-  { href: '/students', icon: 'cases', label: 'Cases', match: ['/students', '/videos', '/images'] },
+  { href: '/knowledge-hub', icon: 'hub', label: 'Hub', tour: 'knowledge-hub' },
+  { href: '/students', icon: 'cases', label: 'Cases', match: ['/students', '/videos', '/images'], tour: 'case-studies' },
   { href: '/discussion', icon: 'forum', label: 'Discuss' },
-  { href: '/journey', icon: 'local_fire_department', label: 'Journey' },
+  { href: '/journey', icon: 'local_fire_department', label: 'Journey', tour: 'journey' },
 ];
 
 function MobileBottomNav() {
@@ -126,7 +77,7 @@ function MobileBottomNav() {
         {BOTTOM.map((b) => {
           const active = b.href === '/' ? pathname === '/' : (b.match || [b.href]).some((m) => pathname.startsWith(m));
           return (
-            <Link key={b.href} href={b.href} className={`flex flex-col items-center gap-0.5 py-2 text-[10px] ${active ? 'text-primary' : 'text-on-surface-variant'}`}>
+            <Link key={b.href} href={b.href} data-tour={b.tour} className={`flex flex-col items-center gap-0.5 py-2 text-[10px] ${active ? 'text-primary' : 'text-on-surface-variant'}`}>
               <span className="material-symbols-outlined text-[22px]" style={active ? { fontVariationSettings: "'FILL' 1" } : undefined}>{b.icon}</span>
               {b.label}
             </Link>
@@ -162,7 +113,8 @@ export default function EngagementLayer() {
       <CommandPalette />
       <RevealOnScroll />
       {!skip && <BadgeWatcher />}
-      {!skip && <OnboardingTour />}
+      {/* v58: tour cũ 3 thẻ (OnboardingTour) được thay bằng hướng dẫn cùng Lumi */}
+      {!skip && <Onboarding />}
       {!pathname.startsWith('/admin') && <MobileBottomNav />}
     </>
   );

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { earnedBadges, journeyStages } from '@/lib/engagement';
 import CityPage from '../components/city/CityPage';
 import useProgress from '../components/useProgress';
+import { OnboardingReplay } from '../components/onboarding/Onboarding';
 
 // v24: "My Journey" — streak, lịch hoạt động 12 tuần, huy hiệu khám phá.
 // Gắn với trình duyệt này (không cần đăng nhập). Không có điểm số hay bài kiểm tra.
@@ -80,6 +81,9 @@ export default function JourneyPage() {
       {!progress.available && (
         <p className="mb-6 text-sm text-secondary">Journey tracking is warming up — check back in a moment.</p>
       )}
+
+      {/* v58: xem lại hướng dẫn cùng Lumi */}
+      <div className="mb-6"><OnboardingReplay /></div>
 
       {/* Streak + calendar */}
       <section className="grid lg:grid-cols-3 gap-5 mb-10">

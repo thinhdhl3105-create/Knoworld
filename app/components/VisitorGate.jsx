@@ -19,6 +19,7 @@ import { getSavedAvatar, saveAvatar, randomAvatar, VIEW_BUST } from '@/lib/citiz
 import { AvatarCreator, AvatarFigure, AvatarPrompt } from './CitizenAvatar';
 import { useAuth } from './AuthProvider';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
+import { startOnboardingForNewCitizen } from '@/lib/onboarding';
 import './gate.css';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -344,7 +345,7 @@ export default function VisitorGate() {
               Your {permit.title} <b>{number}</b> has been issued. Every building in the city is now open
               {issuedRole === 'stranger' ? ' for your tour.' : ' to you.'}
             </p>
-            <button type="button" className="kwg-submit" style={{ '--c': permit.color }} onClick={() => setRegistered(true)}>
+            <button type="button" className="kwg-submit" style={{ '--c': permit.color }} onClick={() => { setRegistered(true); startOnboardingForNewCitizen(); }}>
               Enter the city <span className="material-symbols-outlined" aria-hidden="true">location_city</span>
             </button>
           </div>

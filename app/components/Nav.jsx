@@ -57,6 +57,7 @@ function CityStats({ progress, streak, explorers, compact = false }) {
   return (
     <Link
       href="/journey"
+      data-tour="journey"
       className="kw-pill kw-stats"
       title={`${showStreak ? `${streak.current}-day streak (best ${streak.best}) · ` : ''}${explorers ?? '–'} explorers have joined Knoworld`}
     >
@@ -195,7 +196,7 @@ export default function Nav() {
                 const groupActive = l.children.some((c) => pathname === c.href);
                 return (
                   <div key={l.group} className="relative">
-                    <button type="button" onClick={() => toggle(l.group)} aria-expanded={isOpen}
+                    <button type="button" onClick={() => toggle(l.group)} aria-expanded={isOpen} data-tour={l.group}
                       className={`kw-pill ${groupActive ? 'is-on' : ''}`}>
                       <Dot c={l.dot} />{l.label}{l.lock ? ' 🔒' : ''}
                       <span className={`material-symbols-outlined text-[16px] -mr-1 transition-transform ${isOpen ? 'rotate-180' : ''}`}>expand_more</span>
@@ -214,7 +215,7 @@ export default function Nav() {
               }
               const active = pathname === l.href || (l.href !== '/' && pathname.startsWith(`${l.href}/`));
               return (
-                <Link key={l.href} href={l.href} className={`kw-pill ${active ? 'is-on' : ''}`}>
+                <Link key={l.href} href={l.href} data-tour={l.href.slice(1)} className={`kw-pill ${active ? 'is-on' : ''}`}>
                   <Dot c={l.dot} />{l.label}
                 </Link>
               );
@@ -225,7 +226,7 @@ export default function Nav() {
               const restActive = rest.some((l) => (l.children ? l.children.some((c) => pathname === c.href) : pathname === l.href || pathname.startsWith(`${l.href}/`)));
               return (
                 <div className="relative">
-                  <button type="button" onClick={() => toggle('more')} aria-expanded={isOpen}
+                  <button type="button" onClick={() => toggle('more')} aria-expanded={isOpen} data-tour="more"
                     className={`kw-pill ${restActive ? 'is-on' : ''}`}>
                     More
                     <span className={`material-symbols-outlined text-[16px] -mr-1 transition-transform ${isOpen ? 'rotate-180' : ''}`}>expand_more</span>
@@ -259,12 +260,12 @@ export default function Nav() {
           <div className="hidden 2xl:block"><CityStats progress={progress} streak={streak} explorers={explorers} /></div>
           <div className="2xl:hidden"><CityStats progress={progress} streak={streak} explorers={explorers} compact /></div>
 
-          <button type="button" onClick={openPalette} className="kw-pill hidden 2xl:inline-flex" aria-label="Search (Ctrl+K)">
+          <button type="button" onClick={openPalette} data-tour="search" className="kw-pill hidden 2xl:inline-flex" aria-label="Search (Ctrl+K)">
             <span className="material-symbols-outlined text-[18px]">search</span>
             <span className="opacity-70 font-medium">Search</span>
             <kbd className="text-[10px] border border-white/15 rounded px-1 py-0.5 opacity-60 font-normal">Ctrl K</kbd>
           </button>
-          <button type="button" onClick={openPalette} className="kw-pill kw-icon 2xl:hidden" aria-label="Search (Ctrl+K)" title="Search (Ctrl+K)">
+          <button type="button" onClick={openPalette} data-tour="search" className="kw-pill kw-icon 2xl:hidden" aria-label="Search (Ctrl+K)" title="Search (Ctrl+K)">
             <span className="material-symbols-outlined text-[18px]">search</span>
           </button>
 
@@ -296,7 +297,7 @@ export default function Nav() {
             <span className="material-symbols-outlined text-[18px]">upload</span><span className="hidden 2xl:inline">Upload</span>
           </Link>
 
-          <button type="button" className="kw-pill kw-icon xl:hidden" onClick={() => setOpen(!open)} aria-expanded={open} aria-label="Menu">
+          <button type="button" data-tour="menu" className="kw-pill kw-icon xl:hidden" onClick={() => setOpen(!open)} aria-expanded={open} aria-label="Menu">
             <span className="material-symbols-outlined text-[20px]">{open ? 'close' : 'menu'}</span>
           </button>
         </div>

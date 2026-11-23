@@ -1,0 +1,140 @@
+/* v58: Hướng dẫn cư dân mới + Lumi (tiền tố kwo-) */
+
+/* ---------- Lumi nổi ---------- */
+.kwo-lumi{position:fixed;z-index:225;left:0;top:0;width:84px;height:96px;opacity:0;pointer-events:none;cursor:pointer;
+  transition:left .65s cubic-bezier(.3,1.35,.5,1),top .65s cubic-bezier(.3,1.35,.5,1),opacity .3s}
+.kwo-lumi.is-show{opacity:1;pointer-events:auto}
+.kwo-lb{width:84px;height:96px;transform-origin:50% 100%}
+.kwo-lumi.is-enter .kwo-lb{animation:kwoPopIn .85s cubic-bezier(.3,1.6,.5,1)}
+.kwo-lumi.is-hop .kwo-lb{animation:kwoHop .65s cubic-bezier(.3,1.5,.5,1)}
+.kwo-lb svg,.kwo-li-fig svg,.kwo-replay-fig svg{width:100%;height:100%;overflow:visible;display:block}
+.kwo-lb svg,.kwo-li-fig svg{filter:drop-shadow(0 0 16px rgba(198,191,255,.5));animation:kwoBob 2.4s ease-in-out infinite}
+@keyframes kwoBob{50%{transform:translateY(-5px)}}
+@keyframes kwoPopIn{0%{transform:translateY(160px) scale(.3)}55%{transform:translateY(-26px) scale(1.06,.94)}75%{transform:translateY(0) scale(1.1,.88)}100%{transform:none}}
+@keyframes kwoHop{0%{transform:scale(1.12,.85)}35%{transform:translateY(-40px) scale(.92,1.1)}70%{transform:translateY(0) scale(1.12,.86)}100%{transform:none}}
+.kwo-eyes{transform-box:fill-box;transform-origin:center;animation:kwoBlink 4.2s infinite}
+@keyframes kwoBlink{0%,93%,100%{transform:scaleY(1)}96%{transform:scaleY(.1)}}
+.kwo-arm{transform-box:fill-box;transform-origin:15% 90%;animation:kwoWave 1.3s ease-in-out infinite}
+@keyframes kwoWave{50%{transform:rotate(-28deg)}}
+.kwo-star{animation:kwoGlow 1.8s ease-in-out infinite}
+@keyframes kwoGlow{50%{opacity:.55}}
+[data-mood] .kwo-m-wow,[data-mood] .kwo-m-big,[data-mood] .kwo-wink{display:none}
+[data-mood="wow"] .kwo-m-happy,[data-mood="big"] .kwo-m-happy{display:none}
+[data-mood="wow"] .kwo-m-wow,[data-mood="big"] .kwo-m-big{display:inline}
+[data-mood="wink"] .kwo-eye-r{display:none}
+[data-mood="wink"] .kwo-wink{display:inline}
+
+/* ---------- Bong bóng thoại ---------- */
+.kwo-bubble{position:fixed;z-index:226;left:0;top:0;width:max-content;max-width:min(260px,calc(100vw - 32px));background:#fff8e7;color:#2a2140;border-radius:16px;padding:11px 13px 9px;font-size:13px;line-height:1.5;
+  box-shadow:0 12px 34px rgba(0,0,0,.4);opacity:0;transform:scale(.7);transition:opacity .25s,transform .35s cubic-bezier(.3,1.5,.5,1);pointer-events:none}
+.kwo-bubble.is-show{opacity:1;transform:none;pointer-events:auto}
+.kwo-nm{color:#5844d9;font-family:'Space Grotesk',sans-serif;font-weight:700;margin-right:2px}
+.kwo-bacts{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;align-items:center}
+.kwo-bb{border:0;border-radius:99px;padding:6px 13px;font-size:12px;font-weight:600;cursor:pointer}
+.kwo-bb.is-p{background:#5844d9;color:#fff}
+.kwo-bb.is-g{background:transparent;color:#5c5478;text-decoration:underline;padding:6px 4px}
+.kwo-off{display:block;margin:7px 0 0 auto;background:none;border:0;font-size:10.5px;color:#8a83a3;padding:0;cursor:pointer}
+.kwo-off:hover{color:#2a2140}
+.kwo-off.is-inline{display:inline;margin:0 0 0 6px}
+
+/* Lumi ngồi trong hộp (màn hẹp) */
+.kwo-inline{display:flex;gap:10px;align-items:flex-end;margin:6px 0 16px}
+.kwo-li-fig{width:56px;height:64px;flex:none;animation:kwoPopIn .85s cubic-bezier(.3,1.6,.5,1);transform-origin:50% 100%}
+.kwo-li-b{background:#fff8e7;color:#2a2140;border-radius:14px 14px 14px 4px;padding:9px 12px;font-size:12.5px;line-height:1.5;flex:1}
+
+/* ---------- Hộp thoại ---------- */
+.kwo-scrim{position:fixed;inset:0;z-index:200;background:rgba(8,7,16,.6);backdrop-filter:blur(3px);display:grid;place-items:center;padding:16px;animation:kwoFade .35s ease both}
+@keyframes kwoFade{from{opacity:0}to{opacity:1}}
+.kwo-modal{width:min(560px,100%);max-height:calc(100svh - 32px);overflow:auto;background:rgba(22,21,31,.97);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:26px;position:relative;
+  box-shadow:0 30px 80px rgba(0,0,0,.5);color:#e5e0ed;animation:kwoRise .45s cubic-bezier(.2,.7,.2,1) both}
+.kwo-modal.is-center{text-align:center}
+@keyframes kwoRise{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
+.kwo-kicker{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#f6bd56;margin-top:14px}
+.kwo-modal h2{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600;letter-spacing:-.02em;margin:6px 0 8px;line-height:1.2}
+.kwo-lead{color:#a9a4b8;line-height:1.6;margin:0 0 18px;font-size:14px}
+.kwo-skip{position:absolute;top:12px;right:16px;background:none;border:0;color:#a9a4b8;font-size:12px;cursor:pointer}
+.kwo-skip:hover{color:#e5e0ed}
+.kwo-paths{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kwo-path{text-align:left;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:13px;display:flex;gap:11px;align-items:flex-start;color:inherit;cursor:pointer;transition:border-color .2s,background .2s}
+.kwo-path:hover{border-color:rgba(198,191,255,.4)}
+.kwo-path.is-on{border-color:#c6bfff;background:rgba(198,191,255,.09)}
+.kwo-ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none}
+.kwo-path b{display:block;font-size:13.5px;margin-bottom:3px}
+.kwo-path small{color:#a9a4b8;font-size:12px;line-height:1.4}
+.kwo-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:22px}
+.kwo-btn{border:0;border-radius:12px;padding:11px 20px;font-weight:600;font-size:14px;display:inline-flex;gap:6px;align-items:center;cursor:pointer;transition:transform .15s}
+.kwo-btn .material-symbols-outlined{font-size:20px}
+.kwo-btn.is-primary{background:#c6bfff;color:#29009f}
+.kwo-btn.is-primary:hover{transform:scale(.98)}
+.kwo-btn.is-ghost{background:transparent;color:#a9a4b8;padding:11px 6px}
+.kwo-btn.is-ghost:hover{color:#e5e0ed}
+.kwo-btn.is-sm{padding:8px 14px;font-size:13px;border-radius:10px}
+.kwo-btn.is-ghost.is-sm{padding:8px 4px}
+.kwo-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* ---------- Dạo phố ---------- */
+.kwo-block{position:fixed;inset:0;z-index:209}
+.kwo-dim{position:fixed;inset:0;z-index:210;background:rgba(8,7,16,.72);pointer-events:none}
+.kwo-spot{position:fixed;z-index:210;border-radius:99px;pointer-events:none;
+  box-shadow:0 0 0 9999px rgba(8,7,16,.72),0 0 0 3px #c6bfff,0 0 30px rgba(198,191,255,.6);transition:all .45s cubic-bezier(.2,.7,.2,1)}
+.kwo-tip{position:fixed;z-index:212;background:rgba(22,21,31,.98);border:1px solid rgba(198,191,255,.3);border-radius:16px;padding:16px 16px 14px;color:#e5e0ed;
+  box-shadow:0 20px 50px rgba(0,0,0,.45);animation:kwoRise .35s ease both}
+.kwo-guide{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+.kwo-face{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#8d7fff,#f6bd56);display:grid;place-items:center;font-size:18px;flex:none}
+.kwo-tip h3{font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;margin:0}
+.kwo-cnt{font-size:11px;color:#a9a4b8}
+.kwo-tip p{margin:0;color:#c8c4d7;line-height:1.55;font-size:13px}
+.kwo-tip p.kwo-note{margin-top:8px;color:#7ee8ff;font-size:12px}
+.kwo-foryou{margin-top:10px;font-size:12px;color:#f6bd56;display:flex;gap:5px;align-items:flex-start;line-height:1.45}
+.kwo-foryou .material-symbols-outlined{font-size:16px}
+.kwo-link{display:inline-block;margin-top:10px;font-size:12.5px;font-weight:600;color:#c6bfff}
+.kwo-tacts{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
+.kwo-row{display:flex;gap:6px;align-items:center}
+
+/* ---------- Hộ chiếu tuần đầu ---------- */
+.kwo-quest{position:fixed;left:16px;bottom:16px;z-index:60;width:min(320px,calc(100vw - 32px));background:rgba(22,21,31,.95);border:1px solid rgba(198,191,255,.25);border-radius:18px;padding:12px 14px;
+  backdrop-filter:blur(12px);color:#e5e0ed;box-shadow:0 16px 40px rgba(0,0,0,.4);animation:kwoRise .5s cubic-bezier(.2,.7,.2,1) both}
+.kwo-qhead{display:flex;align-items:center;gap:4px}
+.kwo-qtoggle{flex:1;display:flex;align-items:center;gap:10px;background:none;border:0;color:inherit;text-align:left;cursor:pointer;padding:0;min-width:0}
+.kwo-ring{width:38px;height:38px;flex:none}
+.kwo-qtitle{display:flex;flex-direction:column;min-width:0}
+.kwo-qtitle b{font-family:'Space Grotesk',sans-serif;font-size:14.5px;font-weight:600}
+.kwo-qtitle small{color:#a9a4b8;font-size:11.5px;line-height:1.35}
+.kwo-chev{margin-left:auto;color:#a9a4b8;font-size:20px}
+.kwo-qclose{background:none;border:0;color:#a9a4b8;cursor:pointer;padding:4px;border-radius:8px;display:grid;place-items:center}
+.kwo-qclose:hover{color:#e5e0ed;background:rgba(255,255,255,.06)}
+.kwo-qclose .material-symbols-outlined{font-size:18px}
+.kwo-qlist{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:6px}
+.kwo-qlist li{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:11px;background:rgba(255,255,255,.03);font-size:12.5px;transition:background .3s}
+.kwo-chk{width:24px;height:24px;border-radius:50%;border:1.5px dashed rgba(255,255,255,.25);display:grid;place-items:center;flex:none}
+.kwo-chk .material-symbols-outlined{font-size:16px}
+.kwo-qlist li.is-done{background:rgba(94,224,160,.08)}
+.kwo-qlist li.is-done .kwo-chk{border:0;background:#5ee0a0;color:#06331d}
+.kwo-qlist li.is-done .kwo-qt{color:#a9a4b8;text-decoration:line-through}
+.kwo-go{margin-left:auto;font-size:11.5px;color:#c6bfff;white-space:nowrap}
+.kwo-qfoot{font-size:11px;color:#a9a4b8;margin:10px 0 2px;line-height:1.5}
+
+/* ---------- Ăn mừng ---------- */
+.kwo-fx{position:fixed;inset:0;width:100vw;height:100vh;z-index:230;pointer-events:none}
+.kwo-badge{width:116px;height:116px;margin:8px auto 4px;border-radius:50%;display:grid;place-items:center;position:relative;
+  background:conic-gradient(from 0deg,#8d7fff,#f6bd56,#5ee0a0,#ff9bd2,#8d7fff);animation:kwoSpin 6s linear infinite}
+.kwo-badge::after{content:'';position:absolute;inset:6px;border-radius:50%;background:#1c1b23}
+.kwo-badge .material-symbols-outlined{position:relative;z-index:1;font-size:52px;color:#f6bd56;animation:kwoSpin 6s linear infinite reverse}
+@keyframes kwoSpin{to{transform:rotate(360deg)}}
+
+/* ---------- Nút xem lại (My Journey) ---------- */
+.kwo-replay{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(198,191,255,.3);background:rgba(198,191,255,.08);color:#e5e0ed;border-radius:99px;padding:6px 16px 6px 8px;font-size:13px;font-weight:600;cursor:pointer;transition:border-color .2s}
+.kwo-replay:hover{border-color:#c6bfff}
+.kwo-replay-fig{width:28px;height:32px;display:block}
+
+@media (max-width:767px){
+  .kwo-quest{bottom:72px}
+}
+@media (max-width:560px){
+  .kwo-modal{padding:20px}
+  .kwo-modal h2{font-size:22px}
+  .kwo-paths{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  .kwo-lumi,.kwo-lumi *,.kwo-bubble,.kwo-spot,.kwo-tip,.kwo-modal,.kwo-quest,.kwo-li-fig,.kwo-li-fig *,.kwo-badge,.kwo-badge *{animation:none!important;transition:none!important}
+}
