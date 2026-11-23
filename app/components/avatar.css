@@ -10,29 +10,35 @@
 .kwa-btn:hover { border-color: #c6bfff; }
 .kwa-btn .material-symbols-outlined { font-size: 16px; }
 
-.kwa-stage { display: grid; justify-items: center; padding: 6px 0 10px; background: radial-gradient(ellipse at 50% 88%, rgba(139,92,246,.24), transparent 62%); }
-.kwa-big { width: 150px; height: 196px; }
+.kwa-stage { display: grid; justify-items: center; padding: 4px 0 8px; background: radial-gradient(ellipse at 50% 88%, rgba(139,92,246,.24), transparent 62%); }
+.kwa-big { width: 112px; height: 146px; }
 .kwa-name { font: 600 12px/1 'Space Grotesk', sans-serif; color: #c6bfff; letter-spacing: .04em; }
 @media (prefers-reduced-motion: no-preference) { .kwa-big svg { animation: kwa-bob 3.2s ease-in-out infinite; } }
 @keyframes kwa-bob { 50% { transform: translateY(-4px); } }
 
-.kwa-rows { display: grid; gap: 13px; padding: 4px 14px 14px; }
-.kwa-label { display: block; margin-bottom: 7px; font: 600 10.5px/1 Inter, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--g-muted, #a6a0ba); }
-.kwa-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.kwa-chip { font: 500 12.5px/1 Inter, sans-serif !important; padding: 7px 11px; border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid var(--g-line, rgba(255,255,255,.11)); }
+/* v59: gọn hơn — nhãn bên trái, lựa chọn bên phải; bộ đồ là dải 2 hàng cuộn ngang */
+.kwa-rows { display: grid; gap: 10px; padding: 4px 14px 14px; }
+.kwa-row { display: grid; grid-template-columns: 68px minmax(0, 1fr); align-items: center; column-gap: 10px; }
+.kwa-label { display: block; margin: 0; font: 600 10px/1.25 Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--g-muted, #a6a0ba); }
+.kwa-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.kwa-chip { font: 500 12px/1 Inter, sans-serif !important; padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid var(--g-line, rgba(255,255,255,.11)); }
 .kwa-chip[aria-checked="true"] { background: rgba(198,191,255,.18); border-color: #c6bfff; color: #fff; }
-.kwa-swatches { display: flex; flex-wrap: wrap; gap: 7px; }
-.kwa-sw { width: 26px; height: 26px; border-radius: 50%; padding: 0; border: 2px solid transparent; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
+.kwa-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.kwa-sw { width: 22px; height: 22px; border-radius: 50%; padding: 0; border: 2px solid transparent; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
 .kwa-sw[aria-checked="true"] { border-color: #fff; box-shadow: 0 0 0 2px #8b5cf6; }
-.kwa-hint { margin: 6px 0 0; font-size: 11.5px; color: var(--g-muted, #a6a0ba); }
-.kwa-tabs { display: inline-flex; gap: 3px; padding: 3px; border-radius: 9px; background: rgba(255,255,255,.05); margin-bottom: 9px; }
-.kwa-tab { font: 600 12px/1 Inter, sans-serif !important; padding: 7px 11px; border-radius: 7px; background: none; border: 0; color: var(--g-muted, #a6a0ba) !important; }
+.kwa-hint { grid-column: 2; margin: 4px 0 0; font-size: 11px; color: var(--g-muted, #a6a0ba); }
+.kwa-tabs { display: inline-flex; justify-self: start; gap: 2px; padding: 3px; border-radius: 9px; background: rgba(255,255,255,.05); }
+.kwa-tab { font: 600 12px/1 Inter, sans-serif !important; padding: 6px 10px; border-radius: 7px; background: none; border: 0; white-space: nowrap; color: var(--g-muted, #a6a0ba) !important; }
 .kwa-tab[aria-selected="true"] { background: rgba(198,191,255,.2); color: #fff !important; }
-.kwa-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); gap: 6px; }
-.kwa-tile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 2px 7px; border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid var(--g-line, rgba(255,255,255,.11)); }
-.kwa-tile .kwa-figure { width: 52px; height: 60px; }
-.kwa-tile span:last-child { font: 500 10.5px/1.2 Inter, sans-serif; text-align: center; }
+.kwa-grid { grid-column: 1 / -1; margin-top: 8px; display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, auto); grid-auto-columns: 60px; gap: 6px;
+  overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding-bottom: 6px; scrollbar-width: thin; scrollbar-color: rgba(198,191,255,.35) transparent; }
+.kwa-grid::-webkit-scrollbar { height: 6px; }
+.kwa-grid::-webkit-scrollbar-thumb { background: rgba(198,191,255,.3); border-radius: 9px; }
+.kwa-tile { scroll-snap-align: start; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; padding: 4px 2px 5px; border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid var(--g-line, rgba(255,255,255,.11)); }
+.kwa-tile .kwa-figure { width: 44px; height: 50px; }
+.kwa-tile span:last-child { width: 100%; font: 500 10px/1.2 Inter, sans-serif; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kwa-tile[aria-pressed="true"] { border-color: #c6bfff; background: rgba(198,191,255,.14); }
+@media (max-width: 360px) { .kwa-row { grid-template-columns: 1fr; row-gap: 6px; } .kwa-hint { grid-column: 1; } }
 
 /* Ảnh trên thẻ cư dân */
 .kwg-id-photo.has-avatar { overflow: hidden; background: radial-gradient(circle at 50% 30%, rgba(120,100,200,.35), rgba(0,0,0,.3)); }

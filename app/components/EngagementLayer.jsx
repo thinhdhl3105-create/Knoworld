@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { recordDailyVisit, earnedBadges, toast } from '@/lib/engagement';
 import CommandPalette from './CommandPalette';
 import Onboarding from './onboarding/Onboarding';
+import LumiPeek from './onboarding/LumiPeek';
 import useProgress from './useProgress';
 
 // v24: Lớp tương tác toàn cục — ghi "đã ghé hôm nay", toast, Ctrl+K,
@@ -115,6 +116,8 @@ export default function EngagementLayer() {
       {!skip && <BadgeWatcher />}
       {/* v58: tour cũ 3 thẻ (OnboardingTour) được thay bằng hướng dẫn cùng Lumi */}
       {!skip && <Onboarding />}
+      {/* v59: Lumi lấp ló ở góc màn hình vào những khoảnh khắc nhỏ */}
+      {!skip && <LumiPeek />}
       {!pathname.startsWith('/admin') && <MobileBottomNav />}
     </>
   );

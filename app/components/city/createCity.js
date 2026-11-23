@@ -6,6 +6,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { cityTemplate } from './template';
 import { createMetro } from './createMetro';
 import { createHolidayFx } from './cityHoliday';
+import { createCityLumi } from './cityLumi';
+import { isCameoOff, LUMI_CAMEO_EVENT } from '@/lib/lumiCameo';
 import { fetchLiveWeather } from '@/lib/liveWeather';
 import { loadMetroAds } from '@/lib/metroAds';
 
@@ -1306,6 +1308,11 @@ export function createCity(root, opts = {}) {
   if (!backdrop) loadMetroAds().then((d) => { if (d) metro.setAds(d.list, d.every); }).catch(() => {}); // v50: Metro Ad Wall
   const holidayFx = opts.holiday ? createHolidayFx({ THREE, scene, box, cyl, sign, neonMat, neonBox, mat, glowTex, ROADS, onLand, nearCross, Y0, small, reduce, holiday: opts.holiday }) : null;
   if (holidayFx && billboard && holidayFx.ticker) billboard.text = holidayFx.ticker;
+  // v59: Lumi đi dạo thập thò trong Main City (chỉ ở trang chủ, tắt được bằng "Tắt Lumi lấp ló").
+  const lumi = backdrop ? null : createCityLumi({ THREE, scene, camera, root, M, Y0, glowTex, small });
+  let lumiOff = isCameoOff();
+  const onCameo = () => { lumiOff = isCameoOff(); };
+  window.addEventListener(LUMI_CAMEO_EVENT, onCameo); cleanups.push(() => window.removeEventListener(LUMI_CAMEO_EVENT, onCameo));
   const LAYER_Y = { sky: 0, b1: metro.levels.b1.y, b2: metro.levels.b2.y };
   const CUT = { sky: 400, b1: metro.levels.b1.y + 11.4, b2: metro.levels.b2.y + 10.4 };
   // v49: khung nhìn "tách lớp" — Skyline thấy cả B1, B2 bên dưới; B1 thấy B1 + B2; B2 chỉ còn B2.
@@ -1439,6 +1446,17 @@ export function createCity(root, opts = {}) {
     const h = ray.intersectObjects(pool, false)[0];
     return h ? h.object.userData.key : null;
   }
+  // v59: bấm/rê chuột trúng Lumi (bỏ qua nếu đang bị toà nhà che)
+  function lumiHit(e) {
+    if (!lumi || !lumi.sprite.visible || layer !== 'sky') return false;
+    const r = renderer.domElement.getBoundingClientRect();
+    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    const l = ray.intersectObject(lumi.sprite, false)[0];
+    if (!l) return false;
+    const b = ray.intersectObjects(pickAll, false)[0];
+    return !b || b.distance > l.distance - 0.5;
+  }
   const metroLevelOf = (key) => { const st = metro.stations.find((x) => 'metro:' + x.id === key); return st ? st.level : null; };
   const metroPick = { b1: [], b2: [] };
   for (const o of metro.pickables) { const lv = metroLevelOf(o.userData.key); if (lv) metroPick[lv].push(o); }
@@ -1448,6 +1466,13 @@ export function createCity(root, opts = {}) {
   cv.addEventListener('pointermove', (e) => {
     if (e.pointerType !== 'mouse') return;
     const k = hit(e); setHover(k);
+    if (!k && !down && lumiHit(e)) {
+      renderer.domElement.style.cursor = 'pointer';
+      tip.hidden = false; tip.innerHTML = '<b>Lumi</b><br><span>Bấm để chào</span>';
+      const rr = root.getBoundingClientRect();
+      tip.style.left = Math.min(e.clientX - rr.left + 14, RW() - 190) + 'px'; tip.style.top = (e.clientY - rr.top + 14) + 'px';
+      return;
+    }
     if (k && !down) {
       const b = byKey[k], st = !b && metro.stations.find((x) => 'metro:' + x.id === k);
       tip.hidden = false;
@@ -1463,6 +1488,7 @@ export function createCity(root, opts = {}) {
     if (!down) return;
     const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y); down = null;
     if (moved > 6) return;
+    if (lumiHit(e)) { lumi.poke(); return; }
     const k = hit(e); if (k) select(k);
   });
   // labels for the underground: placed only while that level is shown
@@ -1611,6 +1637,7 @@ export function createCity(root, opts = {}) {
     under += ((layer === 'sky' ? 0 : 1) - under) * Math.min(1, dt * 2.5);
     if (metro.root.visible) metro.update(dt * sMul, elapsed);
     if (holidayFx) holidayFx.update(dt * sMul, elapsed, N, layer === 'sky');
+    if (lumi) lumi.update(dt * sMul, elapsed, Math.max(0, N), layer === 'sky' && under < 0.5 && !lumiOff);
     if (biome === 'sea' && frame % 2 === 0) {
       const arr = waterGeo.attributes.position.array, tt = elapsed * 0.9;
       for (let i = 0; i < arr.length; i += 3) arr[i + 1] = Math.sin(waterBase[i] * 0.45 + waterBase[i + 2] * 0.2 + tt) * 0.07 + Math.cos(waterBase[i + 2] * 0.5 - waterBase[i] * 0.15 + tt * 1.3) * 0.07;
@@ -1658,6 +1685,7 @@ export function createCity(root, opts = {}) {
       alive = false; cancelAnimationFrame(raf); clearTimeout(navT);
       cleanups.forEach((f) => f());
       holidayFx?.dispose?.();
+      lumi?.dispose();
       controls.dispose(); renderer.dispose(); renderer.forceContextLoss();
       root.innerHTML = '';
     },

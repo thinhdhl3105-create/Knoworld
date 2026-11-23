@@ -77,7 +77,7 @@ export function AvatarCreator({ value, onChange, showStage = true }) {
         <div className="kwa-row"><span className="kwa-label">Biểu cảm</span>
           <Chips label="Biểu cảm" items={EXPR} value={a.expr} onPick={(x) => set({ expr: x })} />
         </div>
-        <div className="kwa-row"><span className="kwa-label">Bộ đồ</span>
+        <div className="kwa-row is-outfit"><span className="kwa-label">Bộ đồ</span>
           <div className="kwa-tabs" role="tablist">
             {[['kigu', 'Thú bông'], ['wear', 'Thường ngày']].map(([k, l]) => (
               <button key={k} type="button" role="tab" aria-selected={tab === k} className="kwa-tab" onClick={() => setTab(k)}>{l}</button>
@@ -85,7 +85,7 @@ export function AvatarCreator({ value, onChange, showStage = true }) {
           </div>
           <div className="kwa-grid">
             {OUTFITS.filter((o) => o.kind === tab).map((o) => (
-              <button key={o.id} type="button" className="kwa-tile" aria-pressed={a.outfit === o.id} onClick={() => set({ outfit: o.id })}>
+              <button key={o.id} type="button" className="kwa-tile" aria-pressed={a.outfit === o.id} title={o.name} onClick={() => set({ outfit: o.id })}>
                 <AvatarFigure avatar={{ ...a, outfit: o.id }} />
                 <span>{o.name}</span>
               </button>

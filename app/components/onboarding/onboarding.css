@@ -138,3 +138,54 @@
 @media (prefers-reduced-motion:reduce){
   .kwo-lumi,.kwo-lumi *,.kwo-bubble,.kwo-spot,.kwo-tip,.kwo-modal,.kwo-quest,.kwo-li-fig,.kwo-li-fig *,.kwo-badge,.kwo-badge *{animation:none!important;transition:none!important}
 }
+
+/* ---------- v59: Lumi lấp ló ở 4 góc màn hình ---------- */
+.kwl{position:fixed;z-index:70;pointer-events:none;--kwl-bb:0px}
+@media (max-width:767px){.kwl{--kwl-bb:calc(58px + env(safe-area-inset-bottom))}}
+.kwl-clip{position:relative;overflow:hidden;width:84px;height:100px}
+.kwl-fig{position:absolute;left:0;top:2px;width:84px;height:96px;padding:0;border:0;background:none;cursor:pointer;pointer-events:auto;
+  transition:transform .55s cubic-bezier(.3,1.45,.5,1)}
+.kwl[data-pose="hidden"] .kwl-fig{pointer-events:none;transition-duration:.42s;transition-timing-function:cubic-bezier(.5,0,.75,0)}
+.kwl-fig:focus-visible{outline:2px solid #c6bfff;outline-offset:-4px;border-radius:12px}
+.kwl-pose{display:block;width:100%;height:100%;transform-origin:50% 100%}
+.kwl-pose svg{width:100%;height:100%;display:block;overflow:visible}
+.kwl-pose.is-hop{animation:kwoHop .6s cubic-bezier(.3,1.5,.5,1)}
+
+/* trái trên: treo ngược dưới thanh menu, đung đưa */
+.kwl.is-tl{top:var(--kwl-nav);left:clamp(12px,14vw,180px)}
+.kwl.is-tl.is-under{z-index:45} /* menu trong suốt: treo từ mép trên, nằm sau thanh menu */
+.kwl.is-tl .kwl-fig{top:0;transform:translateY(var(--y,-104%)) rotate(180deg)}
+.kwl.is-tl[data-pose="peek"]{--y:-50%}
+.kwl.is-tl[data-pose="out"]{--y:-12%}
+.kwl.is-tl .kwl-pose{animation:kwlSwing 2.6s ease-in-out infinite}
+@keyframes kwlSwing{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}
+.kwl.is-tl .kwl-say{top:74px;left:58px;border-top-left-radius:4px}
+
+/* phải trên: nghiêng người ngó vào từ mép phải */
+.kwl.is-tr{top:calc(var(--kwl-nav) + 84px);right:0}
+.kwl.is-tr .kwl-fig{transform:translateX(var(--x,106%)) rotate(-20deg)}
+.kwl.is-tr[data-pose="peek"]{--x:56%}
+.kwl.is-tr[data-pose="out"]{--x:22%}
+.kwl.is-tr .kwl-say{top:4px;right:72px;border-top-right-radius:4px}
+
+/* trái dưới: ngó vào từ mép trái */
+.kwl.is-bl{bottom:calc(var(--kwl-bb) + 120px);left:0}
+.kwl.is-bl .kwl-fig{transform:translateX(var(--x,-106%)) rotate(20deg)}
+.kwl.is-bl[data-pose="peek"]{--x:-56%}
+.kwl.is-bl[data-pose="out"]{--x:-22%}
+.kwl.is-bl .kwl-say{top:4px;left:72px;border-top-left-radius:4px}
+
+/* phải dưới: nhô đầu lên từ đáy màn hình */
+.kwl.is-br{bottom:var(--kwl-bb);right:clamp(96px,22vw,250px)} /* chừa chỗ nút Rate us */
+.kwl.is-br .kwl-fig{transform:translateY(var(--y,106%)) rotate(-6deg)}
+.kwl.is-br[data-pose="peek"]{--y:56%}
+.kwl.is-br[data-pose="out"]{--y:14%}
+.kwl.is-br .kwl-say{bottom:84px;right:36px;border-bottom-right-radius:4px}
+
+.kwl-say{position:absolute;pointer-events:auto;width:max-content;max-width:min(240px,calc(100vw - 96px));background:#fff8e7;color:#2a2140;border-radius:16px;
+  padding:9px 12px;font-size:13px;line-height:1.5;box-shadow:0 12px 30px rgba(0,0,0,.4);animation:kwlPop .35s cubic-bezier(.3,1.5,.5,1) both}
+@keyframes kwlPop{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
+.kwl-mute{display:block;margin:6px 0 0 auto;background:none;border:0;padding:0;font-size:10.5px;color:#8a83a3;cursor:pointer}
+.kwl-mute:hover{color:#2a2140;text-decoration:underline}
+@media (prefers-reduced-motion:reduce){.kwl-fig{transition:transform .2s ease}.kwl.is-tl .kwl-pose{animation:none}.kwl-say{animation:none}}
+@media print{.kwl{display:none}}
