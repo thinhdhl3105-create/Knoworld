@@ -116,7 +116,7 @@ export default function EngagementLayer() {
       {!skip && <BadgeWatcher />}
       {/* v58: tour cũ 3 thẻ (OnboardingTour) được thay bằng hướng dẫn cùng Lumi */}
       {!skip && <Onboarding />}
-      {/* v59: Lumi lấp ló ở góc màn hình vào những khoảnh khắc nhỏ */}
+      {/* v60: Lumi ghé ngang (bay mây / đi bộ ~5 giây) + nút Gọi Lumi */}
       {!skip && <LumiPeek />}
       {!pathname.startsWith('/admin') && <MobileBottomNav />}
     </>

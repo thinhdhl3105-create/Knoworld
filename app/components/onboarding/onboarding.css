@@ -139,53 +139,60 @@
   .kwo-lumi,.kwo-lumi *,.kwo-bubble,.kwo-spot,.kwo-tip,.kwo-modal,.kwo-quest,.kwo-li-fig,.kwo-li-fig *,.kwo-badge,.kwo-badge *{animation:none!important;transition:none!important}
 }
 
-/* ---------- v59: Lumi lấp ló ở 4 góc màn hình ---------- */
-.kwl{position:fixed;z-index:70;pointer-events:none;--kwl-bb:0px}
-@media (max-width:767px){.kwl{--kwl-bb:calc(58px + env(safe-area-inset-bottom))}}
-.kwl-clip{position:relative;overflow:hidden;width:84px;height:100px}
-.kwl-fig{position:absolute;left:0;top:2px;width:84px;height:96px;padding:0;border:0;background:none;cursor:pointer;pointer-events:auto;
-  transition:transform .55s cubic-bezier(.3,1.45,.5,1)}
-.kwl[data-pose="hidden"] .kwl-fig{pointer-events:none;transition-duration:.42s;transition-timing-function:cubic-bezier(.5,0,.75,0)}
-.kwl-fig:focus-visible{outline:2px solid #c6bfff;outline-offset:-4px;border-radius:12px}
+/* ---------- v60: Lumi ghé ngang (bay mây / đi bộ) + nút Gọi Lumi ---------- */
+.kwl{position:fixed;left:0;z-index:88;pointer-events:none;will-change:transform;--kwl-lane:76px}
+@media (max-width:767px){.kwl{--kwl-lane:calc(134px + env(safe-area-inset-bottom))}}
+.kwl.is-walk{bottom:var(--kwl-lane);width:84px;height:96px}
+.kwl.is-cloud{width:150px;height:126px}
+.kwl-body{width:100%;height:100%;transform-origin:50% 100%}
+.kwl-fig{display:block;position:relative;width:100%;height:100%;padding:0;border:0;background:none;cursor:pointer;pointer-events:auto}
+.kwl-fig:focus-visible{outline:2px solid #c6bfff;outline-offset:2px;border-radius:14px}
+.kwl-ride{position:absolute;inset:0;display:block}
+.kwl-flip{position:absolute;display:block;left:0;top:0;width:84px;height:96px}
+.kwl.is-rev .kwl-flip{transform:scaleX(-1)}
 .kwl-pose{display:block;width:100%;height:100%;transform-origin:50% 100%}
-.kwl-pose svg{width:100%;height:100%;display:block;overflow:visible}
+.kwl-pose svg{width:100%;height:100%;display:block;overflow:visible;filter:drop-shadow(0 0 14px rgba(198,191,255,.45))}
 .kwl-pose.is-hop{animation:kwoHop .6s cubic-bezier(.3,1.5,.5,1)}
 
-/* trái trên: treo ngược dưới thanh menu, đung đưa */
-.kwl.is-tl{top:var(--kwl-nav);left:clamp(12px,14vw,180px)}
-.kwl.is-tl.is-under{z-index:45} /* menu trong suốt: treo từ mép trên, nằm sau thanh menu */
-.kwl.is-tl .kwl-fig{top:0;transform:translateY(var(--y,-104%)) rotate(180deg)}
-.kwl.is-tl[data-pose="peek"]{--y:-50%}
-.kwl.is-tl[data-pose="out"]{--y:-12%}
-.kwl.is-tl .kwl-pose{animation:kwlSwing 2.6s ease-in-out infinite}
-@keyframes kwlSwing{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}
-.kwl.is-tl .kwl-say{top:74px;left:58px;border-top-left-radius:4px}
+/* Mây: Lumi ngồi lọt trong đám mây, bồng bềnh */
+.kwl.is-cloud .kwl-flip{left:35px;top:0;width:78px;height:88px}
+.kwl-cloud{position:absolute;left:0;top:64px;width:150px;height:62px;display:block;filter:drop-shadow(0 10px 18px rgba(0,0,0,.28))}
+.kwl-cloud svg{width:100%;height:100%;display:block}
+.kwl.is-cloud .kwl-ride{animation:kwlFloat 2.4s ease-in-out infinite}
+@keyframes kwlFloat{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-7px) rotate(1.5deg)}}
+.kwl.is-cloud.is-moving .kwl-cloud{animation:kwlStretch 1.2s ease-in-out infinite}
+@keyframes kwlStretch{50%{transform:scaleX(1.04)}}
+.kwl.is-cloud[data-phase="out"] .kwl-body{animation:kwlPoof .5s cubic-bezier(.5,0,.75,0) forwards;transform-origin:50% 70%}
+@keyframes kwlPoof{0%{transform:none;opacity:1}30%{transform:scale(1.12);opacity:1}100%{transform:scale(.15);opacity:0;filter:blur(6px)}}
 
-/* phải trên: nghiêng người ngó vào từ mép phải */
-.kwl.is-tr{top:calc(var(--kwl-nav) + 84px);right:0}
-.kwl.is-tr .kwl-fig{transform:translateX(var(--x,106%)) rotate(-20deg)}
-.kwl.is-tr[data-pose="peek"]{--x:56%}
-.kwl.is-tr[data-pose="out"]{--x:22%}
-.kwl.is-tr .kwl-say{top:4px;right:72px;border-top-right-radius:4px}
+/* Đi bộ: lạch bạch, tới nơi thì vẫy tay rồi thụt xuống biến mất */
+.kwl.is-walk.is-moving .kwl-pose{animation:kwlWalk .42s ease-in-out infinite}
+@keyframes kwlWalk{0%,100%{transform:translateY(0) rotate(-6deg)}25%,75%{transform:translateY(-8px) rotate(0)}50%{transform:translateY(0) rotate(6deg)}}
+.kwl.is-walk[data-phase="out"] .kwl-body{animation:kwlSink .5s cubic-bezier(.5,0,.75,0) forwards}
+@keyframes kwlSink{0%{transform:none;opacity:1}30%{transform:scale(1.12,.84)}100%{transform:translateY(26px) scale(.55,.05);opacity:0}}
 
-/* trái dưới: ngó vào từ mép trái */
-.kwl.is-bl{bottom:calc(var(--kwl-bb) + 120px);left:0}
-.kwl.is-bl .kwl-fig{transform:translateX(var(--x,-106%)) rotate(20deg)}
-.kwl.is-bl[data-pose="peek"]{--x:-56%}
-.kwl.is-bl[data-pose="out"]{--x:-22%}
-.kwl.is-bl .kwl-say{top:4px;left:72px;border-top-left-radius:4px}
-
-/* phải dưới: nhô đầu lên từ đáy màn hình */
-.kwl.is-br{bottom:var(--kwl-bb);right:clamp(96px,22vw,250px)} /* chừa chỗ nút Rate us */
-.kwl.is-br .kwl-fig{transform:translateY(var(--y,106%)) rotate(-6deg)}
-.kwl.is-br[data-pose="peek"]{--y:56%}
-.kwl.is-br[data-pose="out"]{--y:14%}
-.kwl.is-br .kwl-say{bottom:84px;right:36px;border-bottom-right-radius:4px}
-
-.kwl-say{position:absolute;pointer-events:auto;width:max-content;max-width:min(240px,calc(100vw - 96px));background:#fff8e7;color:#2a2140;border-radius:16px;
+/* Bong bóng thoại phía trên Lumi, mở về phía giữa màn hình */
+.kwl-say{position:absolute;bottom:calc(100% + 4px);pointer-events:auto;width:max-content;max-width:min(240px,72vw);background:#fff8e7;color:#2a2140;border-radius:16px;
   padding:9px 12px;font-size:13px;line-height:1.5;box-shadow:0 12px 30px rgba(0,0,0,.4);animation:kwlPop .35s cubic-bezier(.3,1.5,.5,1) both}
+.kwl-say.is-l{left:34px;border-bottom-left-radius:4px;transform-origin:0 100%}
+.kwl-say.is-r{right:34px;border-bottom-right-radius:4px;transform-origin:100% 100%}
 @keyframes kwlPop{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
 .kwl-mute{display:block;margin:6px 0 0 auto;background:none;border:0;padding:0;font-size:10.5px;color:#8a83a3;cursor:pointer}
 .kwl-mute:hover{color:#2a2140;text-decoration:underline}
-@media (prefers-reduced-motion:reduce){.kwl-fig{transition:transform .2s ease}.kwl.is-tl .kwl-pose{animation:none}.kwl-say{animation:none}}
-@media print{.kwl{display:none}}
+
+/* Nút Gọi Lumi: tab nhỏ dính mép phải, giữa màn hình — không đè nút Rate us / thanh dưới */
+.kwl-call{position:fixed;right:0;top:58%;z-index:58;display:flex;align-items:center;gap:6px;height:46px;padding:0 10px 0 7px;border-radius:24px 0 0 24px;
+  background:rgba(28,27,35,.88);border:1px solid rgba(198,191,255,.35);border-right:0;color:#e5e0ed;cursor:pointer;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:0 8px 24px rgba(0,0,0,.35);transform:translateX(calc(100% - 46px));transition:transform .35s cubic-bezier(.3,1.3,.5,1),border-color .2s}
+.kwl-call:hover,.kwl-call:focus-visible{transform:none;border-color:#c6bfff;outline:none}
+.kwl-call-fig{width:32px;height:36px;flex:none;display:block}
+.kwl-call-fig svg{width:100%;height:100%;display:block;overflow:visible}
+.kwl-call:hover .kwl-call-fig{animation:kwoHop .6s cubic-bezier(.3,1.5,.5,1)}
+.kwl-call-tx{font-size:12.5px;font-weight:600;white-space:nowrap;font-family:'Space Grotesk',sans-serif}
+@media (max-width:767px){.kwl-call{top:52%;height:42px}.kwl-call-fig{width:28px;height:32px}}
+
+@media (prefers-reduced-motion:reduce){
+  .kwl *,.kwl-call,.kwl-call *{animation:none!important;transition:none!important}
+  .kwl[data-phase="out"] .kwl-body{opacity:0;transition:opacity .3s!important}
+}
+@media print{.kwl,.kwl-call{display:none}}
