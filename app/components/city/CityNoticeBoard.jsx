@@ -44,6 +44,17 @@ export default function CityNoticeBoard({ isAdmin = false, user = null, anchorRe
     load();
   }, []);
 
+  // v61: admin chọn "Đăng tin" trong menu Lumi -> mở bảng + khung đăng tin.
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+    const openCompose = () => { setOpen(true); setComposing(true); };
+    let pending = false;
+    try { pending = sessionStorage.getItem('kw_notice_compose') === '1'; sessionStorage.removeItem('kw_notice_compose'); } catch { /* ignore */ }
+    if (pending) openCompose();
+    window.addEventListener('kw-notice-compose', openCompose);
+    return () => window.removeEventListener('kw-notice-compose', openCompose);
+  }, [isAdmin]);
+
   // Desktop: đặt bảng ngay dưới bảng đồng hồ của thành phố (bên phải).
   useEffect(() => {
     const root = anchorRef?.current;

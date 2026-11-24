@@ -1,5 +1,7 @@
 'use client';
 
+// v61: nút Lumi chuyển lên thanh menu (Nav.jsx phát sự kiện 'kw-lumi-call'); bấm là Lumi bay mây xuống
+//      ngay dưới nút và mở menu (LumiMenu.jsx): dẫn đường · khám phá ngẫu nhiên · trang này dùng sao · lối tắt admin.
 // v60: Lumi ghé ngang — thay cho kiểu lấp ló 4 góc (v59) hay bị mép màn hình / thanh menu che.
 // Lumi hiện TRỌN người ở chỗ trống, không dính mép:
 //   • "Mây"  — ngồi trên đám mây bay ngang qua màn hình (dưới thanh menu), nói 1 câu, rồi "bụp" tan mất.
@@ -9,7 +11,9 @@
 // Khoảnh khắc tự xuất hiện giữ như v59: chào ngày mới, vào một khu, ngồi im lâu, cuộn tới cuối trang,
 // nhận huy hiệu, ghé ngang ngẫu nhiên. Cách nhau ≥ 50 giây, tối đa 8 lần/phiên, không chen khi đang có hướng dẫn / hộp thoại.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '../AuthProvider';
+import LumiMenu from './LumiMenu';
 import { LUMI_SVG } from './lumiArt';
 import { isCameoOff, setCameoOff, LUMI_CAMEO_EVENT } from '@/lib/lumiCameo';
 import { todayKey } from '@/lib/onboarding';
@@ -21,7 +25,8 @@ const SHOW_MS = 4600; // thời gian Lumi ở ngoài trước khi biến mất (
 
 // Gradient riêng để không đụng id với các hình Lumi khác trên trang.
 const FIG_SVG = LUMI_SVG.replaceAll('kwoB', 'kwlB').replaceAll('kwoG', 'kwlG');
-const TAB_SVG = LUMI_SVG.replaceAll('kwoB', 'kwtB').replaceAll('kwoG', 'kwtG');
+const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
+export const LUMI_CALL_EVENT = 'kw-lumi-call';
 const CLOUD_SVG = `<svg viewBox="0 0 150 62" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <defs><linearGradient id="kwlC" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".7" stop-color="#eeeaff"/><stop offset="1" stop-color="#cfc6ff"/></linearGradient></defs>
   <path d="M26 54 C10 54 5 40 17 34 C14 21 31 14 42 21 C48 8 70 5 79 18 C88 9 108 12 110 27 C125 23 141 34 134 47 C143 52 135 60 125 59 L32 60 C24 60 20 57 26 54Z" fill="url(#kwlC)"/>
@@ -56,7 +61,6 @@ const AMBIENT = [
   'Đừng quên streak hôm nay nha 🔥',
   'Ra trang chủ tìm Lumi đi, Lumi hay đi dạo trong city lắm ✨',
 ];
-const SUMMON = ['Lumi đây! Gọi Lumi có chuyện gì nè? ✨', 'Có Lumi! 🙋 Hôm nay khám phá gì nào?', 'Lumi tới liền nè! 💨', 'Hihi, nhớ Lumi hả? 💜'];
 const POKE = ['Hihi, nhột! 😆', 'Bắt được Lumi rồi! 🙈', 'Lumi đây! Cần gì cứ gọi nha.', 'Lumi đi thắp đèn tiếp đây ✨'];
 
 const rnd = (a) => a[(Math.random() * a.length) | 0];
@@ -85,6 +89,9 @@ const ss = {
 
 export default function LumiPeek() {
   const pathname = usePathname() || '/';
+  const router = useRouter();
+  const { user } = useAuth() || {};
+  const isAdmin = user?.email === ADMIN_EMAIL;
   const [off, setOff] = useState(true); // tắt Lumi TỰ xuất hiện (nút Gọi Lumi vẫn dùng được)
   const [ready, setReady] = useState(false);
   const [run, setRun] = useState(null); // { id, kind, dir, top, side }
@@ -129,7 +136,7 @@ export default function LumiPeek() {
 
     const isMoving = p < 1 && !hover.current;
     if (isMoving !== s.moving) { s.moving = isMoving; setMoving(isMoving); }
-    if (!s.said && el >= s.sayAt) { s.said = true; setSay({ text: s.text }); if (s.phase === 'in') { s.phase = 'talk'; setPhase('talk'); } }
+    if (!s.said && el >= s.sayAt) { s.said = true; setSay(s.menu ? { panel: true } : { text: s.text }); if (s.phase === 'in') { s.phase = 'talk'; setPhase('talk'); } }
     if (s.phase !== 'out' && el >= s.exitAt) { s.phase = 'out'; setPhase('out'); setSay(null); s.goneAt = el + 520; }
     if (s.phase === 'out' && el >= s.goneAt) { stop(); return; }
     raf.current = requestAnimationFrame(tick);
@@ -149,27 +156,29 @@ export default function LumiPeek() {
     const W = window.innerWidth;
     const H = window.innerHeight;
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const kind = opts.kind || (Math.random() < 0.55 ? 'cloud' : 'walk');
+    const menu = !!opts.menu;
+    const kind = menu ? 'cloud' : opts.kind || (Math.random() < 0.55 ? 'cloud' : 'walk');
     const size = kind === 'cloud' ? 150 : 84;
-    const dir = Math.random() < 0.5 ? 1 : -1; // 1: trái → phải
-    const x1 = clamp(W * (0.28 + Math.random() * 0.44) - size / 2, 12, W - size - 12);
+    const dir = menu ? -1 : Math.random() < 0.5 ? 1 : -1; // 1: trái → phải
+    const x1 = menu ? Math.max(8, W - size - (W < 640 ? 8 : 24)) : clamp(W * (0.28 + Math.random() * 0.44) - size / 2, 12, W - size - 12);
     const x0 = reduce ? x1 : dir > 0 ? -size - 20 : W + 20;
     // Mây bay ngay dưới thanh menu, chừa chỗ cho bong bóng thoại phía trên.
     const nav = document.querySelector('.kw-nav');
     const navBottom = nav ? Math.max(0, Math.round(nav.getBoundingClientRect().bottom)) : 0;
-    const top = navBottom + 64 + Math.round(Math.random() * clamp(H * 0.16, 0, 110));
-    const travel = reduce ? 0 : kind === 'cloud' ? 4200 : 1900;
+    const top = menu ? navBottom + 4 : navBottom + 64 + Math.round(Math.random() * clamp(H * 0.16, 0, 110));
+    const travel = reduce ? 0 : menu ? 1200 : kind === 'cloud' ? 4200 : 1900;
     st.current = {
       kind, x0, x1, travel, text,
       el: 0, last: performance.now(), moving: false, said: false, phase: 'in',
-      sayAt: kind === 'cloud' ? 900 : travel + 80,
-      exitAt: SHOW_MS,
+      sayAt: menu ? 500 : kind === 'cloud' ? 900 : travel + 80,
+      exitAt: menu ? Infinity : SHOW_MS,
+      menu,
       goneAt: Infinity,
     };
     setMood(opts.mood || 'happy');
     setSay(null);
     setPhase('in');
-    setRun({ id: Date.now(), kind, dir, top, x0, side: x1 + size / 2 > W / 2 ? 'r' : 'l' });
+    setRun({ id: Date.now(), kind, dir, top, x0, menu, side: menu || x1 + size / 2 > W / 2 ? 'r' : 'l' });
     cancelAnimationFrame(raf.current);
     raf.current = requestAnimationFrame((t) => { if (st.current) st.current.last = t; tick(t); });
     return true;
@@ -258,6 +267,7 @@ export default function LumiPeek() {
     const s = st.current;
     if (!s || s.phase === 'out') return;
     setHop((h) => h + 1);
+    if (s.menu) return;
     setMood(Math.random() < 0.5 ? 'big' : 'wink');
     s.said = true;
     s.phase = 'talk';
@@ -265,16 +275,56 @@ export default function LumiPeek() {
     setSay({ text: rnd(POKE), menu: true });
     s.exitAt = Math.max(s.exitAt, s.el + 3400);
   };
-  const summon = () => {
-    if (st.current) { poke(); return; }
-    const lines = pageLine(pathname);
-    appear(rnd(lines && Math.random() < 0.4 ? lines : SUMMON), { summon: true, mood: 'big' });
+  // Lumi rời đi (thụt / bụp mất).
+  const close = useCallback(() => {
+    const s = st.current;
+    if (s && s.phase !== 'out') s.exitAt = s.el;
+  }, []);
+  // Bấm nút Lumi trên thanh menu: Lumi bay xuống ngay dưới nút và mở menu.
+  const summon = useCallback(() => {
+    const s = st.current;
+    if (s) {
+      if (s.menu && s.phase !== 'out') { close(); return; } // bấm lần nữa = đóng
+      stop();
+    }
+    appearRef.current('', { summon: true, menu: true, mood: 'big' });
+  }, [close, stop]);
+  useEffect(() => {
+    const on = () => summon();
+    window.addEventListener(LUMI_CALL_EVENT, on);
+    return () => window.removeEventListener(LUMI_CALL_EVENT, on);
+  }, [summon]);
+  // Đổi trang hoặc bấm ra ngoài thì menu Lumi đóng lại.
+  useEffect(() => { if (st.current?.menu) close(); }, [pathname, close]);
+  useEffect(() => {
+    if (!run?.menu) return undefined;
+    const on = (e) => {
+      if (wrap.current?.contains(e.target) || e.target.closest?.('[data-lumi-call]')) return;
+      close();
+    };
+    document.addEventListener('pointerdown', on);
+    return () => document.removeEventListener('pointerdown', on);
+  }, [run, close]);
+  const go = (href) => {
+    setSay({ text: rnd(['Đi thôi! 💨', 'Theo Lumi nè! ✨', 'Tới liền!']) });
+    setHop((h) => h + 1);
+    if (st.current) st.current.exitAt = st.current.el + 700;
+    setTimeout(() => router.push(href), 350);
+  };
+  const compose = () => {
+    if (pathname === '/') {
+      window.dispatchEvent(new CustomEvent('kw-notice-compose'));
+      close();
+    } else {
+      try { sessionStorage.setItem('kw_notice_compose', '1'); } catch { /* ignore */ }
+      go('/');
+    }
   };
   const toggleAuto = () => {
     const next = !off;
     setCameoOff(next);
     if (st.current) {
-      setSay({ text: next ? 'Okie, Lumi sẽ không tự ra nữa. Cần thì bấm nút Gọi Lumi bên phải nha 💜' : 'Yay! Lumi sẽ thỉnh thoảng ghé ngang nha ✨' });
+      setSay({ text: next ? 'Okie, Lumi sẽ không tự ra nữa. Cần thì bấm nút Lumi trên thanh menu nha 💜' : 'Yay! Lumi sẽ thỉnh thoảng ghé ngang nha ✨' });
       st.current.exitAt = Math.max(st.current.exitAt, st.current.el + 2600);
     }
   };
@@ -290,7 +340,7 @@ export default function LumiPeek() {
         <div
           key={run.id}
           ref={wrap}
-          className={`kwl is-${run.kind} ${moving ? 'is-moving' : ''} ${run.dir < 0 ? 'is-rev' : ''}`}
+          className={`kwl is-${run.kind} ${run.menu ? 'is-menu' : ''} ${moving ? 'is-moving' : ''} ${run.dir < 0 ? 'is-rev' : ''}`}
           data-phase={phase}
           style={{ transform: `translate3d(${run.x0}px,0,0)`, ...(run.kind === 'cloud' ? { top: run.top } : null) }}
         >
@@ -311,8 +361,21 @@ export default function LumiPeek() {
               </span>
             </button>
           </div>
-          {say && phase !== 'out' && (
-            <div className={`kwl-say is-${run.side}`} role="status" onPointerEnter={enter} onPointerLeave={leave}>
+          {say?.panel && phase !== 'out' && (
+            <div className="kwl-panel">
+              <LumiMenu
+                pathname={pathname}
+                isAdmin={isAdmin}
+                loggedIn={!!user}
+                onGo={go}
+                onCompose={compose}
+                onClose={close}
+                onTalk={() => setHop((h) => h + 1)}
+              />
+            </div>
+          )}
+          {say && !say.panel && phase !== 'out' && (
+            <div className={`kwl-say is-${run.side} ${run.menu ? 'is-below' : ''}`} role="status" onPointerEnter={enter} onPointerLeave={leave}>
               <span className="kwo-nm">Lumi</span> {say.text}
               {say.menu && (
                 <button type="button" className="kwl-mute" onClick={toggleAuto}>{off ? 'Bật Lumi tự ghé ngang' : 'Tắt Lumi tự ghé ngang'}</button>
@@ -321,10 +384,6 @@ export default function LumiPeek() {
           )}
         </div>
       )}
-      <button type="button" className="kwl-call" onClick={summon} aria-label="Gọi Lumi" title="Gọi Lumi">
-        <span className="kwl-call-fig" dangerouslySetInnerHTML={{ __html: TAB_SVG }} />
-        <span className="kwl-call-tx">Gọi Lumi</span>
-      </button>
     </>
   );
 }

@@ -9,6 +9,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthProvider';
 import useProgress from './useProgress';
 import { publicVisitorCount } from '@/lib/visitor';
+import { LUMI_SVG } from './onboarding/lumiArt';
+
+// v61: nút Lumi trên thanh menu — bấm là Lumi bay xuống mở menu (xử lý trong onboarding/LumiPeek.jsx).
+const NAV_LUMI_SVG = LUMI_SVG.replaceAll('kwoB', 'kwnB').replaceAll('kwoG', 'kwnG');
 
 const ADMIN_EMAIL = 'thinh.dhl3105@gmail.com';
 
@@ -259,6 +263,14 @@ export default function Nav() {
         <div ref={rightRef} className="flex items-center gap-1.5 shrink-0">
           <div className="hidden 2xl:block"><CityStats progress={progress} streak={streak} explorers={explorers} /></div>
           <div className="2xl:hidden"><CityStats progress={progress} streak={streak} explorers={explorers} compact /></div>
+
+          <button
+            type="button" data-lumi-call data-tour="lumi" className="kw-pill kw-lumi-btn"
+            onClick={() => { setOpen(false); setOpenGroup(null); window.dispatchEvent(new CustomEvent('kw-lumi-call')); }}
+            aria-label="Gọi Lumi" title="Gọi Lumi"
+          >
+            <span className="kw-lumi-ico" data-mood="happy" dangerouslySetInnerHTML={{ __html: NAV_LUMI_SVG }} />
+          </button>
 
           <button type="button" onClick={openPalette} data-tour="search" className="kw-pill hidden 2xl:inline-flex" aria-label="Search (Ctrl+K)">
             <span className="material-symbols-outlined text-[18px]">search</span>

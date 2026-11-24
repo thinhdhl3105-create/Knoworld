@@ -139,7 +139,7 @@
   .kwo-lumi,.kwo-lumi *,.kwo-bubble,.kwo-spot,.kwo-tip,.kwo-modal,.kwo-quest,.kwo-li-fig,.kwo-li-fig *,.kwo-badge,.kwo-badge *{animation:none!important;transition:none!important}
 }
 
-/* ---------- v60: Lumi ghé ngang (bay mây / đi bộ) + nút Gọi Lumi ---------- */
+/* ---------- v60–v61: Lumi ghé ngang (bay mây / đi bộ) + menu Lumi từ thanh menu ---------- */
 .kwl{position:fixed;left:0;z-index:88;pointer-events:none;will-change:transform;--kwl-lane:76px}
 @media (max-width:767px){.kwl{--kwl-lane:calc(134px + env(safe-area-inset-bottom))}}
 .kwl.is-walk{bottom:var(--kwl-lane);width:84px;height:96px}
@@ -180,19 +180,51 @@
 .kwl-mute{display:block;margin:6px 0 0 auto;background:none;border:0;padding:0;font-size:10.5px;color:#8a83a3;cursor:pointer}
 .kwl-mute:hover{color:#2a2140;text-decoration:underline}
 
-/* Nút Gọi Lumi: tab nhỏ dính mép phải, giữa màn hình — không đè nút Rate us / thanh dưới */
-.kwl-call{position:fixed;right:0;top:58%;z-index:58;display:flex;align-items:center;gap:6px;height:46px;padding:0 10px 0 7px;border-radius:24px 0 0 24px;
-  background:rgba(28,27,35,.88);border:1px solid rgba(198,191,255,.35);border-right:0;color:#e5e0ed;cursor:pointer;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  box-shadow:0 8px 24px rgba(0,0,0,.35);transform:translateX(calc(100% - 46px));transition:transform .35s cubic-bezier(.3,1.3,.5,1),border-color .2s}
-.kwl-call:hover,.kwl-call:focus-visible{transform:none;border-color:#c6bfff;outline:none}
-.kwl-call-fig{width:32px;height:36px;flex:none;display:block}
-.kwl-call-fig svg{width:100%;height:100%;display:block;overflow:visible}
-.kwl-call:hover .kwl-call-fig{animation:kwoHop .6s cubic-bezier(.3,1.5,.5,1)}
-.kwl-call-tx{font-size:12.5px;font-weight:600;white-space:nowrap;font-family:'Space Grotesk',sans-serif}
-@media (max-width:767px){.kwl-call{top:52%;height:42px}.kwl-call-fig{width:28px;height:32px}}
+/* v61: Lumi gọi từ thanh menu — bay xuống ngay dưới nút, menu mở bên dưới */
+.kwl.is-menu{z-index:96}
+.kwl-say.is-below{bottom:auto;top:calc(100% + 2px);border-radius:16px;border-top-right-radius:4px}
+.kwl-panel{position:absolute;top:calc(100% + 2px);right:0;pointer-events:auto;width:min(310px,calc(100vw - 16px));max-height:calc(100svh - 230px);overflow:auto;
+  background:#fff8e7;color:#2a2140;border-radius:18px;border-top-right-radius:4px;box-shadow:0 18px 44px rgba(0,0,0,.45);animation:kwlPop .35s cubic-bezier(.3,1.5,.5,1) both;transform-origin:100% 0}
+.kwm{position:relative;padding:12px 12px 12px;font-size:13px;line-height:1.5}
+.kwm-x{position:absolute;top:6px;right:6px;width:28px;height:28px;border:0;border-radius:50%;background:transparent;color:#8a83a3;cursor:pointer;display:grid;place-items:center}
+.kwm-x:hover{background:rgba(88,68,217,.1);color:#2a2140}
+.kwm-x .material-symbols-outlined{font-size:18px}
+.kwm-hi{margin:0 28px 10px 2px}
+.kwm-list{display:grid;gap:6px}
+.kwm-list.is-tight{gap:3px}
+.kwm-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid rgba(88,68,217,.16);background:#fff;color:#2a2140;border-radius:12px;padding:10px 12px;font-size:13.5px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+.kwm-item:hover{background:#f1edff;border-color:#8d7fff;transform:translateX(-2px)}
+.kwm-item.is-sm{padding:7px 10px;font-size:12.5px;font-weight:500}
+.kwm-item .material-symbols-outlined{font-size:18px;color:#5844d9}
+.kwm-e{font-size:17px;width:22px;text-align:center}
+.kwm-back{display:inline-flex;align-items:center;gap:2px;border:0;background:none;color:#5844d9;font-size:12px;font-weight:600;padding:0;margin:0 0 6px;cursor:pointer}
+.kwm-back .material-symbols-outlined{font-size:16px}
+.kwm-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.kwm-place{display:flex;align-items:center;gap:6px;text-align:left;border:1px solid rgba(88,68,217,.14);background:#fff;color:#2a2140;border-radius:10px;padding:7px 8px;font-size:12px;font-weight:600;line-height:1.25;cursor:pointer}
+.kwm-place:hover{background:#f1edff;border-color:#8d7fff}
+.kwm-place .material-symbols-outlined{font-size:18px;flex:none}
+.kwm-card{background:#fff;border:1px solid rgba(88,68,217,.16);border-radius:14px;padding:11px 12px;display:flex;flex-direction:column;gap:4px;transition:opacity .2s}
+.kwm-card.is-load{opacity:.55}
+.kwm-card b{font-family:'Space Grotesk',sans-serif;font-size:15px;line-height:1.3}
+.kwm-card small{color:#5c5478;font-size:12px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.kwm-kind{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5844d9}
+.kwm-kind .material-symbols-outlined{font-size:15px}
+.kwm-row{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.kwm-btn{border:1px solid rgba(88,68,217,.25);background:#fff;color:#5844d9;border-radius:99px;padding:6px 13px;font-size:12px;font-weight:600;cursor:pointer}
+.kwm-btn.is-p{background:#5844d9;border-color:#5844d9;color:#fff}
+.kwm-btn.is-wide{display:block;width:100%;margin-top:10px;border-radius:12px;padding:8px}
+.kwm-btn:disabled{opacity:.5;cursor:default}
+.kwm-tips{margin:0 0 2px;padding-left:20px;display:grid;gap:6px;color:#3a3154}
+.kwm-tips li::marker{color:#5844d9;font-weight:700}
+
+/* Nút Lumi trên thanh menu */
+.kw-pill.kw-lumi-btn{width:36px;padding:0;justify-content:center;overflow:visible}
+.kw-lumi-btn .kw-lumi-ico{width:26px;height:29px;display:block;transform-origin:50% 100%;transition:transform .2s}
+.kw-lumi-btn .kw-lumi-ico svg{width:100%;height:100%;display:block;overflow:visible}
+.kw-lumi-btn:hover .kw-lumi-ico{animation:kwoHop .6s cubic-bezier(.3,1.5,.5,1)}
 
 @media (prefers-reduced-motion:reduce){
-  .kwl *,.kwl-call,.kwl-call *{animation:none!important;transition:none!important}
+  .kwl *,.kw-lumi-btn *{animation:none!important;transition:none!important}
   .kwl[data-phase="out"] .kwl-body{opacity:0;transition:opacity .3s!important}
 }
-@media print{.kwl,.kwl-call{display:none}}
+@media print{.kwl{display:none}}
