@@ -1,5 +1,6 @@
 'use client';
 
+// v62: Lumi bay ngang giờ cưỡi mây PHÍA SAU thành phố (city/skyLumi.js, vẽ trên lớp trời 2D) — không che thành phố.
 // v61: nút Lumi chuyển lên thanh menu (Nav.jsx phát sự kiện 'kw-lumi-call'); bấm là Lumi bay mây xuống
 //      ngay dưới nút và mở menu (LumiMenu.jsx): dẫn đường · khám phá ngẫu nhiên · trang này dùng sao · lối tắt admin.
 // v60: Lumi ghé ngang — thay cho kiểu lấp ló 4 góc (v59) hay bị mép màn hình / thanh menu che.
@@ -150,14 +151,20 @@ export default function LumiPeek() {
       const now = Date.now();
       const count = ss.get('kw_lumi_peek_n', 0);
       if (!opts.force && (now - ss.get('kw_lumi_peek_t', 0) < GAP_MS || count >= MAX_PER_SESSION)) return false;
+      // v62: có bầu trời thành phố trên màn hình -> Lumi cưỡi mây bay PHÍA SAU thành phố (vẽ trên lớp trời).
+      // Ở Main City không bao giờ bay đè lên thành phố; trang khác thì đi bộ ở mép dưới.
+      const sky = typeof window !== 'undefined' ? window.__kwSkyLumi : null;
+      const skyOk = !!sky?.canFly?.();
+      if (!skyOk && window.location.pathname === '/') return false;
       ss.set('kw_lumi_peek_t', now);
       ss.set('kw_lumi_peek_n', count + 1);
+      if (skyOk) return sky.fly(text);
     }
     const W = window.innerWidth;
     const H = window.innerHeight;
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const menu = !!opts.menu;
-    const kind = menu ? 'cloud' : opts.kind || (Math.random() < 0.55 ? 'cloud' : 'walk');
+    const kind = menu ? 'cloud' : 'walk'; // v62: tự ghé ngang trên trang = đi bộ; mây trên màn hình chỉ dùng khi bấm nút Lumi
     const size = kind === 'cloud' ? 150 : 84;
     const dir = menu ? -1 : Math.random() < 0.5 ? 1 : -1; // 1: trái → phải
     const x1 = menu ? Math.max(8, W - size - (W < 640 ? 8 : 24)) : clamp(W * (0.28 + Math.random() * 0.44) - size / 2, 12, W - size - 12);

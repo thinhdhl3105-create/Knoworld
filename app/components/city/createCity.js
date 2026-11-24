@@ -7,6 +7,7 @@ import { cityTemplate } from './template';
 import { createMetro } from './createMetro';
 import { createHolidayFx } from './cityHoliday';
 import { createCityLumi } from './cityLumi';
+import { createSkyLumi } from './skyLumi';
 import { isCameoOff, LUMI_CAMEO_EVENT } from '@/lib/lumiCameo';
 import { fetchLiveWeather } from '@/lib/liveWeather';
 import { loadMetroAds } from '@/lib/metroAds';
@@ -1178,6 +1179,7 @@ export function createCity(root, opts = {}) {
       c.restore();
     }
     drawClouds(c, e, t, W, H);
+    skyLumi?.draw(c, e, t, W, H); // v62: Lumi cưỡi mây bay phía sau thành phố
     if (fl > 0) { c.fillStyle = `rgba(230,236,255,${fl * 0.55})`; c.fillRect(0, 0, W, H); }
   }
 
@@ -1313,6 +1315,19 @@ export function createCity(root, opts = {}) {
   let lumiOff = isCameoOff();
   const onCameo = () => { lumiOff = isCameoOff(); };
   window.addEventListener(LUMI_CAMEO_EVENT, onCameo); cleanups.push(() => window.removeEventListener(LUMI_CAMEO_EVENT, onCameo));
+  // v62: Lumi cưỡi mây trên bầu trời (vẽ trên lớp trời 2D nằm sau thành phố -> nhà cửa luôn che Lumi).
+  // LumiPeek gọi window.__kwSkyLumi.fly(text) khi bầu trời đang hiện trên màn hình.
+  const skyLumi = createSkyLumi({ THREE, isOff: () => lumiOff, reduce });
+  const skyApi = {
+    canFly() {
+      if (reduce || document.hidden || layer !== 'sky' || (envE && envE.rain > 0.55)) return false;
+      const r = sky.getBoundingClientRect();
+      return r.bottom > Math.min(260, innerHeight * 0.4) && r.top < innerHeight * 0.3;
+    },
+    fly: (text) => skyLumi.fly(text),
+  };
+  window.__kwSkyLumi = skyApi;
+  cleanups.push(() => { if (window.__kwSkyLumi === skyApi) window.__kwSkyLumi = null; });
   const LAYER_Y = { sky: 0, b1: metro.levels.b1.y, b2: metro.levels.b2.y };
   const CUT = { sky: 400, b1: metro.levels.b1.y + 11.4, b2: metro.levels.b2.y + 10.4 };
   // v49: khung nhìn "tách lớp" — Skyline thấy cả B1, B2 bên dưới; B1 thấy B1 + B2; B2 chỉ còn B2.
