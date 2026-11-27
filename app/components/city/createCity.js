@@ -1472,6 +1472,12 @@ export function createCity(root, opts = {}) {
     const b = ray.intersectObjects(pickAll, false)[0];
     return !b || b.distance > l.distance - 0.5;
   }
+  // v63: bấm trúng Lumi đang cưỡi mây trên trời (lớp trời nằm sau thành phố; toà nhà phía trước được ưu tiên)
+  function skyLumiHit(e) {
+    if (layer !== 'sky' || !skyLumi.busy()) return false;
+    const r = sky.getBoundingClientRect();
+    return skyLumi.hit(e.clientX - r.left, e.clientY - r.top);
+  }
   const metroLevelOf = (key) => { const st = metro.stations.find((x) => 'metro:' + x.id === key); return st ? st.level : null; };
   const metroPick = { b1: [], b2: [] };
   for (const o of metro.pickables) { const lv = metroLevelOf(o.userData.key); if (lv) metroPick[lv].push(o); }
@@ -1481,6 +1487,13 @@ export function createCity(root, opts = {}) {
   cv.addEventListener('pointermove', (e) => {
     if (e.pointerType !== 'mouse') return;
     const k = hit(e); setHover(k);
+    if (!k && !down && skyLumiHit(e)) {
+      renderer.domElement.style.cursor = 'pointer';
+      tip.hidden = false; tip.innerHTML = '<b>Lumi</b><br><span>Bấm thử xem 👀</span>';
+      const rr = root.getBoundingClientRect();
+      tip.style.left = Math.min(e.clientX - rr.left + 14, RW() - 190) + 'px'; tip.style.top = (e.clientY - rr.top + 14) + 'px';
+      return;
+    }
     if (!k && !down && lumiHit(e)) {
       renderer.domElement.style.cursor = 'pointer';
       tip.hidden = false; tip.innerHTML = '<b>Lumi</b><br><span>Bấm để chào</span>';
@@ -1504,7 +1517,9 @@ export function createCity(root, opts = {}) {
     const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y); down = null;
     if (moved > 6) return;
     if (lumiHit(e)) { lumi.poke(); return; }
-    const k = hit(e); if (k) select(k);
+    const k = hit(e);
+    if (!k && skyLumiHit(e)) { skyLumi.poof(); tip.hidden = true; return; } // v63: bụp!
+    if (k) select(k);
   });
   // labels for the underground: placed only while that level is shown
   function placeMetroLabels() {

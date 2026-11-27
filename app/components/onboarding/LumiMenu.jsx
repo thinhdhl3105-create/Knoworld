@@ -82,7 +82,7 @@ async function loadPool(withCases) {
   return items;
 }
 
-export default function LumiMenu({ pathname, isAdmin, loggedIn, onGo, onCompose, onClose, onTalk }) {
+export default function LumiMenu({ pathname, isAdmin, loggedIn, onGo, onCompose, onClose, onTalk, autoOff, onToggleAuto }) {
   const [view, setView] = useState('main');
   const [pick, setPick] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -121,6 +121,11 @@ export default function LumiMenu({ pathname, isAdmin, loggedIn, onGo, onCompose,
             <button type="button" className="kwm-item" onClick={() => setView('help')}><span className="kwm-e">❓</span>Trang này dùng sao?</button>
             {isAdmin && <button type="button" className="kwm-item" onClick={() => setView('admin')}><span className="kwm-e">🛠️</span>Lối tắt admin</button>}
           </div>
+          {onToggleAuto && (
+            <button type="button" className="kwl-mute" onClick={onToggleAuto}>
+              {autoOff ? 'Bật Lumi tự ghé ngang' : 'Tắt Lumi tự ghé ngang'}
+            </button>
+          )}
         </>
       )}
 

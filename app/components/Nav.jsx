@@ -42,6 +42,7 @@ const links = [
   { href: '/temple', label: 'Temple', dot: '#ffb347' },
   { href: '/home', label: 'My Home', dot: '#e9a8ff' },
   { href: '/medisland', label: 'Medisland', dot: '#ff8f6b' },
+  { href: '/creative', label: 'Creative City', dot: '#ffb876' },
   { group: 'admin', label: 'Admin', admin: true, dot: '#7ee8ff', lock: true, children: ADMIN_LINKS },
 ];
 
@@ -272,6 +273,12 @@ export default function Nav() {
             <span className="kw-lumi-ico" data-mood="happy" dangerouslySetInnerHTML={{ __html: NAV_LUMI_SVG }} />
           </button>
 
+          {/* v64: widget cài Knoworld lên điện thoại */}
+          <button type="button" className="kw-pill kw-icon hidden sm:inline-flex" onClick={() => { setOpen(false); setOpenGroup(null); window.dispatchEvent(new CustomEvent('kw-install-open')); }}
+            aria-label="Knoworld trên điện thoại" title="Knoworld trên điện thoại">
+            <span className="material-symbols-outlined text-[18px]">install_mobile</span>
+          </button>
+
           <button type="button" onClick={openPalette} data-tour="search" className="kw-pill hidden 2xl:inline-flex" aria-label="Search (Ctrl+K)">
             <span className="material-symbols-outlined text-[18px]">search</span>
             <span className="opacity-70 font-medium">Search</span>
@@ -337,6 +344,9 @@ export default function Nav() {
             </Link>
           )))}
           <div className="border-t border-white/10 my-2" />
+          <button type="button" onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent('kw-install-open')); }} className="kw-menu-item w-full">
+            <span className="material-symbols-outlined text-lg">install_mobile</span>Knoworld trên điện thoại
+          </button>
           {user ? (
             <>
               <Link href="/profile" className="kw-menu-item"><span className="material-symbols-outlined text-lg">person</span>My Profile</Link>

@@ -6,6 +6,8 @@ import ReviewWidget from './components/ReviewWidget';
 import VisitorGate from './components/VisitorGate';
 import EngagementLayer from './components/EngagementLayer';
 import HolidayLayer from './components/holiday/HolidayLayer';
+import SiteChrome from './components/SiteChrome';
+import InstallWidget from './components/InstallWidget';
 
 export const metadata = {
   title: 'Knoworld — Explore knowledge like a universe',
@@ -23,13 +25,17 @@ export default function RootLayout({ children }) {
     <html lang="en" className="dark">
       <body className="bg-background text-on-background min-h-screen flex flex-col">
         <AuthProvider>
-          <Nav />
+          {/* v64: Creative City (/creative) là thành phố riêng -> không hiện các lớp của Knoworld City */}
+          <SiteChrome><Nav /></SiteChrome>
           <main className="flex-1">{children}</main>
-          <Footer />
-          <ReviewWidget />
-          <VisitorGate />
-          <EngagementLayer />
-          <HolidayLayer />
+          <SiteChrome>
+            <Footer />
+            <ReviewWidget />
+            <VisitorGate />
+            <EngagementLayer />
+            <HolidayLayer />
+          </SiteChrome>
+          <InstallWidget />
         </AuthProvider>
       </body>
     </html>

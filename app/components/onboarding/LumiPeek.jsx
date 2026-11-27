@@ -64,6 +64,14 @@ const AMBIENT = [
 ];
 const POKE = ['Hihi, nhột! 😆', 'Bắt được Lumi rồi! 🙈', 'Lumi đây! Cần gì cứ gọi nha.', 'Lumi đi thắp đèn tiếp đây ✨'];
 
+// v63: mảnh mây + lấp lánh bay tung ra khi Lumi bụp
+const BITS = Array.from({ length: 16 }, (_, i) => ({
+  k: i % 3 === 2 ? 'is-star' : 'is-cube',
+  a: Math.round((i / 16) * 360 + (i * 37) % 20),
+  d: 46 + ((i * 53) % 40),
+  s: i % 3 === 2 ? 10 : 8 + ((i * 7) % 8),
+  r: (i * 71) % 360,
+}));
 const rnd = (a) => a[(Math.random() * a.length) | 0];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const easeOut = (t) => 1 - (1 - t) ** 3;
@@ -101,6 +109,7 @@ export default function LumiPeek() {
   const [mood, setMood] = useState('happy');
   const [say, setSay] = useState(null); // { text, menu }
   const [hop, setHop] = useState(0);
+  const [poofed, setPoofed] = useState(false); // v63: bị bấm -> bụp!
   const wrap = useRef(null);
   const raf = useRef(0);
   const st = useRef(null); // trạng thái chuyến đang chạy
@@ -138,7 +147,7 @@ export default function LumiPeek() {
     const isMoving = p < 1 && !hover.current;
     if (isMoving !== s.moving) { s.moving = isMoving; setMoving(isMoving); }
     if (!s.said && el >= s.sayAt) { s.said = true; setSay(s.menu ? { panel: true } : { text: s.text }); if (s.phase === 'in') { s.phase = 'talk'; setPhase('talk'); } }
-    if (s.phase !== 'out' && el >= s.exitAt) { s.phase = 'out'; setPhase('out'); setSay(null); s.goneAt = el + 520; }
+    if (s.phase !== 'out' && el >= s.exitAt) { s.phase = 'out'; setPhase('out'); setSay(null); s.goneAt = el + (s.poofed ? 900 : 520); }
     if (s.phase === 'out' && el >= s.goneAt) { stop(); return; }
     raf.current = requestAnimationFrame(tick);
   }, [stop]);
@@ -183,6 +192,7 @@ export default function LumiPeek() {
       goneAt: Infinity,
     };
     setMood(opts.mood || 'happy');
+    setPoofed(false);
     setSay(null);
     setPhase('in');
     setRun({ id: Date.now(), kind, dir, top, x0, menu, side: menu || x1 + size / 2 > W / 2 ? 'r' : 'l' });
@@ -273,14 +283,13 @@ export default function LumiPeek() {
   const poke = () => {
     const s = st.current;
     if (!s || s.phase === 'out') return;
-    setHop((h) => h + 1);
-    if (s.menu) return;
-    setMood(Math.random() < 0.5 ? 'big' : 'wink');
-    s.said = true;
-    s.phase = 'talk';
-    setPhase('talk');
-    setSay({ text: rnd(POKE), menu: true });
-    s.exitAt = Math.max(s.exitAt, s.el + 3400);
+    if (s.menu) { setHop((h) => h + 1); return; }
+    // v63: bấm vào Lumi đang ghé ngang -> "bụp!" biến mất (mây vỡ + lấp lánh)
+    s.poofed = true;
+    setPoofed(true);
+    setMood('wow');
+    setSay(null);
+    s.exitAt = s.el;
   };
   // Lumi rời đi (thụt / bụp mất).
   const close = useCallback(() => {
@@ -347,7 +356,7 @@ export default function LumiPeek() {
         <div
           key={run.id}
           ref={wrap}
-          className={`kwl is-${run.kind} ${run.menu ? 'is-menu' : ''} ${moving ? 'is-moving' : ''} ${run.dir < 0 ? 'is-rev' : ''}`}
+          className={`kwl is-${run.kind} ${run.menu ? 'is-menu' : ''} ${poofed ? 'is-poof' : ''} ${moving ? 'is-moving' : ''} ${run.dir < 0 ? 'is-rev' : ''}`}
           data-phase={phase}
           style={{ transform: `translate3d(${run.x0}px,0,0)`, ...(run.kind === 'cloud' ? { top: run.top } : null) }}
         >
@@ -368,6 +377,12 @@ export default function LumiPeek() {
               </span>
             </button>
           </div>
+          {poofed && (
+            <span className="kwl-bits" aria-hidden="true">
+              {BITS.map((b, i) => <i key={i} className={b.k} style={{ '--a': `${b.a}deg`, '--d': `${b.d}px`, '--s': `${b.s}px`, '--r': `${b.r}deg` }} />)}
+              <b className="kwl-bup">bụp!</b>
+            </span>
+          )}
           {say?.panel && phase !== 'out' && (
             <div className="kwl-panel">
               <LumiMenu
@@ -378,6 +393,8 @@ export default function LumiPeek() {
                 onCompose={compose}
                 onClose={close}
                 onTalk={() => setHop((h) => h + 1)}
+                autoOff={off}
+                onToggleAuto={() => setCameoOff(!off)}
               />
             </div>
           )}
