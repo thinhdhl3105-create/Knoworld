@@ -210,3 +210,17 @@ select.cc-input{background:#1c1b23}
 .cc-dialog img{display:block;width:100%;height:auto;background:#fbfaff}
 @media (prefers-reduced-motion:reduce){.cc *{animation:none!important;transition:none!important}}
 body:has(> main .cc), body:has(.cc){padding-bottom:0}
+/* v65: sảnh chờ kiểu Kahoot */
+.cc-lobby{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;padding:20px;border-radius:16px;background:linear-gradient(135deg,rgba(141,127,255,.22),rgba(255,143,177,.12));border:1px solid rgba(198,191,255,.35)}
+.cc-lobby-pin{display:grid;gap:6px;min-width:0}
+.cc-lobby-pin span{font-size:15px;color:var(--soft)}
+.cc-lobby-pin b{color:var(--fg)}
+.cc-lobby-pin strong{font:700 clamp(56px,9vw,112px)/1 var(--display);letter-spacing:.06em;color:var(--gold);text-shadow:0 0 30px rgba(255,210,122,.35)}
+.cc-lobby-qr{display:grid;gap:6px;justify-items:center;font-size:12px;color:var(--muted)}
+.cc-lobby-qr img{width:min(200px,36vw);height:auto;border-radius:12px;background:#fff;padding:8px}
+.cc-lobby-foot{grid-column:1/-1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-top:12px;border-top:1px solid rgba(255,255,255,.1)}
+.cc-lobby-count{font-size:15px;color:var(--soft)}
+.cc-lobby-count b{font:600 26px var(--display);color:var(--fg);margin-right:4px}
+.cc-lobby-foot .cc-btn{margin-left:auto}
+@media (max-width:640px){.cc-lobby{grid-template-columns:1fr}}
+.cc-backlink{display:inline-flex;align-items:center;gap:6px;text-decoration:none}

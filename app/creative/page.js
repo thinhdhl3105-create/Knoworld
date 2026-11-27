@@ -4,8 +4,10 @@
 // Vào bằng link /creative?r=MÃ-PHÒNG (quét QR trên màn chiếu) + biệt danh.
 // Điện thoại tự đi theo trạm giáo viên đang mở; vẫn xem lại được các trạm khác.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useAuth } from '@/app/components/AuthProvider';
 import {
-  CC_COLORS, CC_STATIONS, ccError, ccJoin, ccState, ccAnswer, ccDrawBrand, ccWall, ccHeart, ccWord,
+  CC_ADMIN_EMAIL, CC_COLORS, CC_STATIONS, ccError, ccJoin, ccState, ccAnswer, ccDrawBrand, ccWall, ccHeart, ccWord,
   ccSubmitArt, ccChannel, normRoom, savedToken, forgetToken, lastRoom, publicUrl,
 } from '@/lib/creative';
 import { Av, Board, Cloud, Pin, QuizPhoto, Ring, Shape, Skyline } from './ui';
@@ -124,6 +126,8 @@ function SecHead({ id, sub }) {
 
 /* ------------------------------------------------------------------ vào phòng */
 function GateJoin({ initRoom, notice, onJoined }) {
+  const { user } = useAuth();
+  const isAdmin = (user?.email || '').toLowerCase() === CC_ADMIN_EMAIL;
   const [code, setCode] = useState(initRoom || '');
   const [name, setName] = useState('');
   const [color, setColor] = useState(CC_COLORS[0]);
@@ -131,7 +135,7 @@ function GateJoin({ initRoom, notice, onJoined }) {
   const [err, setErr] = useState('');
   const submit = async (e) => {
     e.preventDefault();
-    if (!normRoom(code)) { setErr('Nhập mã phòng trên màn chiếu nhé.'); return; }
+    if (!normRoom(code)) { setErr('Nhập mã PIN trên màn chiếu nhé.'); return; }
     if (!name.trim()) { setErr('Nhập biệt danh để vào thành phố.'); return; }
     setBusy(true); setErr('');
     try { onJoined(await ccJoin(normRoom(code), name, color)); } catch (ex) { setErr(ccError(ex)); } finally { setBusy(false); }
@@ -141,6 +145,7 @@ function GateJoin({ initRoom, notice, onJoined }) {
       <section className="cc-hero">
         <div className="cc-stars" />
         <div className="cc-wrap cc-hero-in">
+          <Link href="/" className="cc-pill cc-backlink" style={{ marginBottom: 12 }}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>Knoworld City</Link>
           <div className="cc-title">
             <span className="cc-label">Knoworld · Thành phố sáng tạo</span>
             <h1>Creative <em>City</em></h1>
@@ -152,7 +157,7 @@ function GateJoin({ initRoom, notice, onJoined }) {
       <div className="cc-wrap" style={{ paddingTop: 18 }}>
         <form className="cc-glass cc-card" onSubmit={submit}>
           {notice && <div className="cc-result wait">{notice}</div>}
-          <div className="cc-field"><label htmlFor="cc-room">Mã phòng</label><input id="cc-room" className="cc-input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} autoComplete="off" autoCapitalize="characters" placeholder="VD: CC-2711" /></div>
+          <div className="cc-field"><label htmlFor="cc-room">Mã PIN của lớp</label><input id="cc-room" className="cc-input" style={{ fontFamily: 'var(--display)', fontSize: 18, letterSpacing: '.08em' }} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} autoComplete="off" autoCapitalize="characters" placeholder="VD: 482915" /></div>
           <div className="cc-field"><label htmlFor="cc-nick">Biệt danh</label><input id="cc-nick" className="cc-input" value={name} onChange={(e) => setName(e.target.value)} maxLength={24} autoComplete="off" placeholder="VD: Minh Anh 11A2" /></div>
           <div className="cc-field">
             <label>Màu cư dân</label>
@@ -167,6 +172,16 @@ function GateJoin({ initRoom, notice, onJoined }) {
           <button className="cc-btn" type="submit" disabled={busy}>{busy ? 'Đang vào…' : 'Vào thành phố'}</button>
           {err && <span className="cc-err">{err}</span>}
         </form>
+        {isAdmin && (
+          <div className="cc-glass cc-card" style={{ marginTop: 14, borderStyle: 'dashed', borderColor: 'rgba(255,210,122,.45)' }}>
+            <span className="cc-label" style={{ color: 'var(--gold)' }}>Giáo viên</span>
+            <p style={{ margin: 0, color: 'var(--soft)' }}>Tạo lớp mới để nhận mã PIN và mã QR cho học sinh, giống Kahoot.</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Link className="cc-btn gold" href="/creative/host?new=1">Tạo lớp mới</Link>
+              <Link className="cc-btn ghost" href="/creative/host">Mở màn chiếu</Link>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );
@@ -177,7 +192,7 @@ function GateHome({ st }) {
     <section className="cc-sec">
       <SecHead id="gate" sub={`${st.title} · ${st.players} cư dân đang trong phòng`} />
       <div className="cc-glass cc-card">
-        <span className="cc-label">Em đã vào phòng {st.room}</span>
+        <span className="cc-label">Em đã vào lớp {st.room}</span>
         <p style={{ margin: 0, color: 'var(--soft)' }}>Điện thoại sẽ tự chuyển tới trạm giáo viên đang mở. Chấm đỏ trên thanh trạm cho biết trạm đang diễn ra.</p>
       </div>
       {st.menti_code && (
@@ -195,6 +210,7 @@ function GateHome({ st }) {
           </div>
         ))}
       </div>
+      <Link href="/" className="cc-btn ghost cc-backlink" style={{ marginTop: 14 }}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>Về Knoworld City</Link>
     </section>
   );
 }

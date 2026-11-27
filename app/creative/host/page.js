@@ -93,6 +93,30 @@ function Host() {
   };
   const goStation = (id) => { setTab(id); if (room && room.station !== id) patchRoom({ station: id }); };
 
+  // v65: Tạo lớp mới kiểu Kahoot — một chạm, mã PIN 6 số, mở ngay sảnh chờ.
+  const [creating, setCreating] = useState(false);
+  const newClass = useCallback(async () => {
+    setCreating(true); setErr('');
+    const d = new Date();
+    const title = `Lớp ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    try {
+      for (let i = 0; i < 6; i += 1) {
+        const pin = String(100000 + Math.floor(Math.random() * 900000));
+        try { await adminCreateRoom(pin, title); await loadRooms(); setCode(pin); setTab('gate'); return; } catch (e) { if (e?.code !== '23505') throw e; }
+      }
+      throw new Error('Không tạo được mã PIN, thử lại nhé.');
+    } catch (e) { setErr(ccError(e)); } finally { setCreating(false); }
+  }, [loadRooms]);
+  const autoNew = useRef(false);
+  useEffect(() => {
+    if (autoNew.current) return;
+    if (new URLSearchParams(window.location.search).get('new') === '1') {
+      autoNew.current = true;
+      try { window.history.replaceState(null, '', '/creative/host'); } catch { /* ignore */ }
+      newClass();
+    }
+  }, [newClass]);
+
   const joinUrl = typeof window !== 'undefined' && code ? `${window.location.origin}/creative?r=${encodeURIComponent(code)}` : '';
   return (
     <main className="cc">
@@ -103,13 +127,25 @@ function Host() {
           <select className="cc-input" style={{ width: 'auto', height: 36, marginLeft: 'auto' }} value={code} onChange={(e) => setCode(e.target.value)} aria-label="Chọn phòng">
             {rooms.map((r) => <option key={r.code} value={r.code}>{r.code} · {r.title}</option>)}
           </select>
+          <button type="button" className="cc-btn gold sm" onClick={newClass} disabled={creating}><span className="material-symbols-outlined" style={{ fontSize: 17 }}>add</span>{creating ? 'Đang tạo…' : 'Tạo lớp mới'}</button>
           <button type="button" className="cc-btn ghost sm" onClick={() => document.documentElement.requestFullscreen?.().catch(() => {})}>Toàn màn hình</button>
-          <Link className="cc-btn ghost sm" href="/">Về Knoworld</Link>
+          <Link className="cc-btn ghost sm" href="/?city=creative"><span className="material-symbols-outlined" style={{ fontSize: 17 }}>flight</span>Creative City</Link>
+          <Link className="cc-btn ghost sm" href="/"><span className="material-symbols-outlined" style={{ fontSize: 17 }}>home</span>Knoworld City</Link>
         </div></div>
       </header>
       <div className="cc-wide">
         {err && <p className="cc-err" style={{ marginTop: 10 }}>{err}</p>}
-        {!room ? <RoomsPanel rooms={rooms} onCreated={async (c) => { await loadRooms(); setCode(c); }} /> : (
+        {!room ? (
+          <div style={{ display: 'grid', gap: 16, paddingTop: 24 }}>
+            <div className="cc-glass cc-card" style={{ justifyItems: 'start' }}>
+              <span className="cc-label">Bắt đầu buổi học</span>
+              <h2 style={{ fontSize: 28 }}>Tạo lớp mới, nhận mã PIN cho học sinh</h2>
+              <p style={{ margin: 0, color: 'var(--soft)' }}>Giống Kahoot: bấm một lần là có mã PIN 6 số và mã QR. Học sinh vào trang Creative City, nhập PIN và biệt danh là tham gia.</p>
+              <button type="button" className="cc-btn gold" onClick={newClass} disabled={creating}>{creating ? 'Đang tạo…' : 'Tạo lớp mới'}</button>
+            </div>
+            <RoomsPanel rooms={rooms} onCreated={async (c) => { await loadRooms(); setCode(c); }} />
+          </div>
+        ) : (
           <div className="cc-host">
             <div className="cc-glass cc-host-main">
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -120,7 +156,7 @@ function Host() {
                   </button>
                 ))}
               </div>
-              {tab === 'gate' && <HostGate room={room} players={players} patchRoom={patchRoom} />}
+              {tab === 'gate' && <HostGate room={room} players={players} patchRoom={patchRoom} joinUrl={joinUrl} onStart={() => goStation('guess')} />}
               {tab === 'guess' && <HostGuess room={room} st={st} offset={offset} questions={questions.filter((x) => x.active)} quiz={quiz} />}
               {tab === 'draw' && <HostDraw room={room} st={st} offset={offset} players={players} code={code} ping={ping} reload={loadRooms} />}
               {tab === 'wall' && <HostWall code={code} />}
@@ -161,7 +197,28 @@ function JoinCard({ url, code, players }) {
 }
 
 /* ------------------------------------------------------------------ Cổng */
-function HostGate({ room, players, patchRoom }) {
+function Lobby({ room, players, joinUrl, onStart }) {
+  const [img, setImg] = useState('');
+  useEffect(() => { if (!joinUrl) return; QRCode.toDataURL(joinUrl, { margin: 1, width: 520, color: { dark: '#13121b', light: '#ffffff' } }).then(setImg).catch(() => setImg('')); }, [joinUrl]);
+  const host = typeof window !== 'undefined' ? window.location.host : '';
+  const pin = /^\d{6}$/.test(room.code) ? `${room.code.slice(0, 3)} ${room.code.slice(3)}` : room.code;
+  return (
+    <div className="cc-lobby">
+      <div className="cc-lobby-pin">
+        <span>Vào <b>{host}/creative</b> và nhập mã PIN</span>
+        <strong>{pin}</strong>
+        <span className="cc-hint">{room.title}</span>
+      </div>
+      <div className="cc-lobby-qr">{img && <img src={img} alt={`Mã QR vào lớp ${room.code}`} />}<span>hoặc quét mã</span></div>
+      <div className="cc-lobby-foot">
+        <span className="cc-lobby-count"><b>{players.length}</b> học sinh đã vào</span>
+        <button type="button" className="cc-btn" onClick={onStart} disabled={!players.length}>Bắt đầu · Phòng Ảnh Lạ</button>
+      </div>
+    </div>
+  );
+}
+
+function HostGate({ room, players, patchRoom, joinUrl, onStart }) {
   const [menti, setMenti] = useState(room.menti_code || '');
   const [embed, setEmbed] = useState(room.menti_embed || '');
   useEffect(() => { setMenti(room.menti_code || ''); setEmbed(room.menti_embed || ''); }, [room.code, room.menti_code, room.menti_embed]);
@@ -171,6 +228,7 @@ function HostGate({ room, players, patchRoom }) {
   }, [room.menti_embed]);
   return (
     <>
+      <Lobby room={room} players={players} joinUrl={joinUrl} onStart={onStart} />
       <HH title="Cổng thành phố" sub="Trạm 0 · check-in" />
       <div className="cc-split">
         <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
