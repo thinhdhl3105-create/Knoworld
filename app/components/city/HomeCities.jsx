@@ -5,13 +5,15 @@
 //     vuốt từ mép phải màn hình (điện thoại), vuốt ngang 2 ngón trên touchpad (máy tính).
 //   • Đang ở Creative City: vuốt sang phải hoặc bấm "Knoworld City" để quay về.
 //   • Link thẳng: /?city=creative
+// v66: bỏ máy bay kéo băng rôn; Creative City thành thành phố 3D chia khu chức năng
+//      (Trung tâm Sáng tạo ở giữa gom toàn bộ + 4 khu). Máy bay chuyển cảnh giữ nguyên.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import KnoworldCity from './KnoworldCity';
 import { useAuth } from '../AuthProvider';
-import { Skyline } from '@/app/creative/ui';
-import { CC_ADMIN_EMAIL, CC_STATIONS, normRoom } from '@/lib/creative';
+import { CC_ADMIN_EMAIL, normRoom } from '@/lib/creative';
+import { CC_DISTRICTS, ccDistrict } from './ccDistricts';
 import '@/app/creative/creative.css';
 import './homecities.css';
 
@@ -46,11 +48,11 @@ export default function HomeCities() {
     });
   }, []);
 
-  // Vuốt: từ mép phải sang trái -> Creative City; ở Creative City vuốt sang phải -> về Knoworld City.
+  // Vuốt: từ mép phải sang trái -> Creative City; ở Creative City vuốt từ mép trái sang phải -> về Knoworld City.
   const onTouchStart = (e) => {
     const t = e.touches[0]; if (!t || e.touches.length > 1) { touch.current = null; return; }
     const w = window.innerWidth;
-    const fromEdge = city === 'knoworld' ? t.clientX > w - 28 : true;
+    const fromEdge = city === 'knoworld' ? t.clientX > w - 28 : t.clientX < 28;
     touch.current = fromEdge ? { x: t.clientX, y: t.clientY } : null;
   };
   const onTouchEnd = (e) => {
@@ -82,15 +84,6 @@ export default function HomeCities() {
         </div>
       </div>
 
-      {/* Máy bay kéo băng rôn bay ngang trời Knoworld City — bấm để bay sang Creative City */}
-      {city === 'knoworld' && (
-        <button type="button" className="kwh-banner-plane" onClick={() => go('creative')} aria-label="Bay sang Creative City">
-          <span className="kwh-rope" aria-hidden="true" />
-          <span className="kwh-flag">CREATIVE CITY ›</span>
-          <Plane size={58} />
-        </button>
-      )}
-
       {/* Máy bay chở bạn qua khi chuyển thành phố */}
       {transit > 0 && <div key={transit} className={`kwh-transit ${city === 'creative' ? 'to-r' : 'to-l'}`} aria-hidden="true"><Plane size={150} /></div>}
 
@@ -110,42 +103,106 @@ function CreativePane({ active, onBack }) {
   const router = useRouter();
   const { user } = useAuth();
   const isAdmin = (user?.email || '').toLowerCase() === CC_ADMIN_EMAIL;
+  const stage = useRef(null);
+  const api = useRef(null);
+  const [started, setStarted] = useState(false);
+  const [sel, setSel] = useState(null);       // khu đang xem (null = toàn cảnh)
+  const [card, setCard] = useState(true);     // thẻ thông tin mở/đóng (điện thoại: thu gọn lúc đầu để thấy cả thành phố)
+  useEffect(() => { if (window.innerWidth < 768) setCard(false); }, []);
   const [pin, setPin] = useState('');
+
+  useEffect(() => { if (active) setStarted(true); }, [active]);
+  useEffect(() => {
+    if (!started) return undefined;
+    let dead = false;
+    import('./createCreativeCity').then(({ createCreativeCity }) => {
+      if (dead || !stage.current) return;
+      api.current = createCreativeCity(stage.current, { onSelect: (id) => { setSel(id); setCard(true); } });
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 80);
+    });
+    return () => { dead = true; api.current?.destroy(); api.current = null; };
+  }, [started]);
+
+  // báo cho cảnh 3D biết thẻ đang chiếm bao nhiêu chỗ
+  const cardRef = useRef(null);
+  useEffect(() => {
+    const upd = () => {
+      if (!api.current?.setPad) return;
+      const el = cardRef.current; const mob = window.innerWidth < 768;
+      if (!card || !el) { api.current.setPad({}); return; }
+      api.current.setPad(mob ? { bottom: el.offsetHeight + 40 } : { right: el.offsetWidth + 24 });
+    };
+    const t = setTimeout(upd, 60);
+    window.addEventListener('resize', upd);
+    return () => { clearTimeout(t); window.removeEventListener('resize', upd); };
+  }, [card, sel, started]);
+  const goTo = (id) => { setSel(id); setCard(true); api.current?.focus(id); };
   const join = (e) => {
     e.preventDefault();
     const r = normRoom(pin);
     router.push(r ? `/creative?r=${encodeURIComponent(r)}` : '/creative');
   };
+  const d = ccDistrict(sel || 'hub');
+  const isHub = d.id === 'hub';
+
   return (
     <div className="cc kwh-cc">
       <div className="cc-stars" />
-      <div className="kwh-cc-glow" />
-      {active && <div className="kwh-loop" aria-hidden="true"><Plane size={46} /></div>}
-      <div className="kwh-cc-body">
+      <div className="kwh-moon" aria-hidden="true" />
+      <div ref={stage} className="ccx" />
+
+      <div className="kwh-cc-top">
         <button type="button" className="cc-pill kwh-back" onClick={onBack}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>Knoworld City</button>
-        <div className="cc-title kwh-cc-card">
-          <span className="cc-label">Knoworld · Thành phố thứ hai</span>
-          <h2 className="kwh-cc-h">Creative <em>City</em></h2>
-          <p>Thành phố sáng tạo cho buổi dạy thử và workshop: đoán ảnh, vẽ thương hiệu, tường tranh, word cloud. Không cần tài khoản.</p>
+        <div className="kwh-cc-brand"><b>Creative <em>City</em></b><span>Thành phố sáng tạo · không cần tài khoản</span></div>
+      </div>
+
+      <div className="kwh-districts" role="toolbar" aria-label="Các khu của Creative City">
+        {CC_DISTRICTS.map((x) => (
+          <button key={x.id} type="button" className={`cc-chip ${sel === x.id ? 'on' : ''}`} onClick={() => goTo(x.id)}>
+            <span className="cc-dot" style={{ background: x.color }} />{x.short}
+          </button>
+        ))}
+        <button type="button" className={`cc-chip ${sel === null ? 'on' : ''}`} onClick={() => { setSel(null); api.current?.focus(null); }}>Toàn cảnh</button>
+      </div>
+
+      {card ? (
+        <aside ref={cardRef} className="kwh-card" style={{ '--acc': d.color }} aria-live="polite">
+          <div className="kwh-card-h">
+            <span className="kwh-ic material-symbols-outlined" aria-hidden="true">{d.icon}</span>
+            <div style={{ minWidth: 0 }}>
+              <span className="cc-label">{isHub ? 'Trung tâm · bao gồm toàn bộ' : 'Khu chức năng'}</span>
+              <h2>{d.name}</h2>
+            </div>
+            <button type="button" className="kwh-x" onClick={() => setCard(false)} aria-label="Thu gọn"><span className="material-symbols-outlined">expand_more</span></button>
+          </div>
+          <p>{d.desc}</p>
+          {isHub && (
+            <div className="kwh-all">
+              {CC_DISTRICTS.slice(1).map((x) => (
+                <button key={x.id} type="button" onClick={() => goTo(x.id)} style={{ '--c': x.color }}>
+                  <span className="material-symbols-outlined" aria-hidden="true">{x.icon}</span>{x.short}
+                </button>
+              ))}
+            </div>
+          )}
+          {!isHub && <p className="kwh-note">Hoạt động mở trong lớp học: vào lớp bằng mã PIN, giáo viên mở khu này thì điện thoại tự chuyển tới.</p>}
           <form onSubmit={join} className="kwh-pin">
-            <input className="cc-input" value={pin} onChange={(e) => setPin(e.target.value.toUpperCase())} placeholder="Nhập mã PIN của lớp" aria-label="Mã PIN của lớp" inputMode="text" autoComplete="off" />
+            <input className="cc-input" value={pin} onChange={(e) => setPin(e.target.value.toUpperCase())} placeholder="Nhập mã PIN của lớp" aria-label="Mã PIN của lớp" autoComplete="off" />
             <button type="submit" className="cc-btn">Vào lớp</button>
           </form>
           {isAdmin && (
             <div className="kwh-admin">
-              <span className="cc-label">Giáo viên</span>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Link href="/creative/host?new=1" className="cc-btn gold"><span className="material-symbols-outlined" style={{ fontSize: 18 }}>add</span>Tạo lớp mới</Link>
-                <Link href="/creative/host" className="cc-btn ghost"><span className="material-symbols-outlined" style={{ fontSize: 18 }}>cast</span>Mở màn chiếu</Link>
-              </div>
+              <Link href="/creative/host?new=1" className="cc-btn gold sm"><span className="material-symbols-outlined" style={{ fontSize: 17 }}>add</span>Tạo lớp mới</Link>
+              <Link href="/creative/host" className="cc-btn ghost sm"><span className="material-symbols-outlined" style={{ fontSize: 17 }}>cast</span>Mở màn chiếu</Link>
             </div>
           )}
-          <div className="kwh-stations">
-            {CC_STATIONS.slice(1).map((s) => <span key={s.id} className="cc-chip"><span className="cc-dot" style={{ background: s.color }} />{s.full}</span>)}
-          </div>
-        </div>
-      </div>
-      <div className="kwh-cc-sky"><Skyline /></div>
+          {!isHub && <button type="button" className="kwh-tohub" onClick={() => goTo('hub')}><span className="material-symbols-outlined" aria-hidden="true">arrow_back</span>Về Trung tâm Sáng tạo</button>}
+        </aside>
+      ) : (
+        <button type="button" className="kwh-card-mini cc-pill" onClick={() => setCard(true)} style={{ '--acc': d.color }}>
+          <span className="cc-dot" style={{ background: d.color }} />{d.short}<span className="material-symbols-outlined" style={{ fontSize: 18 }}>expand_less</span>
+        </button>
+      )}
     </div>
   );
 }
