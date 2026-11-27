@@ -29,7 +29,7 @@ export function cityTemplate(hasAdmin) {
 
 <div class="kwc-clock kwc-panel kwc-ui" data-id="clock" aria-label="Time, weather and land">
   <button type="button" class="head" data-id="clockHead">
-    <span class="t" data-id="time">--:--</span><span class="wx" data-id="wx"></span><span class="chev" aria-hidden="true">⚙ settings</span>
+    <span class="t" data-id="time">--:--</span><span class="wx" data-id="wx"></span><span class="chev" aria-hidden="true">⚙<span class="cv-t"> settings</span></span>
   </button>
   <div class="ph" data-id="phase">Loading…</div>
   <div class="ctl">

@@ -411,12 +411,13 @@ export function createMetro(K) {
     for (const T of trains) {
       if (T.crane) { T.crane.position.x = T.fx + Math.sin(t * 0.35) * 9; continue; }
       const { path } = T;
-      if (T.dwell > 0) T.dwell -= dt;
+      if (T.dwell > 0) { T.dwell -= dt; if (T.dwell <= 0) T.s += 0.12; } // v67: hết giờ dừng thì nhích qua khỏi ga
       else {
+        // v67: trước đây tàu dừng xong lại thấy "ga gần nhất" cách 0 nên đứng yên mãi ở ga đầu tiên.
         let d = Infinity;
-        for (const s of T.stops) { const dd = ((s - T.s) % path.L + path.L) % path.L; if (dd < d) d = dd; }
-        const v = Math.min(T.vmax, Math.max(0.9, Math.sqrt(2 * 3.2 * d)));
-        if (d < v * dt && d !== Infinity) { T.s += d; T.dwell = 3.2; } else T.s += v * dt;
+        for (const s of T.stops) { const dd = ((s - T.s) % path.L + path.L) % path.L; if (dd > 1e-4 && dd < d) d = dd; }
+        const v = Math.min(T.vmax, Math.max(0.9, Math.sqrt(2 * 3.2 * (d === Infinity ? 99 : d))));
+        if (d !== Infinity && d < v * dt) { T.s += d; T.dwell = 3.2; } else T.s += v * dt;
       }
       T.s %= path.L;
       T.cars.forEach((c, i) => placeCar(c, path.at(T.s - i * CAR - CAR / 2), T.y));

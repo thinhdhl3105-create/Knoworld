@@ -2,7 +2,7 @@
 
 // v64: các mảnh giao diện dùng chung giữa điện thoại (/creative) và màn chiếu (/creative/host).
 import { builtinSvg } from './builtins';
-import { publicUrl } from '@/lib/creative';
+import { publicUrl, parseQuizImage } from '@/lib/creative';
 
 export const TILE_COLORS = ['#ff8a8a', '#7ee8ff', '#ffd27a', '#5ee0a0'];
 export const TILE_NAMES = ['tam giác', 'thoi', 'tròn', 'vuông'];
@@ -19,13 +19,17 @@ export const Av = ({ name, color, size }) => (
   <span className="cc-av" style={{ background: color || '#c6bfff', ...(size ? { width: size, height: size } : null) }}>{initials(name)}</span>
 );
 
-// Ảnh câu hỏi: ảnh thật (Storage) hoặc hình minh hoạ cắt sát. full = lộ toàn cảnh (chỉ hình minh hoạ).
+// Ảnh câu hỏi: ảnh thật (Storage hoặc link ngoài) hoặc hình minh hoạ cắt sát.
+// v67: ảnh thật phóng sát vào một chi tiết (đuôi #z=3&x=40&y=50 trong image_path); full = lộ toàn cảnh khi công bố đáp án.
 export function QuizPhoto({ q, uid, full = false, children }) {
-  const src = q?.image_path ? publicUrl(q.image_path) : '';
+  const im = parseQuizImage(q?.image_path);
+  const src = im ? (/^https?:\/\//.test(im.base) ? im.base : publicUrl(im.base)) : '';
+  const zoom = !full && im && im.z > 1;
   return (
-    <div className="cc-photo">
+    <div className={`cc-photo${full ? ' is-full' : ''}`}>
       {src
-        ? <img src={src} alt="Ảnh câu hỏi" />
+        ? <img src={src} alt="Ảnh câu hỏi" referrerPolicy="no-referrer" draggable={false}
+            style={zoom ? { transform: `scale(${im.z})`, transformOrigin: `${im.x}% ${im.y}%` } : undefined} />
         : <span style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: builtinSvg(q?.builtin, uid, full) }} />}
       {children}
     </div>

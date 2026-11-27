@@ -182,7 +182,7 @@ export default function Nav() {
         <div className="flex items-center gap-1.5 min-w-0">
           <Link ref={brandRef} href="/" className="kw-pill kw-brand" aria-label="Knoworld City — home">
             <span className="material-symbols-outlined text-[18px] text-primary">location_city</span>
-            <span className="font-display text-[15px] font-semibold tracking-tight">Knoworld</span>
+            <span className="hidden min-[420px]:inline font-display text-[15px] font-semibold tracking-tight">Knoworld</span>
           </Link>
           {/* Bản sao ẩn chỉ để đo độ rộng từng nút */}
           <div ref={measureRef} className="kw-nav-measure hidden xl:flex" aria-hidden="true">

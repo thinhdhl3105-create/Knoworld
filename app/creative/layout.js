@@ -4,7 +4,7 @@ import './creative.css';
 // (xem app/components/SiteChrome.jsx).
 export const metadata = {
   title: 'Creative City — Knoworld',
-  description: 'Thành phố sáng tạo cho buổi dạy thử: đoán ảnh, vẽ thương hiệu, tường tranh và word cloud.',
+  description: 'Thành phố sáng tạo cho buổi dạy thử: đoán ảnh, vẽ sáng tạo, tường tranh và word cloud.',
 };
 
 export const viewport = {

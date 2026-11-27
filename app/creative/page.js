@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { useAuth } from '@/app/components/AuthProvider';
 import {
   CC_ADMIN_EMAIL, CC_COLORS, CC_STATIONS, ccError, ccJoin, ccState, ccAnswer, ccDrawBrand, ccWall, ccHeart, ccWord,
-  ccSubmitArt, ccChannel, normRoom, savedToken, forgetToken, lastRoom, publicUrl,
+  ccSubmitArt, ccChannel, normRoom, savedToken, forgetToken, lastRoom, publicUrl, ccScan, ccAnnounce, visitorId,
 } from '@/lib/creative';
 import { Av, Board, Cloud, Pin, QuizPhoto, Ring, Shape, Skyline } from './ui';
 
@@ -32,6 +32,8 @@ export default function CreativeCityPage() {
     const sp = new URLSearchParams(window.location.search);
     const r = normRoom(sp.get('r') || lastRoom());
     setInitRoom(r);
+    // v67: quét QR (link có ?r=) -> màn chiếu đếm "đã quét" ngay
+    if (sp.get('r')) { const v = visitorId(); ccScan(r, v); ccAnnounce(r, { kind: 'scan', v }); }
     const t = r ? savedToken(r) : null;
     if (!t) { setBooting(false); return; }
     ccJoin(r, '', '', t)
@@ -138,7 +140,7 @@ function GateJoin({ initRoom, notice, onJoined }) {
     if (!normRoom(code)) { setErr('Nhập mã PIN trên màn chiếu nhé.'); return; }
     if (!name.trim()) { setErr('Nhập biệt danh để vào thành phố.'); return; }
     setBusy(true); setErr('');
-    try { onJoined(await ccJoin(normRoom(code), name, color)); } catch (ex) { setErr(ccError(ex)); } finally { setBusy(false); }
+    try { const d = await ccJoin(normRoom(code), name, color); ccAnnounce(d.room, { kind: 'join', name: name.trim(), color }); onJoined(d); } catch (ex) { setErr(ccError(ex)); } finally { setBusy(false); }
   };
   return (
     <main className="cc">
@@ -312,15 +314,15 @@ function Draw({ st, room, token, offset, refresh, onCarry }) {
   };
   return (
     <section className="cc-sec">
-      <SecHead id="draw" sub="Bốc một sản phẩm thương hiệu Việt rồi vẽ lại theo trí nhớ." />
+      <SecHead id="draw" sub="Bốc một đề vẽ vui rồi vẽ theo trí tưởng tượng của em." />
       <div className="cc-brief">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span className="cc-label" style={{ color: 'var(--pink)' }}>Gợi ý của em</span>
+          <span className="cc-label" style={{ color: 'var(--pink)' }}>Đề vẽ của em</span>
           <span className="cc-clock">{leftS == null ? 'Chờ bấm giờ' : leftS > 0 ? fmtClock(leftS) : 'Hết giờ'}</span>
         </div>
-        <div className="cc-brief-main">{me?.brand_item || 'Chưa bốc gợi ý'}</div>
-        <div className="cc-rule"><b>Luật:</b> không viết tên thương hiệu lên tranh. Vẽ sao cho người xem vẫn nhận ra, nhờ màu sắc, hình dáng, chi tiết đặc trưng.</div>
-        {!me?.brand && <button type="button" className="cc-btn" onClick={pick} disabled={busy}>{busy ? 'Đang bốc…' : 'Bốc gợi ý'}</button>}
+        <div className="cc-brief-main">{me?.brand_item || 'Chưa bốc đề'}</div>
+        <div className="cc-rule"><b>Luật:</b> không cần vẽ đẹp, cần vẽ lạ! Thêm một chi tiết bất ngờ mà chỉ em nghĩ ra (cảm xúc, nghề nghiệp, bối cảnh…). Không vẽ logo hay tên nhãn hàng nào.</div>
+        {!me?.brand && <button type="button" className="cc-btn" onClick={pick} disabled={busy}>{busy ? 'Đang bốc…' : 'Bốc đề vẽ'}</button>}
         {err && <span className="cc-err">{err}</span>}
       </div>
       <div className="cc-seg" role="tablist" aria-label="Cách vẽ">
@@ -358,7 +360,7 @@ function DrawPad({ disabled, onDone }) {
   const wid = () => (s.current.erase ? s.current.size * 2.5 : s.current.size);
   const snap = () => { try { s.current.hist.push(ctx().getImageData(0, 0, ref.current.width, ref.current.height)); if (s.current.hist.length > 20) s.current.hist.shift(); } catch { /* ignore */ } };
   const down = (e) => {
-    if (disabled) { setMsg('Bốc gợi ý trước đã nhé.'); return; }
+    if (disabled) { setMsg('Bốc đề vẽ trước đã nhé.'); return; }
     s.current.down = true; s.current.drew = true; ref.current.setPointerCapture(e.pointerId); snap();
     const p = pos(e); s.current.last = p; const x = ctx(); x.fillStyle = ink(); x.beginPath(); x.arc(p[0], p[1], wid() / 2, 0, 7); x.fill();
   };
@@ -413,7 +415,7 @@ function Wall({ st, room, token, refresh, carry, clearCarry, goDraw }) {
     e.preventDefault();
     const src = file || carry;
     if (!src) { setMsg({ t: 'Chọn ảnh tranh trước đã.', ok: false }); return; }
-    if (!me?.brand) { setMsg({ t: 'Em cần bốc gợi ý ở Xưởng Vẽ trước.', ok: false }); return; }
+    if (!me?.brand) { setMsg({ t: 'Em cần bốc đề vẽ ở Xưởng Vẽ trước.', ok: false }); return; }
     setBusy(true); setMsg({ t: '', ok: false });
     try {
       await ccSubmitArt(room, token, src, { title, caption, brand: me.brand });
@@ -440,10 +442,10 @@ function Wall({ st, room, token, refresh, carry, clearCarry, goDraw }) {
         </label>
         <input id="cc-file" type="file" accept="image/*" className="cc-sr" onChange={pickFile} />
         <div className="cc-field">
-          <label>Sản phẩm em vẽ</label>
+          <label>Đề em vẽ</label>
           {me?.brand
             ? <span className="cc-tag" style={{ justifySelf: 'start', fontSize: 12.5, padding: '6px 10px' }}>{me.brand}</span>
-            : <button type="button" className="cc-btn ghost sm" style={{ justifySelf: 'start' }} onClick={goDraw}>Chưa bốc gợi ý · tới Xưởng Vẽ</button>}
+            : <button type="button" className="cc-btn ghost sm" style={{ justifySelf: 'start' }} onClick={goDraw}>Chưa bốc đề · tới Xưởng Vẽ</button>}
         </div>
         <div className="cc-field"><label htmlFor="cc-title">Tên tác phẩm</label><input id="cc-title" className="cc-input" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={60} placeholder="VD: Giọt đỏ trên bàn ăn" /></div>
         <div className="cc-field"><label htmlFor="cc-cap">Một dòng mô tả</label><input id="cc-cap" className="cc-input" value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={140} placeholder="Chi tiết nào giúp người xem nhận ra?" /></div>

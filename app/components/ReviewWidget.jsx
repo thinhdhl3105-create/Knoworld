@@ -180,7 +180,7 @@ export default function ReviewWidget() {
       {!showForm && (
         <button
           onClick={openForm}
-          className="fixed bottom-20 md:bottom-5 right-4 md:right-5 z-[55] flex items-center gap-2 bg-primary text-on-primary px-4 py-3 rounded-full shadow-lg shadow-black/40 text-sm font-bold hover:scale-95 transition-transform"
+          className={`fixed bottom-20 md:bottom-5 right-4 md:right-5 z-[55] ${pathname === '/' ? 'hidden md:flex' : 'flex'} items-center gap-2 bg-primary text-on-primary px-4 py-3 rounded-full shadow-lg shadow-black/40 text-sm font-bold hover:scale-95 transition-transform`}
           aria-label="Rate this website"
         >
           <span className="material-symbols-outlined text-xl">rate_review</span>

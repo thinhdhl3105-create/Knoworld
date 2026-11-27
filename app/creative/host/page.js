@@ -11,14 +11,14 @@ import {
   CC_ADMIN_EMAIL, CC_STATIONS, ccChannel, ccError, ccState, normRoom,
   adminRooms, adminCreateRoom, adminUpdateRoom, adminResetRoom, adminPlayers, adminQuestions, adminSaveQuestion,
   adminDeleteQuestion, adminUploadQuizImage, adminArt, adminSetArt, adminBrands, adminSaveBrand, adminDeleteBrand,
-  adminClearWords, adminQuiz, adminDraw,
+  adminClearWords, adminQuiz, adminDraw, adminShuffleQuestions, adminScans, withZoom, parseQuizImage,
 } from '@/lib/creative';
 import { Av, Board, Cloud, Pin, QuizPhoto, Ring, Shape, TILE_COLORS } from '../ui';
 
 const ms = (iso) => (iso ? Date.parse(iso) : 0);
 const fmtClock = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 const TABS = [...CC_STATIONS.map((s) => ({ id: s.id, label: s.name, color: s.color, live: true })),
-  { id: 'questions', label: 'Bộ câu hỏi', icon: 'quiz' }, { id: 'brands', label: 'Thương hiệu', icon: 'sell' }, { id: 'rooms', label: 'Phòng', icon: 'meeting_room' }];
+  { id: 'questions', label: 'Bộ câu hỏi', icon: 'quiz' }, { id: 'brands', label: 'Đề vẽ', icon: 'sell' }, { id: 'rooms', label: 'Phòng', icon: 'meeting_room' }];
 
 export default function CreativeHostPage() {
   const { user, loading } = useAuth();
@@ -72,15 +72,42 @@ function Host() {
     if (!code) return;
     try { const d = await ccState(code, null); setSt(d); setOffset(ms(d.now) - Date.now()); } catch { /* phòng đóng */ }
   }, [code]);
-  const refreshPlayers = useCallback(async () => { if (code) { try { setPlayers(await adminPlayers(code)); } catch { /* ignore */ } } }, [code]);
+  // v67: ai vừa vào lớp -> bật thông báo trên màn chiếu; đếm số máy đã quét QR.
+  const [scans, setScans] = useState(() => new Set());
+  const [toasts, setToasts] = useState([]);
+  const seen = useRef(null);
+  const pushToast = useCallback((t) => {
+    const id = `${Date.now()}-${Math.random()}`;
+    setToasts((xs) => [...xs.slice(-4), { ...t, id }]);
+    setTimeout(() => setToasts((xs) => xs.filter((x) => x.id !== id)), 4200);
+  }, []);
+  const refreshPlayers = useCallback(async () => {
+    if (!code) return;
+    try {
+      const list = await adminPlayers(code);
+      setPlayers(list);
+      if (seen.current) list.forEach((p) => { if (!seen.current.has(p.id)) pushToast({ name: p.name, color: p.color }); });
+      seen.current = new Set(list.map((p) => p.id));
+    } catch { /* ignore */ }
+  }, [code, pushToast]);
+  const refreshScans = useCallback(async () => {
+    if (!code) return;
+    const rows = await adminScans(code);
+    if (rows) setScans((s) => { const n = new Set(s); rows.forEach((r) => n.add(r.visitor)); return n.size === s.size ? s : n; });
+  }, [code]);
 
   useEffect(() => {
     if (!code) return undefined;
-    setSt(null); refresh(); refreshPlayers();
-    const a = setInterval(refresh, 1500); const b = setInterval(refreshPlayers, 5000);
-    chRef.current = ccChannel(code, () => refresh());
-    return () => { clearInterval(a); clearInterval(b); chRef.current?.close(); chRef.current = null; };
-  }, [code, refresh, refreshPlayers]);
+    setSt(null); seen.current = null; setScans(new Set()); setToasts([]);
+    refresh(); refreshPlayers(); refreshScans();
+    const a = setInterval(refresh, 1500); const b = setInterval(refreshPlayers, 2000); const c = setInterval(refreshScans, 4000);
+    chRef.current = ccChannel(code, (m) => {
+      if (m?.kind === 'scan' && m.v) setScans((s) => (s.has(m.v) ? s : new Set(s).add(m.v)));
+      else if (m?.kind === 'join') refreshPlayers();
+      refresh();
+    });
+    return () => { clearInterval(a); clearInterval(b); clearInterval(c); chRef.current?.close(); chRef.current = null; };
+  }, [code, refresh, refreshPlayers, refreshScans]);
 
   const ping = () => chRef.current?.ping({ at: Date.now() });
   const patchRoom = async (patch) => {
@@ -102,11 +129,15 @@ function Host() {
     try {
       for (let i = 0; i < 6; i += 1) {
         const pin = String(100000 + Math.floor(Math.random() * 900000));
-        try { await adminCreateRoom(pin, title); await loadRooms(); setCode(pin); setTab('gate'); return; } catch (e) { if (e?.code !== '23505') throw e; }
+        try {
+          await adminCreateRoom(pin, title);
+          try { await adminShuffleQuestions(); await loadQuestions(); } catch { /* vẫn dùng thứ tự cũ */ }
+          await loadRooms(); setCode(pin); setTab('gate'); return;
+        } catch (e) { if (e?.code !== '23505') throw e; }
       }
       throw new Error('Không tạo được mã PIN, thử lại nhé.');
     } catch (e) { setErr(ccError(e)); } finally { setCreating(false); }
-  }, [loadRooms]);
+  }, [loadRooms, loadQuestions]);
   const autoNew = useRef(false);
   useEffect(() => {
     if (autoNew.current) return;
@@ -156,8 +187,8 @@ function Host() {
                   </button>
                 ))}
               </div>
-              {tab === 'gate' && <HostGate room={room} players={players} patchRoom={patchRoom} joinUrl={joinUrl} onStart={() => goStation('guess')} />}
-              {tab === 'guess' && <HostGuess room={room} st={st} offset={offset} questions={questions.filter((x) => x.active)} quiz={quiz} />}
+              {tab === 'gate' && <HostGate room={room} players={players} scans={Math.max(scans.size, players.length)} patchRoom={patchRoom} joinUrl={joinUrl} onStart={() => goStation('guess')} />}
+              {tab === 'guess' && <HostGuess room={room} st={st} offset={offset} questions={questions.filter((x) => x.active)} quiz={quiz} reloadQuestions={loadQuestions} />}
               {tab === 'draw' && <HostDraw room={room} st={st} offset={offset} players={players} code={code} ping={ping} reload={loadRooms} />}
               {tab === 'wall' && <HostWall code={code} />}
               {tab === 'plaza' && <HostPlaza st={st} code={code} refresh={refresh} ping={ping} />}
@@ -167,11 +198,14 @@ function Host() {
                 onReset={async () => { try { await adminResetRoom(code); ping(); await loadRooms(); refresh(); refreshPlayers(); } catch (e) { setErr(ccError(e)); } }} />}
             </div>
             <aside className="cc-host-side">
-              <JoinCard url={joinUrl} code={code} players={st?.players ?? players.length} />
+              <JoinCard url={joinUrl} code={code} players={st?.players ?? players.length} scans={Math.max(scans.size, players.length)} />
               <div className="cc-glass cc-card"><span className="cc-label">Bảng điểm Ảnh Lạ</span><Board rows={st?.top} /></div>
             </aside>
           </div>
         )}
+      </div>
+      <div className="cc-toasts" aria-live="polite">
+        {toasts.map((t) => <div key={t.id} className="cc-toast"><Av name={t.name} color={t.color} /><span><b>{t.name}</b> vừa vào lớp</span><span className="cc-toast-pop">🎉</span></div>)}
       </div>
     </main>
   );
@@ -181,7 +215,7 @@ function HH({ title, sub, children }) {
   return <div className="cc-hh"><div><span className="cc-label">{sub}</span><h2>{title}</h2></div><div className="ctrl">{children}</div></div>;
 }
 
-function JoinCard({ url, code, players }) {
+function JoinCard({ url, code, players, scans }) {
   const [img, setImg] = useState('');
   const [copied, setCopied] = useState(false);
   useEffect(() => { if (!url) return; QRCode.toDataURL(url, { margin: 1, width: 400, color: { dark: '#13121b', light: '#ffffff' } }).then(setImg).catch(() => setImg('')); }, [url]);
@@ -191,16 +225,20 @@ function JoinCard({ url, code, players }) {
       <div className="cc-qr">{img && <img src={img} alt={`Mã QR vào phòng ${code}`} />}</div>
       <div className="cc-code">{code}</div>
       <button type="button" className="cc-btn ghost sm" onClick={() => { navigator.clipboard?.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => {}); }}>{copied ? 'Đã chép link' : 'Chép link vào phòng'}</button>
-      <div className="cc-stat"><span>Cư dân trong phòng</span><b>{players}</b></div>
+      <div className="cc-stat"><span>Đã quét QR</span><b>{scans}</b></div>
+      <div className="cc-stat"><span>Đã vào lớp</span><b>{players}</b></div>
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ Cổng */
-function Lobby({ room, players, joinUrl, onStart }) {
+function Lobby({ room, players, scans, joinUrl, onStart }) {
   const [img, setImg] = useState('');
   useEffect(() => { if (!joinUrl) return; QRCode.toDataURL(joinUrl, { margin: 1, width: 520, color: { dark: '#13121b', light: '#ffffff' } }).then(setImg).catch(() => setImg('')); }, [joinUrl]);
   const host = typeof window !== 'undefined' ? window.location.host : '';
+  const [tick, setTick] = useState(Date.now());
+  useEffect(() => { const id = setInterval(() => setTick(Date.now()), 5000); return () => clearInterval(id); }, []);
+  const online = players.filter((p) => tick - ms(p.last_seen) < 45000).length;
   const pin = /^\d{6}$/.test(room.code) ? `${room.code.slice(0, 3)} ${room.code.slice(3)}` : room.code;
   return (
     <div className="cc-lobby">
@@ -210,6 +248,17 @@ function Lobby({ room, players, joinUrl, onStart }) {
         <span className="cc-hint">{room.title}</span>
       </div>
       <div className="cc-lobby-qr">{img && <img src={img} alt={`Mã QR vào lớp ${room.code}`} />}<span>hoặc quét mã</span></div>
+      <div className="cc-lobby-stats">
+        <Counter label="Đã quét QR" value={scans} color="#7ee8ff" />
+        <Counter label="Đã đăng ký vào lớp" value={players.length} color="#ffd27a" />
+        <Counter label="Đang online" value={online} color="#5ee0a0" />
+      </div>
+      {players.length > 0 && (
+        <div className="cc-lobby-crowd">
+          {players.slice(0, 48).map((p) => <span key={p.id} className="cc-joiner pop"><Av name={p.name} color={p.color} />{p.name}</span>)}
+          {players.length > 48 && <span className="cc-joiner">+{players.length - 48}</span>}
+        </div>
+      )}
       <div className="cc-lobby-foot">
         <span className="cc-lobby-count"><b>{players.length}</b> học sinh đã vào</span>
         <button type="button" className="cc-btn" onClick={onStart} disabled={!players.length}>Bắt đầu · Phòng Ảnh Lạ</button>
@@ -218,7 +267,19 @@ function Lobby({ room, players, joinUrl, onStart }) {
   );
 }
 
-function HostGate({ room, players, patchRoom, joinUrl, onStart }) {
+function Counter({ label, value, color }) {
+  const [bump, setBump] = useState(0);
+  const prev = useRef(value);
+  useEffect(() => { if (value > prev.current) setBump((b) => b + 1); prev.current = value; }, [value]);
+  return (
+    <div className="cc-counter" style={{ '--c': color }}>
+      <b key={bump} className={bump ? 'bump' : ''}>{value}</b>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function HostGate({ room, players, scans, patchRoom, joinUrl, onStart }) {
   const [menti, setMenti] = useState(room.menti_code || '');
   const [embed, setEmbed] = useState(room.menti_embed || '');
   useEffect(() => { setMenti(room.menti_code || ''); setEmbed(room.menti_embed || ''); }, [room.code, room.menti_code, room.menti_embed]);
@@ -228,7 +289,7 @@ function HostGate({ room, players, patchRoom, joinUrl, onStart }) {
   }, [room.menti_embed]);
   return (
     <>
-      <Lobby room={room} players={players} joinUrl={joinUrl} onStart={onStart} />
+      <Lobby room={room} players={players} scans={scans} joinUrl={joinUrl} onStart={onStart} />
       <HH title="Cổng thành phố" sub="Trạm 0 · check-in" />
       <div className="cc-split">
         <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
@@ -250,7 +311,9 @@ function HostGate({ room, players, patchRoom, joinUrl, onStart }) {
 }
 
 /* ------------------------------------------------------------------ Ảnh Lạ */
-function HostGuess({ room, st, offset, questions, quiz }) {
+function HostGuess({ room, st, offset, questions, quiz, reloadQuestions }) {
+  const [mixing, setMixing] = useState(false);
+  const mix = async () => { setMixing(true); try { await adminShuffleQuestions(); await reloadQuestions(); await quiz('idle', 0); } catch { /* ignore */ } finally { setMixing(false); } };
   const [now, setNow] = useState(Date.now());
   const q = questions[room.quiz_index] || null;
   const phase = room.quiz_phase;
@@ -289,6 +352,7 @@ function HostGuess({ room, st, offset, questions, quiz }) {
     <>
       <HH title={q.question} sub={`Trạm 1 · câu ${n + 1}/${questions.length}`}>
         {phase === 'idle' && <>
+          {n === 0 && <button type="button" className="cc-btn ghost sm" disabled={mixing} onClick={mix} title="Đổi thứ tự câu hỏi và vị trí đáp án">{mixing ? 'Đang xáo…' : '🔀 Xáo trộn'}</button>}
           <button type="button" className="cc-btn ghost sm" disabled={n === 0} onClick={() => quiz('idle', n - 1)}>← Câu trước</button>
           <button type="button" className="cc-btn ghost sm" disabled={isLast} onClick={() => quiz('idle', n + 1)}>Câu sau →</button>
           <button type="button" className="cc-btn" onClick={() => quiz('run')}>Bắt đầu câu {n + 1}</button>
@@ -340,7 +404,7 @@ function HostDraw({ room, st, offset, players, code, ping, reload }) {
   const uploaded = art.length;
   return (
     <>
-      <HH title="Xưởng Vẽ Thương Hiệu" sub="Trạm 2 · vẽ sản phẩm thương hiệu Việt, không ghi tên">
+      <HH title="Xưởng Vẽ Sáng Tạo" sub="Trạm 2 · mỗi bạn một đề vẽ vui, không vẽ logo hay tên nhãn hàng">
         <input type="number" min={1} max={60} className="cc-input" style={{ width: 80, height: 40 }} value={mins} onChange={(e) => setMins(Number(e.target.value) || 1)} aria-label="Số phút vẽ" />
         <button type="button" className="cc-btn" onClick={() => timer(mins)}>{started ? 'Bấm giờ lại' : 'Bấm giờ vẽ'}</button>
         {started && <button type="button" className="cc-btn ghost" onClick={() => timer(null)}>Tắt đồng hồ</button>}
@@ -352,9 +416,9 @@ function HostDraw({ room, st, offset, players, code, ping, reload }) {
           <div className="cc-bigclock">{leftS == null ? `${room.draw_minutes}:00` : leftS > 0 ? fmtClock(leftS) : 'Hết giờ'}</div>
           <div className="cc-stat"><span>Tranh đã tải lên</span><b>{uploaded} / {st?.players ?? players.length}</b></div>
           <div className="cc-progress"><i style={{ width: `${players.length ? Math.min(100, (uploaded / players.length) * 100) : 0}%` }} /></div>
-          <span className="cc-label" style={{ marginTop: 6 }}>Gợi ý đã phát</span>
+          <span className="cc-label" style={{ marginTop: 6 }}>Đề đã phát</span>
           {counts.length ? <div style={{ display: 'grid', gap: 8 }}>{counts.map(([b, c]) => <div key={b} className="cc-hbar"><span>{b}</span><div className="track"><i style={{ width: `${(c / maxC) * 100}%` }} /></div><b>{c}</b></div>)}</div>
-            : <div className="cc-empty">Chưa ai bốc gợi ý.</div>}
+            : <div className="cc-empty">Chưa ai bốc đề.</div>}
         </div>
         <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -432,8 +496,10 @@ function QuestionsEditor({ questions, reload }) {
   const blank = { question: 'Đây là gì?', opts: ['', '', '', ''], ok: 0, sort: (questions.at(-1)?.sort || 0) + 1, active: true, image_path: null, builtin: null };
   return (
     <>
-      <HH title="Bộ câu hỏi Ảnh Lạ" sub="Dùng chung cho mọi phòng · sắp xếp theo số thứ tự" />
-      <p className="cc-hint" style={{ margin: 0 }}>Mẹo cho câu đố khó: chụp thật sát một chi tiết nhỏ của vật, và chọn 3 đáp án sai cùng nhóm với đáp án đúng (cùng là trái cây, cùng là đồ dùng học tập…).</p>
+      <HH title="Bộ câu hỏi Ảnh Lạ" sub={`Dùng chung cho mọi phòng · ${questions.filter((x) => x.active).length} câu đang bật`}>
+        <button type="button" className="cc-btn ghost sm" onClick={async () => { await adminShuffleQuestions(); reload(); }}>🔀 Xáo trộn thứ tự + đáp án</button>
+      </HH>
+      <p className="cc-hint" style={{ margin: 0 }}>Ảnh thật được phóng sát vào một chi tiết; khi lộ đáp án mới hiện toàn cảnh. Chỉnh độ phóng và điểm phóng ngay dưới ảnh. Mỗi lần tạo lớp mới, bộ câu hỏi tự xáo trộn.</p>
       <div style={{ display: 'grid', gap: 10 }}>
         {questions.map((q) => <QuestionRow key={q.id} q={q} reload={reload} />)}
         <QuestionRow key={`new-${questions.length}`} q={blank} reload={reload} isNew />
@@ -458,15 +524,27 @@ function QuestionRow({ q, reload, isNew }) {
   const upload = async (e) => {
     const f = e.target.files?.[0]; if (!f) return;
     setBusy(true); setMsg('Đang tải ảnh…');
-    try { const path = await adminUploadQuizImage(f); setRow((r) => ({ ...r, image_path: path })); if (!isNew) await save({ image_path: path }); else setMsg('Đã chọn ảnh, bấm Thêm câu hỏi để lưu.'); } catch (ex) { setMsg(ccError(ex)); } finally { setBusy(false); e.target.value = ''; }
+    try { const path = withZoom(await adminUploadQuizImage(f), 2.5, 50, 50); setRow((r) => ({ ...r, image_path: path })); if (!isNew) await save({ image_path: path }); else setMsg('Đã chọn ảnh, bấm Thêm câu hỏi để lưu.'); } catch (ex) { setMsg(ccError(ex)); } finally { setBusy(false); e.target.value = ''; }
   };
   const hasPic = row.image_path || row.builtin;
+  const im = parseQuizImage(row.image_path);
+  const setZoom = (z, x, y) => set('image_path', withZoom(row.image_path, z, x, y));
   return (
     <div className="cc-qrow" style={isNew ? { borderStyle: 'dashed' } : undefined}>
       <div style={{ display: 'grid', gap: 6, alignContent: 'start' }}>
         <div className="thumb">{hasPic ? <QuizPhoto q={row} uid={`e${row.id || 'new'}`} /> : <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: '#555', fontSize: 11 }}>Chưa có ảnh</div>}</div>
         <label className="cc-btn ghost sm" htmlFor={`qf-${row.id || 'new'}`} style={{ cursor: 'pointer' }}>{row.image_path ? 'Đổi ảnh' : 'Tải ảnh thật'}</label>
         <input id={`qf-${row.id || 'new'}`} type="file" accept="image/*" className="cc-sr" onChange={upload} />
+        {im && (
+          <div style={{ display: 'grid', gap: 4, fontSize: 11 }} className="cc-hint">
+            <label>Phóng {im.z}x<input type="range" min={1} max={6} step={0.5} value={im.z} onChange={(e) => setZoom(Number(e.target.value), im.x, im.y)} style={{ width: '100%' }} /></label>
+            {im.z > 1 && <>
+              <label>Ngang {im.x}%<input type="range" min={0} max={100} step={5} value={im.x} onChange={(e) => setZoom(im.z, Number(e.target.value), im.y)} style={{ width: '100%' }} /></label>
+              <label>Dọc {im.y}%<input type="range" min={0} max={100} step={5} value={im.y} onChange={(e) => setZoom(im.z, im.x, Number(e.target.value))} style={{ width: '100%' }} /></label>
+            </>}
+          </div>
+        )}
+        <input className="cc-input" style={{ height: 32, fontSize: 11 }} placeholder="…hoặc dán link ảnh" value={im && /^https?:/.test(im.base) ? im.base : ''} onChange={(e) => set('image_path', e.target.value.trim() ? withZoom(e.target.value.trim(), im?.z || 3, im?.x ?? 50, im?.y ?? 50) : null)} aria-label="Link ảnh" />
         {row.image_path && row.builtin && <button type="button" className="cc-btn ghost sm" onClick={() => (isNew ? set('image_path', null) : save({ image_path: null }))}>Dùng hình minh hoạ</button>}
       </div>
       <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
@@ -507,15 +585,15 @@ function BrandsEditor() {
   const save = async (row, old) => { setErr(''); try { await adminSaveBrand(row, old); load(); } catch (e) { setErr(ccError(e)); } };
   return (
     <>
-      <HH title="Sản phẩm cho Xưởng Vẽ" sub="Mỗi học sinh bốc ngẫu nhiên một sản phẩm, chia đều trong lớp" />
+      <HH title="Đề vẽ cho Xưởng Vẽ" sub="Mỗi học sinh bốc ngẫu nhiên một đề, chia đều trong lớp" />
       {err && <p className="cc-err">{err}</p>}
       <table className="cc-table">
-        <thead><tr><th>Thương hiệu</th><th>Gợi ý hiện cho học sinh</th><th>Dùng</th><th /></tr></thead>
+        <thead><tr><th>Tên ngắn (dùng để lọc tranh)</th><th>Đề hiện cho học sinh</th><th>Dùng</th><th /></tr></thead>
         <tbody>
           {list.map((b) => <BrandRow key={b.name} b={b} onSave={save} onDelete={async () => { await adminDeleteBrand(b.name); load(); }} />)}
           <tr>
-            <td><input className="cc-input" value={nb.name} onChange={(e) => setNb({ ...nb, name: e.target.value })} placeholder="VD: Bánh tráng Tây Ninh" /></td>
-            <td><input className="cc-input" value={nb.item} onChange={(e) => setNb({ ...nb, item: e.target.value })} placeholder="VD: Gói bánh tráng trộn" /></td>
+            <td><input className="cc-input" value={nb.name} onChange={(e) => setNb({ ...nb, name: e.target.value })} placeholder="VD: Khỉ đi siêu thị" /></td>
+            <td><input className="cc-input" value={nb.item} onChange={(e) => setNb({ ...nb, item: e.target.value })} placeholder="VD: Một chú khỉ đang đẩy xe đi siêu thị — nó mua gì?" /></td>
             <td />
             <td><button type="button" className="cc-btn sm" onClick={async () => { if (!nb.name.trim() || !nb.item.trim()) return; await save({ name: nb.name.trim(), item: nb.item.trim(), sort: list.length + 1 }); setNb({ name: '', item: '' }); }}>Thêm</button></td>
           </tr>
