@@ -192,7 +192,7 @@ function CreativePane({ active, onBack }) {
           </form>
           {isAdmin && (
             <div className="kwh-admin">
-              <Link href="/creative/host?new=1" className="cc-btn gold sm"><span className="material-symbols-outlined" style={{ fontSize: 17 }}>add</span>Tạo lớp mới</Link>
+              <Link href={`/creative/host?new=1${!isHub && d.station ? `&zone=${d.station}` : ''}`} className="cc-btn gold sm"><span className="material-symbols-outlined" style={{ fontSize: 17 }}>add</span>{isHub ? 'Tạo lớp mới' : `Tạo lớp ${d.short}`}</Link>
               <Link href="/creative/host" className="cc-btn ghost sm"><span className="material-symbols-outlined" style={{ fontSize: 17 }}>cast</span>Mở màn chiếu</Link>
             </div>
           )}

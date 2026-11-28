@@ -12,11 +12,13 @@ import {
   adminRooms, adminCreateRoom, adminUpdateRoom, adminResetRoom, adminPlayers, adminQuestions, adminSaveQuestion,
   adminDeleteQuestion, adminUploadQuizImage, adminArt, adminSetArt, adminBrands, adminSaveBrand, adminDeleteBrand,
   adminClearWords, adminQuiz, adminDraw, adminShuffleQuestions, adminScans, withZoom, parseQuizImage,
+  adminDeleteRoom, ccZone, ccStation, joinLink, CC_ZONES, CC_ZONE_VIEWS, CC_QUIZ_SECONDS,
 } from '@/lib/creative';
 import { Av, Board, Cloud, Pin, QuizPhoto, Ring, Shape, TILE_COLORS } from '../ui';
 
 const ms = (iso) => (iso ? Date.parse(iso) : 0);
 const fmtClock = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
+const zoneName = (z) => ccStation(z)?.full || 'Cả thành phố';
 const TABS = [...CC_STATIONS.map((s) => ({ id: s.id, label: s.name, color: s.color, live: true })),
   { id: 'questions', label: 'Bộ câu hỏi', icon: 'quiz' }, { id: 'brands', label: 'Đề vẽ', icon: 'sell' }, { id: 'rooms', label: 'Phòng', icon: 'meeting_room' }];
 
@@ -52,7 +54,17 @@ function Host() {
   const [err, setErr] = useState('');
   const [offset, setOffset] = useState(0);
   const chRef = useRef(null);
-  const room = rooms.find((r) => r.code === code) || null;
+  const rawRoom = rooms.find((r) => r.code === code) || null;
+  const room = useMemo(() => {
+    if (!rawRoom) return null;
+    let z = ccZone(rawRoom.zone);
+    if (!z) { try { z = ccZone(localStorage.getItem(`cc_host_zone_${rawRoom.code}`)); } catch { /* ignore */ } }
+    return { ...rawRoom, zone: z };
+  }, [rawRoom]);
+  const zone = room?.zone || null;
+  const tabs = useMemo(() => (zone
+    ? TABS.filter((t) => !t.live || t.id === 'gate' || CC_ZONE_VIEWS[zone].includes(t.id) || (zone === 'draw' && t.id === 'wall'))
+    : TABS), [zone]);
 
   const loadRooms = useCallback(async () => {
     try {
@@ -114,24 +126,28 @@ function Host() {
     setErr('');
     try { const r = await adminUpdateRoom(code, patch); setRooms((xs) => xs.map((x) => (x.code === code ? r : x))); ping(); refresh(); } catch (e) { setErr(ccError(e)); }
   };
-  const quiz = async (phase, index = null) => {
+  // v68: luôn gửi kèm số câu (trước đây gửi rỗng -> máy chủ đặt về câu 1).
+  const quiz = useCallback(async (phase, index) => {
     setErr('');
-    try { await adminQuiz(code, phase, index); await loadRooms(); ping(); refresh(); } catch (e) { setErr(ccError(e)); }
-  };
+    try { await adminQuiz(code, phase, index ?? room?.quiz_index ?? 0); await loadRooms(); ping(); refresh(); } catch (e) { setErr(ccError(e)); }
+  }, [code, room?.quiz_index, loadRooms, refresh]);
   const goStation = (id) => { setTab(id); if (room && room.station !== id) patchRoom({ station: id }); };
 
   // v65: Tạo lớp mới kiểu Kahoot — một chạm, mã PIN 6 số, mở ngay sảnh chờ.
   const [creating, setCreating] = useState(false);
-  const newClass = useCallback(async () => {
-    setCreating(true); setErr('');
+  const [menu, setMenu] = useState(false);
+  const newClass = useCallback(async (zoneId = null) => {
+    setCreating(true); setErr(''); setMenu(false);
+    const z = ccZone(zoneId);
     const d = new Date();
-    const title = `Lớp ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const title = `${z ? `${ccStation(z).name} · ` : ''}Lớp ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     try {
       for (let i = 0; i < 6; i += 1) {
         const pin = String(100000 + Math.floor(Math.random() * 900000));
         try {
-          await adminCreateRoom(pin, title);
-          try { await adminShuffleQuestions(); await loadQuestions(); } catch { /* vẫn dùng thứ tự cũ */ }
+          await adminCreateRoom(pin, title, z);
+          try { if (z) localStorage.setItem(`cc_host_zone_${pin}`, z); } catch { /* ignore */ }
+          if (!z || z === 'guess') { try { await adminShuffleQuestions(); await loadQuestions(); } catch { /* vẫn dùng thứ tự cũ */ } }
           await loadRooms(); setCode(pin); setTab('gate'); return;
         } catch (e) { if (e?.code !== '23505') throw e; }
       }
@@ -141,14 +157,45 @@ function Host() {
   const autoNew = useRef(false);
   useEffect(() => {
     if (autoNew.current) return;
-    if (new URLSearchParams(window.location.search).get('new') === '1') {
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get('new') === '1') {
       autoNew.current = true;
       try { window.history.replaceState(null, '', '/creative/host'); } catch { /* ignore */ }
-      newClass();
+      newClass(sp.get('zone'));
     }
   }, [newClass]);
 
-  const joinUrl = typeof window !== 'undefined' && code ? `${window.location.origin}/creative?r=${encodeURIComponent(code)}` : '';
+  const joinUrl = typeof window !== 'undefined' && code ? joinLink(window.location.origin, code, zone) : '';
+  const deleteRoom = async (c) => {
+    setErr('');
+    try {
+      await adminDeleteRoom(c);
+      try { localStorage.removeItem(`cc_host_zone_${c}`); if (localStorage.getItem('cc_host_room') === c) localStorage.removeItem('cc_host_room'); } catch { /* ignore */ }
+      if (c === code) { setCode(''); setTab('gate'); }
+      await loadRooms();
+    } catch (e) { setErr(ccError(e)); }
+  };
+  const newMenu = (
+    <div className="cc-newmenu">
+      <button type="button" className="cc-btn gold sm" onClick={() => setMenu((m) => !m)} disabled={creating} aria-expanded={menu}>
+        <span className="material-symbols-outlined" style={{ fontSize: 17 }}>add</span>{creating ? 'Đang tạo…' : 'Tạo lớp mới'}
+        <span className="material-symbols-outlined" style={{ fontSize: 17 }}>expand_more</span>
+      </button>
+      {menu && (
+        <div className="cc-newmenu-pop cc-glass" role="menu">
+          <span className="cc-label">Tạo lớp trong khu…</span>
+          {CC_ZONES.map((z) => (
+            <button key={z} type="button" role="menuitem" onClick={() => newClass(z)}>
+              <span className="cc-dot" style={{ background: ccStation(z).color }} /><b>{ccStation(z).full}</b><small>QR chỉ vào {ccStation(z).name}</small>
+            </button>
+          ))}
+          <button type="button" role="menuitem" onClick={() => newClass(null)}>
+            <span className="cc-dot" style={{ background: '#ffd27a' }} /><b>Cả thành phố</b><small>Đi qua tất cả các trạm</small>
+          </button>
+        </div>
+      )}
+    </div>
+  );
   return (
     <main className="cc">
       <header className="cc-host-top">
@@ -156,9 +203,10 @@ function Host() {
           <span className="cc-pill cc-brand"><span className="cc-logo" />Creative City</span>
           <span className="cc-label" style={{ marginLeft: 4 }}>Màn chiếu giáo viên</span>
           <select className="cc-input" style={{ width: 'auto', height: 36, marginLeft: 'auto' }} value={code} onChange={(e) => setCode(e.target.value)} aria-label="Chọn phòng">
+            {!rooms.length && <option value="">Chưa có lớp</option>}
             {rooms.map((r) => <option key={r.code} value={r.code}>{r.code} · {r.title}</option>)}
           </select>
-          <button type="button" className="cc-btn gold sm" onClick={newClass} disabled={creating}><span className="material-symbols-outlined" style={{ fontSize: 17 }}>add</span>{creating ? 'Đang tạo…' : 'Tạo lớp mới'}</button>
+          {newMenu}
           <button type="button" className="cc-btn ghost sm" onClick={() => document.documentElement.requestFullscreen?.().catch(() => {})}>Toàn màn hình</button>
           <Link className="cc-btn ghost sm" href="/?city=creative"><span className="material-symbols-outlined" style={{ fontSize: 17 }}>flight</span>Creative City</Link>
           <Link className="cc-btn ghost sm" href="/"><span className="material-symbols-outlined" style={{ fontSize: 17 }}>home</span>Knoworld City</Link>
@@ -171,34 +219,44 @@ function Host() {
             <div className="cc-glass cc-card" style={{ justifyItems: 'start' }}>
               <span className="cc-label">Bắt đầu buổi học</span>
               <h2 style={{ fontSize: 28 }}>Tạo lớp mới, nhận mã PIN cho học sinh</h2>
-              <p style={{ margin: 0, color: 'var(--soft)' }}>Giống Kahoot: bấm một lần là có mã PIN 6 số và mã QR. Học sinh vào trang Creative City, nhập PIN và biệt danh là tham gia.</p>
-              <button type="button" className="cc-btn gold" onClick={newClass} disabled={creating}>{creating ? 'Đang tạo…' : 'Tạo lớp mới'}</button>
+              <p style={{ margin: 0, color: 'var(--soft)' }}>Giống Kahoot: chọn khu, bấm một lần là có mã PIN 6 số và mã QR. Quét QR của khu nào thì học sinh vào thẳng khu đó.</p>
+              <div className="cc-zonepick">
+                {CC_ZONES.map((z) => (
+                  <button key={z} type="button" disabled={creating} onClick={() => newClass(z)} style={{ '--c': ccStation(z).color }}>
+                    <span className="material-symbols-outlined">{ccStation(z).icon}</span><b>{ccStation(z).full}</b>
+                  </button>
+                ))}
+                <button type="button" disabled={creating} onClick={() => newClass(null)} style={{ '--c': '#ffd27a' }}>
+                  <span className="material-symbols-outlined">location_city</span><b>Cả thành phố</b>
+                </button>
+              </div>
             </div>
-            <RoomsPanel rooms={rooms} onCreated={async (c) => { await loadRooms(); setCode(c); }} />
+            <RoomsPanel rooms={rooms} onCreated={async (c) => { await loadRooms(); setCode(c); }} onDelete={deleteRoom} />
           </div>
         ) : (
           <div className="cc-host">
             <div className="cc-glass cc-host-main">
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                {TABS.map((t) => (
+                {zone && <span className="cc-zonetag" style={{ '--c': ccStation(zone).color }}>Lớp khu {ccStation(zone).name}</span>}
+                {tabs.map((t) => (
                   <button key={t.id} type="button" className={`cc-chip${tab === t.id ? ' on' : ''}`} onClick={() => (t.live ? goStation(t.id) : setTab(t.id))}>
                     {t.live ? <span className="cc-dot" style={{ background: t.color }} /> : <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{t.icon}</span>}
                     {t.label}{t.live && room.station === t.id && <span className="live" />}
                   </button>
                 ))}
               </div>
-              {tab === 'gate' && <HostGate room={room} players={players} scans={Math.max(scans.size, players.length)} patchRoom={patchRoom} joinUrl={joinUrl} onStart={() => goStation('guess')} />}
-              {tab === 'guess' && <HostGuess room={room} st={st} offset={offset} questions={questions.filter((x) => x.active)} quiz={quiz} reloadQuestions={loadQuestions} />}
+              {tab === 'gate' && <HostGate room={room} players={players} scans={Math.max(scans.size, players.length)} patchRoom={patchRoom} joinUrl={joinUrl} onStart={() => goStation(zone || 'guess')} />}
+              {tab === 'guess' && <HostGuess room={room} st={st} offset={offset} questions={questions.filter((x) => x.active)} quiz={quiz} reloadQuestions={loadQuestions} patchRoom={patchRoom} />}
               {tab === 'draw' && <HostDraw room={room} st={st} offset={offset} players={players} code={code} ping={ping} reload={loadRooms} />}
               {tab === 'wall' && <HostWall code={code} />}
               {tab === 'plaza' && <HostPlaza st={st} code={code} refresh={refresh} ping={ping} />}
               {tab === 'questions' && <QuestionsEditor questions={questions} reload={loadQuestions} />}
               {tab === 'brands' && <BrandsEditor />}
-              {tab === 'rooms' && <RoomsPanel rooms={rooms} current={room} onCreated={async (c) => { await loadRooms(); setCode(c); }} patchRoom={patchRoom}
+              {tab === 'rooms' && <RoomsPanel rooms={rooms} current={room} onCreated={async (c) => { await loadRooms(); setCode(c); }} patchRoom={patchRoom} onDelete={deleteRoom}
                 onReset={async () => { try { await adminResetRoom(code); ping(); await loadRooms(); refresh(); refreshPlayers(); } catch (e) { setErr(ccError(e)); } }} />}
             </div>
             <aside className="cc-host-side">
-              <JoinCard url={joinUrl} code={code} players={st?.players ?? players.length} scans={Math.max(scans.size, players.length)} />
+              <JoinCard url={joinUrl} code={code} zone={zone} players={st?.players ?? players.length} scans={Math.max(scans.size, players.length)} />
               <div className="cc-glass cc-card"><span className="cc-label">Bảng điểm Ảnh Lạ</span><Board rows={st?.top} /></div>
             </aside>
           </div>
@@ -215,14 +273,50 @@ function HH({ title, sub, children }) {
   return <div className="cc-hh"><div><span className="cc-label">{sub}</span><h2>{title}</h2></div><div className="ctrl">{children}</div></div>;
 }
 
-function JoinCard({ url, code, players, scans }) {
+// v68: bấm vào mã QR -> phóng to toàn màn hình để cả lớp quét; nút X (hoặc Esc) thu nhỏ lại.
+function useQr(url, width) {
   const [img, setImg] = useState('');
+  useEffect(() => { if (!url) { setImg(''); return; } QRCode.toDataURL(url, { margin: 1, width, color: { dark: '#13121b', light: '#ffffff' } }).then(setImg).catch(() => setImg('')); }, [url, width]);
+  return img;
+}
+function QrBig({ url, code, zone, onClose }) {
+  const img = useQr(url, 1000);
+  useEffect(() => { const k = (e) => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, [onClose]);
+  const pin = /^\d{6}$/.test(code) ? `${code.slice(0, 3)} ${code.slice(3)}` : code;
+  return (
+    <div className="cc-qrbig" role="dialog" aria-modal="true" aria-label="Mã QR phóng to" onClick={onClose}>
+      <button type="button" className="cc-qrbig-x" onClick={onClose} aria-label="Thu nhỏ mã QR"><span className="material-symbols-outlined">close</span></button>
+      <div className="cc-qrbig-in" onClick={(e) => e.stopPropagation()}>
+        {img && <img src={img} alt={`Mã QR vào lớp ${code}`} />}
+        <div className="cc-qrbig-txt">
+          <span>{zone ? `Quét để vào ${zoneName(zone)}` : 'Quét để vào Creative City'}</span>
+          <strong>{pin}</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+function QrThumb({ url, code, zone, width = 400, className = 'cc-qr', children }) {
+  const img = useQr(url, width);
+  const [big, setBig] = useState(false);
+  return (
+    <>
+      <button type="button" className={`${className} cc-qr-btn`} onClick={() => setBig(true)} title="Bấm để phóng to" aria-label="Phóng to mã QR">
+        {img && <img src={img} alt={`Mã QR vào lớp ${code}`} />}
+        <span className="cc-qr-zoom material-symbols-outlined" aria-hidden="true">zoom_out_map</span>
+        {children}
+      </button>
+      {big && <QrBig url={url} code={code} zone={zone} onClose={() => setBig(false)} />}
+    </>
+  );
+}
+
+function JoinCard({ url, code, zone, players, scans }) {
   const [copied, setCopied] = useState(false);
-  useEffect(() => { if (!url) return; QRCode.toDataURL(url, { margin: 1, width: 400, color: { dark: '#13121b', light: '#ffffff' } }).then(setImg).catch(() => setImg('')); }, [url]);
   return (
     <div className="cc-glass cc-card">
-      <span className="cc-label">Quét để vào</span>
-      <div className="cc-qr">{img && <img src={img} alt={`Mã QR vào phòng ${code}`} />}</div>
+      <span className="cc-label">{zone ? `Quét để vào ${ccStation(zone).name}` : 'Quét để vào'}</span>
+      <QrThumb url={url} code={code} zone={zone} />
       <div className="cc-code">{code}</div>
       <button type="button" className="cc-btn ghost sm" onClick={() => { navigator.clipboard?.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => {}); }}>{copied ? 'Đã chép link' : 'Chép link vào phòng'}</button>
       <div className="cc-stat"><span>Đã quét QR</span><b>{scans}</b></div>
@@ -233,8 +327,6 @@ function JoinCard({ url, code, players, scans }) {
 
 /* ------------------------------------------------------------------ Cổng */
 function Lobby({ room, players, scans, joinUrl, onStart }) {
-  const [img, setImg] = useState('');
-  useEffect(() => { if (!joinUrl) return; QRCode.toDataURL(joinUrl, { margin: 1, width: 520, color: { dark: '#13121b', light: '#ffffff' } }).then(setImg).catch(() => setImg('')); }, [joinUrl]);
   const host = typeof window !== 'undefined' ? window.location.host : '';
   const [tick, setTick] = useState(Date.now());
   useEffect(() => { const id = setInterval(() => setTick(Date.now()), 5000); return () => clearInterval(id); }, []);
@@ -243,11 +335,12 @@ function Lobby({ room, players, scans, joinUrl, onStart }) {
   return (
     <div className="cc-lobby">
       <div className="cc-lobby-pin">
+        {room.zone && <span className="cc-zonetag" style={{ '--c': ccStation(room.zone).color }}>Lớp khu {zoneName(room.zone)}</span>}
         <span>Vào <b>{host}/creative</b> và nhập mã PIN</span>
         <strong>{pin}</strong>
         <span className="cc-hint">{room.title}</span>
       </div>
-      <div className="cc-lobby-qr">{img && <img src={img} alt={`Mã QR vào lớp ${room.code}`} />}<span>hoặc quét mã</span></div>
+      <QrThumb url={joinUrl} code={room.code} zone={room.zone} width={520} className="cc-lobby-qr"><span>hoặc quét mã · bấm để phóng to</span></QrThumb>
       <div className="cc-lobby-stats">
         <Counter label="Đã quét QR" value={scans} color="#7ee8ff" />
         <Counter label="Đã đăng ký vào lớp" value={players.length} color="#ffd27a" />
@@ -261,7 +354,7 @@ function Lobby({ room, players, scans, joinUrl, onStart }) {
       )}
       <div className="cc-lobby-foot">
         <span className="cc-lobby-count"><b>{players.length}</b> học sinh đã vào</span>
-        <button type="button" className="cc-btn" onClick={onStart} disabled={!players.length}>Bắt đầu · Phòng Ảnh Lạ</button>
+        <button type="button" className="cc-btn" onClick={onStart} disabled={!players.length}>Bắt đầu · {zoneName(room.zone || 'guess')}</button>
       </div>
     </div>
   );
@@ -311,36 +404,82 @@ function HostGate({ room, players, scans, patchRoom, joinUrl, onStart }) {
 }
 
 /* ------------------------------------------------------------------ Ảnh Lạ */
-function HostGuess({ room, st, offset, questions, quiz, reloadQuestions }) {
+// v68: chế độ TỰ CHẠY — bấm Bắt đầu một lần: mỗi câu 10 giây -> hết giờ lộ đáp án (5 giây)
+// -> bảng điểm (5 giây) -> tự sang câu tiếp theo, tới hết bộ câu hỏi.
+const REVEAL_S = 5;
+const BOARD_S = 5;
+function HostGuess({ room, st, offset, questions, quiz, reloadQuestions, patchRoom }) {
   const [mixing, setMixing] = useState(false);
   const mix = async () => { setMixing(true); try { await adminShuffleQuestions(); await reloadQuestions(); await quiz('idle', 0); } catch { /* ignore */ } finally { setMixing(false); } };
+  const autoKey = `cc_auto_${room.code}`;
+  const [auto, setAutoRaw] = useState(() => { try { return sessionStorage.getItem(autoKey) === '1'; } catch { return false; } });
+  const setAuto = useCallback((v) => { setAutoRaw(v); try { if (v) sessionStorage.setItem(autoKey, '1'); else sessionStorage.removeItem(autoKey); } catch { /* ignore */ } }, [autoKey]);
   const [now, setNow] = useState(Date.now());
   const q = questions[room.quiz_index] || null;
   const phase = room.quiz_phase;
-  useEffect(() => { if (phase !== 'run') return undefined; const id = setInterval(() => setNow(Date.now()), 200); return () => clearInterval(id); }, [phase]);
+  const n = room.quiz_index;
+  const isLast = n >= questions.length - 1;
+  useEffect(() => { if (phase !== 'run' && !auto) return undefined; const id = setInterval(() => setNow(Date.now()), 200); return () => clearInterval(id); }, [phase, auto]);
   const left = phase === 'run' ? room.quiz_seconds - (now + offset - ms(room.quiz_started_at)) / 1000 : 0;
   const answered = st?.quiz?.answered ?? 0;
   const players = st?.players ?? 0;
-  const auto = useRef('');
-  // Hết giờ hoặc cả lớp đã trả lời -> tự lộ đáp án.
+
+  // thời điểm vào pha hiện tại (để đếm 5 giây lộ đáp án / bảng điểm)
+  const phaseKey = `${room.code}-${n}-${phase}-${room.quiz_started_at}`;
+  const phaseAt = useRef({ key: '', t: 0 });
+  if (phaseAt.current.key !== phaseKey) phaseAt.current = { key: phaseKey, t: Date.now() };
+  const since = (now - phaseAt.current.t) / 1000;
+  const fired = useRef('');
+  const step = useCallback((key, fn) => { if (fired.current === key) return; fired.current = key; fn(); }, []);
+
   useEffect(() => {
-    if (phase !== 'run') return;
-    const key = `${room.code}-${room.quiz_index}-${room.quiz_started_at}`;
-    if (auto.current === key) return;
-    if (left <= -0.6 || (players > 0 && answered >= players)) { auto.current = key; quiz('reveal'); }
-  }, [phase, left, answered, players, room.code, room.quiz_index, room.quiz_started_at, quiz]);
+    if (!q) return;
+    if (phase === 'run') {
+      // tự chạy: đúng 10 giây mới lộ đáp án; bấm tay: hết giờ hoặc cả lớp trả lời xong
+      if (left <= 0 && (auto || left <= -0.6)) step(`${phaseKey}-r`, () => quiz('reveal', n));
+      else if (!auto && players > 0 && answered >= players) step(`${phaseKey}-r`, () => quiz('reveal', n));
+      return;
+    }
+    if (!auto) return;
+    if (phase === 'idle') step(`${phaseKey}-go`, () => quiz('run', n));
+    else if (phase === 'reveal' && since >= REVEAL_S) step(`${phaseKey}-b`, () => quiz('board', n));
+    else if (phase === 'board' && since >= BOARD_S) {
+      if (isLast) step(`${phaseKey}-end`, () => setAuto(false));
+      else step(`${phaseKey}-n`, () => quiz('run', n + 1));
+    }
+  }, [q, phase, left, since, auto, answered, players, n, isLast, phaseKey, quiz, step, setAuto]);
+
+  const startAuto = async () => {
+    if (room.quiz_seconds !== CC_QUIZ_SECONDS) await patchRoom({ quiz_seconds: CC_QUIZ_SECONDS });
+    fired.current = '';
+    setAuto(true);
+    if (phase === 'board' && isLast) quiz('run', 0);
+  };
 
   if (!questions.length) return <><HH title="Phòng Ảnh Lạ" sub="Trạm 1" /><div className="cc-empty">Chưa có câu hỏi đang bật. Thêm ở tab Bộ câu hỏi.</div></>;
   if (!q) return <><HH title="Phòng Ảnh Lạ" sub="Trạm 1 · đã hết câu hỏi"><button type="button" className="cc-btn" onClick={() => quiz('idle', 0)}>Về câu 1</button></HH><div className="cc-empty">Đã chơi hết {questions.length} câu.</div></>;
 
-  const n = room.quiz_index;
-  const isLast = n >= questions.length - 1;
+  const autoBar = auto ? (
+    <div className="cc-autobar">
+      <span className="cc-pulse" />
+      <span>
+        <b>Đang tự chạy</b> · {room.quiz_seconds} giây/câu
+        {phase === 'reveal' && ` · bảng điểm sau ${Math.max(0, Math.ceil(REVEAL_S - since))}s`}
+        {phase === 'board' && (isLast ? ' · câu cuối' : ` · câu ${n + 2} sau ${Math.max(0, Math.ceil(BOARD_S - since))}s`)}
+      </span>
+      <button type="button" className="cc-btn ghost sm" onClick={() => setAuto(false)}>⏸ Tạm dừng</button>
+    </div>
+  ) : null;
+
   if (phase === 'board') {
+    const done = isLast && !auto;
     return (
       <>
-        <HH title="Bảng điểm" sub={`Sau câu ${n + 1}/${questions.length}`}>
-          <button type="button" className="cc-btn" onClick={() => quiz('idle', isLast ? 0 : n + 1)}>{isLast ? 'Kết thúc · về câu 1' : 'Câu tiếp theo'}</button>
+        <HH title={done ? 'Bảng điểm chung cuộc' : 'Bảng điểm'} sub={`Sau câu ${n + 1}/${questions.length}`}>
+          {!auto && !isLast && <button type="button" className="cc-btn gold" onClick={startAuto}>▶ Tự chạy tiếp</button>}
+          {!auto && <button type="button" className="cc-btn ghost" onClick={() => (isLast ? quiz('idle', 0) : quiz('run', n + 1))}>{isLast ? 'Chơi lại từ câu 1' : 'Câu tiếp theo'}</button>}
         </HH>
+        {autoBar}
         <div style={{ maxWidth: 620 }}><Board rows={st?.top} /></div>
       </>
     );
@@ -351,15 +490,19 @@ function HostGuess({ room, st, offset, questions, quiz, reloadQuestions }) {
   return (
     <>
       <HH title={q.question} sub={`Trạm 1 · câu ${n + 1}/${questions.length}`}>
-        {phase === 'idle' && <>
+        {phase === 'idle' && !auto && <>
           {n === 0 && <button type="button" className="cc-btn ghost sm" disabled={mixing} onClick={mix} title="Đổi thứ tự câu hỏi và vị trí đáp án">{mixing ? 'Đang xáo…' : '🔀 Xáo trộn'}</button>}
           <button type="button" className="cc-btn ghost sm" disabled={n === 0} onClick={() => quiz('idle', n - 1)}>← Câu trước</button>
           <button type="button" className="cc-btn ghost sm" disabled={isLast} onClick={() => quiz('idle', n + 1)}>Câu sau →</button>
-          <button type="button" className="cc-btn" onClick={() => quiz('run')}>Bắt đầu câu {n + 1}</button>
+          <button type="button" className="cc-btn gold" onClick={startAuto}>▶ Bắt đầu tự động · {CC_QUIZ_SECONDS} giây/câu</button>
         </>}
-        {phase === 'run' && <button type="button" className="cc-btn gold" onClick={() => quiz('reveal')}>Lộ đáp án</button>}
-        {reveal && <button type="button" className="cc-btn" onClick={() => quiz('board')}>Bảng điểm</button>}
+        {phase === 'run' && !auto && <button type="button" className="cc-btn gold" onClick={() => quiz('reveal', n)}>Lộ đáp án</button>}
+        {reveal && !auto && <>
+          <button type="button" className="cc-btn" onClick={() => quiz('board', n)}>Bảng điểm</button>
+          <button type="button" className="cc-btn gold sm" onClick={startAuto}>▶ Tự chạy tiếp</button>
+        </>}
       </HH>
+      {autoBar}
       <div className="cc-split">
         <QuizPhoto q={q} uid={`h${n}`} full={reveal}>{phase === 'run' && <Ring left={left} total={room.quiz_seconds} />}</QuizPhoto>
         <div style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
@@ -375,7 +518,7 @@ function HostGuess({ room, st, offset, questions, quiz, reloadQuestions }) {
               <div key={j} className={`cc-tile cc-t${j}${reveal && j !== q.ok ? ' dim' : ''}`}><Shape i={j} /><span>{o}</span>{reveal && j === q.ok && <span className="tick">✓</span>}</div>
             ))}
           </div>
-          <span className="cc-hint">{phase === 'idle' ? 'Bấm bắt đầu, mọi điện thoại cùng hiện ảnh và 4 đáp án.' : phase === 'run' ? 'Hết giờ hoặc cả lớp trả lời xong sẽ tự lộ đáp án.' : 'Đáp án đúng đã hiện trên mọi điện thoại.'}</span>
+          <span className="cc-hint">{phase === 'idle' ? `Bấm Bắt đầu tự động: mỗi câu ${CC_QUIZ_SECONDS} giây, hết giờ hiện đáp án, rồi bảng điểm, rồi tự sang câu tiếp.` : phase === 'run' ? (auto ? `Hết ${room.quiz_seconds} giây sẽ tự lộ đáp án.` : 'Hết giờ hoặc cả lớp trả lời xong sẽ tự lộ đáp án.') : 'Đáp án đúng đã hiện trên mọi điện thoại.'}</span>
         </div>
       </div>
     </>
@@ -404,7 +547,7 @@ function HostDraw({ room, st, offset, players, code, ping, reload }) {
   const uploaded = art.length;
   return (
     <>
-      <HH title="Xưởng Vẽ Sáng Tạo" sub="Trạm 2 · mỗi bạn một đề vẽ vui, không vẽ logo hay tên nhãn hàng">
+      <HH title="Xưởng Vẽ Sáng Tạo" sub="Trạm 2 · đề vẽ vui + trò Vẽ tiếp 30 giây trên điện thoại, không vẽ logo hay tên nhãn hàng">
         <input type="number" min={1} max={60} className="cc-input" style={{ width: 80, height: 40 }} value={mins} onChange={(e) => setMins(Number(e.target.value) || 1)} aria-label="Số phút vẽ" />
         <button type="button" className="cc-btn" onClick={() => timer(mins)}>{started ? 'Bấm giờ lại' : 'Bấm giờ vẽ'}</button>
         {started && <button type="button" className="cc-btn ghost" onClick={() => timer(null)}>Tắt đồng hồ</button>}
@@ -620,7 +763,8 @@ function BrandRow({ b, onSave, onDelete }) {
 }
 
 /* ------------------------------------------------------------------ Phòng */
-function RoomsPanel({ rooms, current, onCreated, patchRoom, onReset }) {
+function RoomsPanel({ rooms, current, onCreated, patchRoom, onReset, onDelete }) {
+  const [delCode, setDelCode] = useState('');
   const [code, setCode] = useState('');
   const [title, setTitle] = useState('');
   const [err, setErr] = useState('');
@@ -646,6 +790,13 @@ function RoomsPanel({ rooms, current, onCreated, patchRoom, onReset }) {
               : <button type="button" className="cc-btn danger sm" onClick={() => setConfirm(true)}>Làm mới phòng…</button>}
           </div>
           {!current.is_open && <span className="cc-err">Phòng đang đóng: học sinh không vào được.</span>}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: 10 }}>
+            {delCode === current.code
+              ? <><span className="cc-hint">Xoá hẳn lớp {current.code}? Người chơi, điểm, tranh và word cloud mất luôn, không khôi phục được.</span>
+                <button type="button" className="cc-btn danger sm" onClick={() => { setDelCode(''); onDelete?.(current.code); }}>Xoá lớp</button>
+                <button type="button" className="cc-btn ghost sm" onClick={() => setDelCode('')}>Huỷ</button></>
+              : <button type="button" className="cc-btn danger sm" onClick={() => setDelCode(current.code)}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>Xoá lớp này…</button>}
+          </div>
         </div>
       )}
       <form className="cc-glass cc-card" onSubmit={create}>
@@ -659,8 +810,17 @@ function RoomsPanel({ rooms, current, onCreated, patchRoom, onReset }) {
       </form>
       {rooms.length > 0 && (
         <table className="cc-table">
-          <thead><tr><th>Mã</th><th>Buổi học</th><th>Trạng thái</th></tr></thead>
-          <tbody>{rooms.map((r) => <tr key={r.code}><td><b>{r.code}</b></td><td>{r.title}</td><td>{r.is_open ? 'Đang mở' : 'Đã đóng'}</td></tr>)}</tbody>
+          <thead><tr><th>Mã</th><th>Buổi học</th><th>Khu</th><th>Trạng thái</th><th /></tr></thead>
+          <tbody>{rooms.map((r) => (
+            <tr key={r.code}>
+              <td><b>{r.code}</b></td><td>{r.title}</td><td>{zoneName(ccZone(r.zone))}</td><td>{r.is_open ? 'Đang mở' : 'Đã đóng'}</td>
+              <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
+                {delCode === r.code
+                  ? <><button type="button" className="cc-btn danger sm" onClick={() => { setDelCode(''); onDelete?.(r.code); }}>Xoá hẳn</button>{' '}<button type="button" className="cc-btn ghost sm" onClick={() => setDelCode('')}>Huỷ</button></>
+                  : <button type="button" className="cc-btn ghost sm" onClick={() => setDelCode(r.code)} aria-label={`Xoá lớp ${r.code}`}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>Xoá</button>}
+              </td>
+            </tr>
+          ))}</tbody>
         </table>
       )}
     </div>
