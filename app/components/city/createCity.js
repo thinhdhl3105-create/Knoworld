@@ -1179,7 +1179,7 @@ export function createCity(root, opts = {}) {
       c.restore();
     }
     drawClouds(c, e, t, W, H);
-    skyLumi?.draw(c, e, t, W, H); // v62: Lumi cưỡi mây bay phía sau thành phố
+    skyLumi?.draw(c, e, t, W, H); // v71: Lumi lái máy bay bay ngang trái→phải phía sau thành phố
     if (fl > 0) { c.fillStyle = `rgba(230,236,255,${fl * 0.55})`; c.fillRect(0, 0, W, H); }
   }
 

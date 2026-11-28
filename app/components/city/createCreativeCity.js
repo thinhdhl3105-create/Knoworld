@@ -6,6 +6,7 @@ import * as THREE_NS from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CC_DISTRICTS } from './ccDistricts';
 import { fetchLiveWeather } from '@/lib/liveWeather';
+import { lumiStaticSvg } from '../onboarding/lumiArt';
 
 const THREE = { ...THREE_NS, OrbitControls };
 
@@ -475,6 +476,43 @@ export function createCreativeCity(root, opts = {}) {
     g.position.set(Math.cos(a) * r, -6 + rand() * 26, Math.sin(a) * r); scene.add(g); clouds.push({ g, a, r, v: 0.006 + rand() * 0.008 });
   }
 
+  // ================= v71: Lumi lái máy bay bay vòng quanh thành phố =================
+  // Vài khối hộp + 1 sprite Lumi, không đổ bóng -> rất nhẹ. Bay vòng tròn hơi lượn, nghiêng cánh khi rẽ.
+  const lumiPlane = (() => {
+    const g = new THREE.Group(); g.rotation.order = 'YXZ';
+    const body = new THREE.Group(); g.add(body); // mũi hướng +x
+    box(0, -0.7, 0, 5.2, 1.4, 1.5, '#ff8f6b', body, true); // thân
+    box(0.2, -0.15, 0, 5.0, 0.22, 1.54, '#fff4e0', body, true); // sọc
+    box(2.9, -0.55, 0, 0.7, 1.1, 1.2, '#ffd27a', body, true); // mũi
+    box(-2.6, -0.4, 0, 0.9, 0.9, 1.1, '#ff7a8a', body, true); // đuôi
+    box(-2.8, 0.4, 0, 0.8, 1.5, 0.22, '#ff7a8a', body, true); // cánh đuôi đứng
+    box(-2.7, -0.15, 0, 0.8, 0.18, 3.0, '#e0566b', body, true); // cánh đuôi ngang
+    box(0.3, -0.75, 0, 1.6, 0.22, 8.2, '#e0566b', body, true); // cánh chính
+    box(1.4, 0.65, 0, 0.12, 0.6, 1.1, neon('#cdeaff', { transparent: true, opacity: 0.55 }), body, true); // kính chắn gió
+    nbox(0.3, -0.72, 4.15, 0.3, 0.25, 0.12, '#5ee0a0', body); nbox(0.3, -0.72, -4.15, 0.3, 0.25, 0.12, '#ff4a5a', body); // đèn mút cánh
+    const prop = new THREE.Group(); prop.position.set(3.3, 0, 0); body.add(prop);
+    box(0, -0.12, 0, 0.1, 0.24, 3.0, '#3a3157', prop, true); box(0, -1.5, 0, 0.1, 3.0, 0.24, '#3a3157', prop, true);
+    const ptex = new THREE.CanvasTexture(document.createElement('canvas'));
+    const im = new Image();
+    im.onload = () => { const c = document.createElement('canvas'); c.width = 200; c.height = 224; c.getContext('2d').drawImage(im, 0, 0, 200, 224); ptex.image = c; ptex.needsUpdate = true; spr.visible = true; };
+    im.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(lumiStaticSvg({ mood: 'happy' }))}`;
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: ptex, transparent: true, depthWrite: false }));
+    spr.scale.set(2.4, 2.7, 1); spr.position.set(0.2, 0.9, 0); spr.visible = false; spr.renderOrder = 2; body.add(spr);
+    scene.add(g);
+    return { g, body, prop, a: rand() * Math.PI * 2 };
+  })();
+  function moveLumiPlane(dt, m) {
+    const P = lumiPlane; P.a += dt * 0.16 * m;
+    const a = P.a, r = 46 + Math.sin(a * 2) * 6, y = 24 + Math.sin(a * 1.5 + 1) * 3;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    const vx = -Math.sin(a) * r + Math.cos(a) * 12 * Math.cos(a * 2), vz = Math.cos(a) * r + Math.sin(a) * 12 * Math.cos(a * 2);
+    P.g.position.set(x, y, z);
+    P.g.rotation.y = -Math.atan2(vz, vx);
+    P.g.rotation.x = -0.28 + Math.sin(a * 2) * 0.08; // nghiêng cánh vào tâm vòng
+    P.body.position.y = Math.sin(elapsed * 2) * 0.25;
+    P.prop.rotation.x += dt * 30;
+  }
+
   // ================= màu cửa sổ =================
   winMesh.instanceMatrix.needsUpdate = true;
   winMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(WIN_MAX * 3), 3);
@@ -689,6 +727,7 @@ export function createCreativeCity(root, opts = {}) {
     }
     for (const b of blinkers) b.visible = Math.sin(elapsed * 4) > -0.2;
     for (const c of clouds) { c.a += c.v * dt * m; c.g.position.x = Math.cos(c.a) * c.r; c.g.position.z = Math.sin(c.a) * c.r; }
+    moveLumiPlane(dt, m);
     envT += dt; if (envT > 0.25 || flash > 0) { applyEnv(envT); envT = 0; }
     if (rainNow > 0.01) {
       const fall = 32 * dt;
