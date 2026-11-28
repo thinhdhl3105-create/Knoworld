@@ -8,6 +8,7 @@ import { createMetro } from './createMetro';
 import { createHolidayFx } from './cityHoliday';
 import { createCityLumi } from './cityLumi';
 import { createSkyLumi } from './skyLumi';
+import { lumiStaticSvg } from '../onboarding/lumiArt';
 import { isCameoOff, LUMI_CAMEO_EVENT } from '@/lib/lumiCameo';
 import { fetchLiveWeather } from '@/lib/liveWeather';
 import { loadMetroAds } from '@/lib/metroAds';
@@ -1179,7 +1180,7 @@ export function createCity(root, opts = {}) {
       c.restore();
     }
     drawClouds(c, e, t, W, H);
-    skyLumi?.draw(c, e, t, W, H); // v71: Lumi lái máy bay bay ngang trái→phải phía sau thành phố
+    // v72: bỏ Lumi bay ngang trên lớp trời 2D — thay bằng máy bay 3D nhỏ bay vòng quanh thành phố (xem lumiPlane).
     if (fl > 0) { c.fillStyle = `rgba(230,236,255,${fl * 0.55})`; c.fillRect(0, 0, W, H); }
   }
 
@@ -1317,9 +1318,11 @@ export function createCity(root, opts = {}) {
   window.addEventListener(LUMI_CAMEO_EVENT, onCameo); cleanups.push(() => window.removeEventListener(LUMI_CAMEO_EVENT, onCameo));
   // v62: Lumi cưỡi mây trên bầu trời (vẽ trên lớp trời 2D nằm sau thành phố -> nhà cửa luôn che Lumi).
   // LumiPeek gọi window.__kwSkyLumi.fly(text) khi bầu trời đang hiện trên màn hình.
-  const skyLumi = createSkyLumi({ THREE, isOff: () => lumiOff, reduce });
+  const skyLumi = createSkyLumi({ THREE, isOff: () => true, reduce }); // v72: không tự bay nữa
   const skyApi = {
     canFly() {
+      return false; // v72: Lumi giờ lái máy bay 3D bay vòng quanh thành phố
+      // eslint-disable-next-line no-unreachable
       if (reduce || document.hidden || layer !== 'sky' || (envE && envE.rain > 0.55)) return false;
       const r = sky.getBoundingClientRect();
       return r.bottom > Math.min(260, innerHeight * 0.4) && r.top < innerHeight * 0.3;
@@ -1603,6 +1606,44 @@ export function createCity(root, opts = {}) {
 
   // ================= loop =================
   const clock = new THREE.Clock();
+  // ================= v72: Lumi lái máy bay nhỏ bay vòng vòng quanh thành phố (giống Creative City) =================
+  // Vài khối hộp + 1 sprite Lumi, không đổ bóng -> nhẹ. Bay vòng hơi lượn, nghiêng cánh khi rẽ.
+  const lumiPlane = (() => {
+    const ns = { shadow: false };
+    const g = new THREE.Group(); g.rotation.order = 'YXZ';
+    const body = new THREE.Group(); g.add(body); // mũi hướng +x
+    box(0, -0.7, 0, 5.2, 1.4, 1.5, '#ff8f6b', body, ns); // thân
+    box(0.2, -0.15, 0, 5.0, 0.22, 1.54, '#fff4e0', body, ns); // sọc
+    box(2.9, -0.55, 0, 0.7, 1.1, 1.2, '#ffd27a', body, ns); // mũi
+    box(-2.6, -0.4, 0, 0.9, 0.9, 1.1, '#ff7a8a', body, ns); // đuôi
+    box(-2.8, 0.4, 0, 0.8, 1.5, 0.22, '#ff7a8a', body, ns); // cánh đuôi đứng
+    box(-2.7, -0.15, 0, 0.8, 0.18, 3.0, '#e0566b', body, ns); // cánh đuôi ngang
+    box(0.3, -0.75, 0, 1.6, 0.22, 8.2, '#e0566b', body, ns); // cánh chính
+    box(1.4, 0.65, 0, 0.12, 0.6, 1.1, new THREE.MeshBasicMaterial({ color: '#cdeaff', transparent: true, opacity: 0.55 }), body, ns); // kính chắn gió
+    neonBox(0.3, -0.72, 4.15, 0.3, 0.25, 0.12, '#5ee0a0', body, '#5ee0a0'); neonBox(0.3, -0.72, -4.15, 0.3, 0.25, 0.12, '#ff4a5a', body, '#ff4a5a'); // đèn mút cánh
+    const prop = new THREE.Group(); prop.position.set(3.3, 0, 0); body.add(prop);
+    box(0, -0.12, 0, 0.1, 0.24, 3.0, '#3a3157', prop, ns); box(0, -1.5, 0, 0.1, 3.0, 0.24, '#3a3157', prop, ns);
+    const ptex = new THREE.CanvasTexture(document.createElement('canvas'));
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: ptex, transparent: true, depthWrite: false }));
+    spr.scale.set(2.4, 2.7, 1); spr.position.set(0.2, 0.9, 0); spr.visible = false; spr.renderOrder = 2; body.add(spr);
+    const im = new Image();
+    im.onload = () => { const c = document.createElement('canvas'); c.width = 200; c.height = 224; c.getContext('2d').drawImage(im, 0, 0, 200, 224); ptex.image = c; ptex.needsUpdate = true; spr.visible = true; };
+    im.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(lumiStaticSvg({ mood: 'happy' }))}`;
+    scene.add(g);
+    return { g, body, prop, a: rand() * Math.PI * 2 };
+  })();
+  const PLANE_C = new THREE.Vector3(SEA_C, 0, SEA_C);
+  function moveLumiPlane(dt, m) {
+    const P = lumiPlane; P.a += dt * 0.16 * m;
+    const a = P.a, r = 40 + Math.sin(a * 2) * 5, y = 28 + Math.sin(a * 1.5 + 1) * 3;
+    const vx = -Math.sin(a) * r + Math.cos(a) * 10 * Math.cos(a * 2), vz = Math.cos(a) * r + Math.sin(a) * 10 * Math.cos(a * 2);
+    P.g.position.set(PLANE_C.x + Math.cos(a) * r, y, PLANE_C.z + Math.sin(a) * r);
+    P.g.rotation.y = -Math.atan2(vz, vx);
+    P.g.rotation.x = -0.28 + Math.sin(a * 2) * 0.08; // nghiêng cánh vào tâm vòng
+    P.body.position.y = Math.sin(elapsed * 2) * 0.25;
+    P.prop.rotation.x += dt * 30;
+  }
+
   let flickT = 0, frame = 0, elapsed = 0, envE = null, boltT = 2;
   const ease = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   renderer.domElement.style.cursor = 'grab';
@@ -1625,6 +1666,7 @@ export function createCity(root, opts = {}) {
     if (frame % 2 === 0) drawSky(envE, hours, elapsed, flash);
 
     const sMul = reduce ? 0.4 : 1;
+    moveLumiPlane(dt, sMul);
     for (const c of cars) {
       const L = c.lane;
       c.s += c.speed * L.dir * dt * sMul;
