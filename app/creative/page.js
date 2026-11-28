@@ -102,7 +102,7 @@ export default function CreativeCityPage() {
       <header className="cc-head">
         <div className="cc-wrap">
           <div className="cc-head-row">
-            <span className="cc-pill cc-brand"><span className="cc-logo" />Creative City</span>
+            <Link href="/?city=creative" className="cc-pill cc-brand" title="Về Creative City"><span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span><span className="cc-logo" />Creative City</Link>
             {me && <span className="cc-me"><Av name={me.name} color={me.color} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110 }}>{me.name}</span><b>{me.score}</b></span>}
           </div>
           {zone && views.length === 1 && <div className="cc-zonebar" style={{ '--c': ccStation(zone).color }}><span className="material-symbols-outlined" aria-hidden="true">{ccStation(zone).icon}</span>{ccStation(zone).full}</div>}
@@ -161,7 +161,7 @@ function GateJoin({ initRoom, zone, notice, onJoined }) {
       <section className="cc-hero">
         <div className="cc-stars" />
         <div className="cc-wrap cc-hero-in">
-          <Link href="/" className="cc-pill cc-backlink" style={{ marginBottom: 12 }}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>Knoworld City</Link>
+          <Link href="/?city=creative" className="cc-pill cc-backlink" style={{ marginBottom: 12 }}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>Creative City</Link>
           <div className="cc-title">
             <span className="cc-label">Knoworld · Thành phố sáng tạo</span>
             <h1>Creative <em>City</em></h1>
@@ -227,7 +227,7 @@ function GateHome({ st }) {
           </div>
         ))}
       </div>
-      <Link href="/" className="cc-btn ghost cc-backlink" style={{ marginTop: 14 }}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>Về Knoworld City</Link>
+      <Link href="/?city=creative" className="cc-btn ghost cc-backlink" style={{ marginTop: 14 }}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>Về Creative City</Link>
     </section>
   );
 }
@@ -355,7 +355,8 @@ function Draw({ st, room, token, offset, refresh, onCarry }) {
                 <button type="button" className="cc-btn ghost" onClick={() => onCarry(null)}>Đi tới Phòng Tranh</button>
               </div>
             )
-            : <DrawPad disabled={!me?.brand} blockMsg="Bốc đề vẽ trước đã nhé." onDone={(img) => onCarry({ img, brand: me?.brand })} />}
+            : <DrawPad disabled={!me?.brand} blockMsg="Bốc đề vẽ trước đã nhé." onDone={(img) => onCarry({ img, brand: me?.brand })}
+              head={<><span className="cc-label" style={{ color: 'var(--pink)' }}>Đề vẽ</span><b>{me?.brand_item || 'Chưa bốc đề'}</b>{leftS != null && <span className="cc-clock">{leftS > 0 ? fmtClock(leftS) : 'Hết giờ'}</span>}</>} />}
         </>
       )}
     </section>
@@ -388,6 +389,7 @@ function HalfDraw({ onDone }) {
         {running && <div className="cc-half-bar"><i style={{ width: `${(left / HALF_SECONDS) * 100}%` }} /></div>}
       </div>
       <DrawPad key={`${idx}-${round}`} bg={bg} disabled={!running} blockMsg={over ? 'Hết 30 giây rồi! Mang tranh sang Phòng Tranh hoặc thử hình khác.' : 'Bấm Bắt đầu 30 giây rồi vẽ nhé.'}
+        head={<><span className="cc-label" style={{ color: 'var(--pink)' }}>Vẽ tiếp</span><b>Nửa {h.name} → nửa kia là gì?</b><span className={`cc-clock${running && left <= 10 ? ' hot' : ''}`}>{over ? 'Hết giờ!' : `0:${String(Math.ceil(left)).padStart(2, '0')}`}</span></>}
         doneLabel="Mang sang Phòng Tranh" onDone={(img) => onDone({ img, brand: `Vẽ tiếp: nửa ${h.name}` })}
         top={startAt == null && (
           <div className="cc-half-start">
@@ -401,32 +403,77 @@ function HalfDraw({ onDone }) {
 }
 
 const PEN = ['#1b1540', '#e3262f', '#ffb020', '#2fbf8f', '#1f6fd6', '#8d7fff', '#8b5a3c', '#ffffff'];
-function DrawPad({ disabled, blockMsg, onDone, bg = null, top = null, doneLabel = 'Xong, mang sang Phòng Tranh' }) {
+// v69: khung vẽ NGANG 4:3, độ phân giải cố định (xoay máy không mất nét). Có chế độ "Vẽ toàn màn hình":
+// trên điện thoại khuyến khích xoay ngang để khung vẽ rộng hơn (Android tự khoá ngang nếu được).
+const PAD_W = 960, PAD_H = 720;
+function useLandscape() {
+  const [land, setLand] = useState(true);
+  useEffect(() => {
+    const q = () => setLand(window.innerWidth >= window.innerHeight);
+    q(); window.addEventListener('resize', q); window.addEventListener('orientationchange', q);
+    return () => { window.removeEventListener('resize', q); window.removeEventListener('orientationchange', q); };
+  }, []);
+  return land;
+}
+function DrawPad({ disabled, blockMsg, onDone, bg = null, top = null, head = null, doneLabel = 'Xong, mang sang Phòng Tranh' }) {
   const ref = useRef(null);
-  const s = useRef({ color: PEN[0], size: 7, erase: false, down: false, last: null, hist: [], drew: false, w: 0, bgImg: null });
+  const boxRef = useRef(null);
+  const s = useRef({ color: PEN[0], size: 7, erase: false, down: false, last: null, hist: [], drew: false, bgImg: null });
   const [, force] = useState(0);
   const [msg, setMsg] = useState('');
+  const [full, setFull] = useState(false);
+  const land = useLandscape();
+  const [touchDev, setTouchDev] = useState(false);
+  useEffect(() => { setTouchDev(matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0 || 'ontouchstart' in window); }, []);
   const paintBg = useCallback(() => {
     const c = ref.current; if (!c) return;
-    const w = s.current.w; const x = c.getContext('2d');
-    x.save(); x.fillStyle = '#fbfaff'; x.fillRect(0, 0, w, w * 1.25);
-    if (s.current.bgImg) x.drawImage(s.current.bgImg, 0, 0, w, w * 1.25);
+    const x = c.getContext('2d');
+    x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = '#fbfaff'; x.fillRect(0, 0, PAD_W, PAD_H);
+    if (s.current.bgImg) x.drawImage(s.current.bgImg, 0, 0, PAD_W, PAD_H);
     x.restore();
   }, []);
   useEffect(() => {
-    const c = ref.current; const r = c.getBoundingClientRect(); const d = Math.min(2, window.devicePixelRatio || 1);
-    c.width = Math.round(r.width * d); c.height = Math.round(r.width * 1.25 * d);
-    const ctx = c.getContext('2d'); ctx.setTransform(d, 0, 0, d, 0, 0);
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; s.current.w = r.width;
+    const c = ref.current; c.width = PAD_W; c.height = PAD_H;
+    const x = c.getContext('2d'); x.lineCap = 'round'; x.lineJoin = 'round';
     paintBg();
     if (bg) { const im = new Image(); im.onload = () => { s.current.bgImg = im; paintBg(); }; im.src = bg; }
   }, [bg, paintBg]);
+  // canvas luôn vừa khung chứa, giữ tỉ lệ 4:3
+  useEffect(() => {
+    const box = boxRef.current; if (!box) return undefined;
+    const fit = () => {
+      const w = box.clientWidth, h = full ? (box.clientHeight || Infinity) : Infinity;
+      const cw = Math.min(w, h * PAD_W / PAD_H);
+      ref.current.style.width = `${Math.floor(cw)}px`; ref.current.style.height = `${Math.floor(cw * PAD_H / PAD_W)}px`;
+    };
+    fit();
+    const ro = new ResizeObserver(fit); ro.observe(box);
+    return () => ro.disconnect();
+  }, [full]);
   useEffect(() => { if (!disabled) setMsg(''); }, [disabled]);
+  useEffect(() => {
+    if (!full) return undefined;
+    const k = (e) => { if (e.key === 'Escape') exitFull(); };
+    window.addEventListener('keydown', k);
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', k); document.body.style.overflow = ''; };
+  }, [full]); // eslint-disable-line react-hooks/exhaustive-deps
+  const enterFull = async () => {
+    setFull(true);
+    try { if (touchDev && document.documentElement.requestFullscreen && !document.fullscreenElement) await document.documentElement.requestFullscreen(); } catch { /* iPhone không hỗ trợ */ }
+    try { await screen.orientation?.lock?.('landscape'); } catch { /* không khoá được thì nhắc xoay tay */ }
+  };
+  const exitFull = () => {
+    setFull(false);
+    try { screen.orientation?.unlock?.(); } catch { /* ignore */ }
+    try { if (document.fullscreenElement) document.exitFullscreen(); } catch { /* ignore */ }
+  };
   const ctx = () => ref.current.getContext('2d');
-  const pos = (e) => { const r = ref.current.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const scale = () => PAD_W / ref.current.getBoundingClientRect().width; // điểm ảnh canvas / px màn hình
+  const pos = (e) => { const r = ref.current.getBoundingClientRect(); const k = PAD_W / r.width; return [(e.clientX - r.left) * k, (e.clientY - r.top) * k]; };
   const ink = () => (s.current.erase ? '#fbfaff' : s.current.color);
-  const wid = () => (s.current.erase ? s.current.size * 2.5 : s.current.size);
-  const snap = () => { try { s.current.hist.push(ctx().getImageData(0, 0, ref.current.width, ref.current.height)); if (s.current.hist.length > 20) s.current.hist.shift(); } catch { /* ignore */ } };
+  const wid = () => (s.current.erase ? s.current.size * 2.5 : s.current.size) * scale();
+  const snap = () => { try { s.current.hist.push(ctx().getImageData(0, 0, PAD_W, PAD_H)); if (s.current.hist.length > 12) s.current.hist.shift(); } catch { /* ignore */ } };
   const down = (e) => {
     if (disabled) { setMsg(blockMsg || ''); return; }
     s.current.down = true; s.current.drew = true; ref.current.setPointerCapture(e.pointerId); snap();
@@ -439,12 +486,9 @@ function DrawPad({ disabled, blockMsg, onDone, bg = null, top = null, doneLabel 
   };
   const up = () => { s.current.down = false; };
   const set = (k, v) => { s.current[k] = v; if (k === 'color') s.current.erase = false; force((n) => n + 1); };
-  return (
-    <div>
-      <div className="cc-pad" style={{ position: 'relative' }}>
-        <canvas ref={ref} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} aria-label="Khung vẽ" />
-        {top && <div className="cc-pad-over">{top}</div>}
-      </div>
+  const done = () => { if (!s.current.drew) { setMsg('Khung vẽ còn trống.'); return; } exitFull(); onDone(ref.current.toDataURL('image/png')); };
+  const tools = (
+    <>
       <div className="cc-tools">
         {PEN.map((c) => <button key={c} type="button" className={`cc-sw${s.current.color === c && !s.current.erase ? ' on' : ''}`} style={{ background: c }} onClick={() => set('color', c)} aria-label={`Màu ${c}`} />)}
       </div>
@@ -454,8 +498,37 @@ function DrawPad({ disabled, blockMsg, onDone, bg = null, top = null, doneLabel 
         <button type="button" className="cc-tool" disabled={disabled && !!bg} onClick={() => { const h = s.current.hist.pop(); if (h) ctx().putImageData(h, 0, 0); }}>Hoàn tác</button>
         <button type="button" className="cc-tool" disabled={disabled && !!bg} onClick={() => { snap(); paintBg(); }}>Xoá</button>
       </div>
-      <button type="button" className="cc-btn" style={{ width: '100%', marginTop: 12 }} onClick={() => { if (!s.current.drew) { setMsg('Khung vẽ còn trống.'); return; } onDone(ref.current.toDataURL('image/png')); }}>{doneLabel}</button>
-      {msg && <p className="cc-err">{msg}</p>}
+    </>
+  );
+  return (
+    <div className={full ? `cc-padfull${land ? ' land' : ' port'}` : ''}>
+      {full && (
+        <div className="cc-padfull-head">
+          <div className="cc-padfull-title">{head}</div>
+          <button type="button" className="cc-padfull-x" onClick={exitFull} aria-label="Thu nhỏ khung vẽ"><span className="material-symbols-outlined">close_fullscreen</span></button>
+        </div>
+      )}
+      {!full && touchDev && !land && (
+        <button type="button" className="cc-rotate" onClick={enterFull}>
+          <span className="cc-rotate-ico" aria-hidden="true">📱</span>
+          <span><b>Xoay ngang điện thoại</b> để có khung vẽ rộng hơn. Bấm vào đây để vẽ toàn màn hình.</span>
+        </button>
+      )}
+      <div className="cc-padbox" ref={boxRef}>
+        <div className="cc-pad" style={{ position: 'relative' }}>
+          <canvas ref={ref} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} aria-label="Khung vẽ" />
+          {top && <div className="cc-pad-over">{top}</div>}
+        </div>
+        {full && !land && <div className="cc-padfull-turn" aria-hidden="true"><span className="cc-rotate-ico big">📱</span>Xoay ngang để vẽ rộng hơn</div>}
+      </div>
+      <div className="cc-padtools">
+        {tools}
+        <div className="cc-padactions">
+          {!full && <button type="button" className="cc-btn ghost" onClick={enterFull}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>open_in_full</span>Toàn màn hình</button>}
+          <button type="button" className="cc-btn" onClick={done}>{doneLabel}</button>
+        </div>
+        {msg && <p className="cc-err">{msg}</p>}
+      </div>
     </div>
   );
 }

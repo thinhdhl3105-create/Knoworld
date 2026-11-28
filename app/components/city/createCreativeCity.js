@@ -5,11 +5,12 @@
 import * as THREE_NS from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CC_DISTRICTS } from './ccDistricts';
+import { fetchLiveWeather } from '@/lib/liveWeather';
 
 const THREE = { ...THREE_NS, OrbitControls };
 
 export function createCreativeCity(root, opts = {}) {
-  root.innerHTML = '<div class="ccx-stage" data-id="stage"></div><div class="ccx-labels" data-id="labels"></div><div class="ccx-tip" data-id="tip" hidden></div>';
+  root.innerHTML = '<div class="ccx-stage" data-id="stage"></div><div class="ccx-labels" data-id="labels"></div><div class="ccx-tip" data-id="tip" hidden></div><div class="ccx-wx" data-id="wx" aria-live="off"></div>';
   const $ = (id) => root.querySelector(`[data-id="${id}"]`);
   const cleanups = [];
   let gl;
@@ -56,15 +57,21 @@ export function createCreativeCity(root, opts = {}) {
   controls.enablePan = false; controls.minZoom = 0.35; controls.maxZoom = 7;
   controls.minPolarAngle = 0.55; controls.maxPolarAngle = 1.2;
 
-  // ================= lights (đêm) =================
-  scene.add(new THREE.HemisphereLight('#8d8fd8', '#211d38', 0.75));
-  scene.add(new THREE.AmbientLight('#3a3560', 0.35));
+  // ================= lights — v69: ngày/đêm theo giờ Việt Nam + thời tiết thật (như Knoworld City) =================
+  const hemi = new THREE.HemisphereLight('#8d8fd8', '#211d38', 0.75); scene.add(hemi);
+  const amb = new THREE.AmbientLight('#3a3560', 0.35); scene.add(amb);
   const moon = new THREE.DirectionalLight('#b9c2ff', 0.75);
   moon.position.set(-40, 90, 30); moon.castShadow = !small;
   moon.shadow.mapSize.set(2048, 2048);
   Object.assign(moon.shadow.camera, { left: -75, right: 75, top: 75, bottom: -75, near: 1, far: 300 });
   moon.shadow.bias = -0.0008;
   scene.add(moon, moon.target);
+  const sun = new THREE.DirectionalLight('#fff4e0', 0);
+  sun.position.set(60, 80, 20);
+  sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -75, right: 75, top: 75, bottom: -75, near: 1, far: 300 });
+  sun.shadow.bias = -0.0008;
+  scene.add(sun, sun.target);
   const warm = new THREE.PointLight('#ffcf7a', 1.2, 46, 2); warm.position.set(0, 16, 0); scene.add(warm);
 
   // ================= helpers =================
@@ -90,6 +97,7 @@ export function createCreativeCity(root, opts = {}) {
     draw(c.getContext('2d'), cw, ch);
     const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
   }
+  const glows = [];
   const glowTex = canvasTex(128, 128, (x) => {
     const g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
     g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,.4)'); g.addColorStop(1, 'rgba(255,255,255,0)');
@@ -97,11 +105,11 @@ export function createCreativeCity(root, opts = {}) {
   });
   function glow(x, y, z, s, c, parent, op) {
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, opacity: op == null ? 0.8 : op, blending: THREE.AdditiveBlending, depthWrite: false }));
-    sp.position.set(x, y, z); sp.scale.set(s, s, 1); (parent || scene).add(sp); return sp;
+    sp.position.set(x, y, z); sp.scale.set(s, s, 1); (parent || scene).add(sp); glows.push({ m: sp.material, o: sp.material.opacity }); return sp;
   }
   function floorGlow(x, y, z, w, d, c, op, parent) {
     const p = new THREE.Mesh(planeG, new THREE.MeshBasicMaterial({ map: glowTex, color: c, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false }));
-    p.rotation.x = -Math.PI / 2; p.scale.set(w, d, 1); p.position.set(x, y, z); (parent || scene).add(p); return p;
+    p.rotation.x = -Math.PI / 2; p.scale.set(w, d, 1); p.position.set(x, y, z); (parent || scene).add(p); glows.push({ m: p.material, o: op }); return p;
   }
   function textSprite(text, color, h, parent) {
     const t = canvasTex(512, 128, (x, w, hh) => {
@@ -459,9 +467,10 @@ export function createCreativeCity(root, opts = {}) {
 
   // ================= mây khối quanh thành phố =================
   const clouds = [];
+  const cloudMat = new THREE.MeshLambertMaterial({ color: '#3a3a5e' });
   for (let i = 0; i < 9; i++) {
     const g = new THREE.Group(); const n = 2 + ((rand() * 3) | 0);
-    for (let k = 0; k < n; k++) box(k * 3.4 - n * 1.6, rand() * 1.4, (rand() - 0.5) * 3, 4 + rand() * 3, 2.4 + rand() * 1.6, 3.5 + rand() * 2, '#3a3a5e', g, true);
+    for (let k = 0; k < n; k++) box(k * 3.4 - n * 1.6, rand() * 1.4, (rand() - 0.5) * 3, 4 + rand() * 3, 2.4 + rand() * 1.6, 3.5 + rand() * 2, cloudMat, g, true);
     const a = i / 9 * Math.PI * 2 + rand() * 0.4, r = 78 + rand() * 18;
     g.position.set(Math.cos(a) * r, -6 + rand() * 26, Math.sin(a) * r); scene.add(g); clouds.push({ g, a, r, v: 0.006 + rand() * 0.008 });
   }
@@ -469,9 +478,128 @@ export function createCreativeCity(root, opts = {}) {
   // ================= màu cửa sổ =================
   winMesh.instanceMatrix.needsUpdate = true;
   winMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(WIN_MAX * 3), 3);
-  const paintWin = (i) => winMesh.setColorAt(i, winLit[i] ? winCol[i] : DIM);
+  const GLASS_DAY = new THREE.Color('#8ea2b6'), wtmp = new THREE.Color();
+  let N = 1; // 1 = đêm, 0 = ban ngày
+  const paintWin = (i) => winMesh.setColorAt(i, wtmp.copy(GLASS_DAY).lerp(winLit[i] ? winCol[i] : DIM, N));
   for (let i = 0; i < winMesh.count; i++) paintWin(i);
   winMesh.instanceColor.needsUpdate = true;
+
+  // ================= v69: thời gian & thời tiết thật =================
+  // Bảng màu giống Knoworld City (TP.HCM: bình minh ~5:40, hoàng hôn ~17:55).
+  const NIGHT = { top: '#04051a', bot: '#1d1a46', hs: '#8d8fd8', hg: '#211d38', hi: 0.75, si: 0, sc: '#ffb07a', n: 1 };
+  const DAY = { top: '#4f9ee6', bot: '#cbe7f8', hs: '#dbe8fb', hg: '#5e5a62', hi: 0.8, si: 0.95, sc: '#fff1da', n: 0 };
+  const KF = [
+    [0, NIGHT], [5.0, NIGHT],
+    [5.8, { top: '#2b2d6b', bot: '#c9837e', hs: '#9c89c8', hg: '#2a1f2a', hi: 0.7, si: 0.25, sc: '#ff9a6b', n: 0.85 }],
+    [6.6, { top: '#6a9ad8', bot: '#f7c39a', hs: '#ffd2b0', hg: '#5a4a4a', hi: 0.85, si: 0.85, sc: '#ffc08a', n: 0.22 }],
+    [8.2, DAY], [15.8, DAY],
+    [17.2, { top: '#5a7fc8', bot: '#f6b080', hs: '#ffd0a8', hg: '#5a4848', hi: 0.85, si: 0.95, sc: '#ff9f5e', n: 0.25 }],
+    [18.0, { top: '#2f2766', bot: '#e07a6a', hs: '#9a72b0', hg: '#2a1d2a', hi: 0.7, si: 0.28, sc: '#ff7a55', n: 0.82 }],
+    [18.9, NIGHT], [24, NIGHT],
+  ];
+  const RAIN_TOP = new THREE.Color('#4b5260'), RAIN_BOT = new THREE.Color('#8a929c');
+  const cb = new THREE.Color();
+  function envAt(h, rain) {
+    let i = 0; while (i < KF.length - 2 && KF[i + 1][0] <= h) i++;
+    const [h0, A] = KF[i], [h1, B] = KF[i + 1];
+    const t = h1 === h0 ? 0 : Math.min(1, Math.max(0, (h - h0) / (h1 - h0)));
+    const col = (k) => new THREE.Color(A[k]).lerp(cb.set(B[k]), t);
+    const num = (k) => A[k] + (B[k] - A[k]) * t;
+    const e = { top: col('top'), bot: col('bot'), hs: col('hs'), hg: col('hg'), sc: col('sc'), hi: num('hi'), si: num('si'), n: num('n') };
+    const mix = rain * (0.8 - 0.5 * e.n);
+    e.top.lerp(RAIN_TOP.clone().multiplyScalar(1 - 0.7 * e.n), mix); e.bot.lerp(RAIN_BOT.clone().multiplyScalar(1 - 0.6 * e.n), mix);
+    e.si *= 1 - 0.8 * rain; e.hi *= 1 - 0.25 * rain;
+    return e;
+  }
+  // ban ngày: thân nhà sáng lên (màu đêm -> màu pastel), đêm giữ tông tím than như cũ
+  const PASTEL = new THREE.Color('#c9c4e0');
+  const matBase = Object.values(mats).filter((m) => m !== cloudMat).map((m) => {
+    const hsl = {}; m.color.getHSL(hsl);
+    return { m, night: m.color.clone(), day: m.color.clone().lerp(PASTEL, hsl.l > 0.45 ? 0.08 : 0.38) }; // màu sáng (đường, nền) giữ gần như cũ
+  });
+  const CLOUD_NIGHT = new THREE.Color('#3a3a5e'), CLOUD_DAY = new THREE.Color('#ffffff'), CLOUD_RAIN = new THREE.Color('#6d7482');
+
+  // mưa
+  const DROPS = small ? 700 : 1800;
+  const rainPos = new Float32Array(DROPS * 6);
+  const rainGeo = new THREE.BufferGeometry(); rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+  const rainMat = new THREE.LineBasicMaterial({ color: '#b9d2ea', transparent: true, opacity: 0 });
+  const rainLines = new THREE.LineSegments(rainGeo, rainMat); rainLines.frustumCulled = false; rainLines.visible = false; scene.add(rainLines);
+  function seedDrop(i, anyY) {
+    const x = controls.target.x + (Math.random() - 0.5) * 140, z = controls.target.z + (Math.random() - 0.5) * 140;
+    const y = anyY ? Math.random() * 46 : 44 + Math.random() * 4;
+    rainPos.set([x, y, z, x + 0.25, y + 1.4, z + 0.1], i * 6);
+  }
+  for (let i = 0; i < DROPS; i++) seedDrop(i, true);
+
+  const fmtVN = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', second: '2-digit', month: 'numeric', hour12: false });
+  function vnNow() {
+    const p = {}; for (const x of fmtVN.formatToParts(new Date())) p[x.type] = x.value;
+    return { h: (+p.hour % 24) + (+p.minute) / 60 + (+p.second) / 3600, month: +p.month };
+  }
+  const VN_MONTH = vnNow().month;
+  const autoRain = (h) => (VN_MONTH >= 5 && VN_MONTH <= 11 && h >= 14.5 && h <= 16.8 ? 1 : 0);
+  let live = null, rainNow = 0, flash = 0, boltT = 4, hours = vnNow().h;
+  {
+    let on = true;
+    const pull = () => fetchLiveWeather().then((w) => { if (on && w) live = w; }).catch(() => {});
+    pull(); const wxT = setInterval(pull, 10 * 60 * 1000); cleanups.push(() => { on = false; clearInterval(wxT); });
+  }
+  const host = root.parentElement;
+  const wxEl = $('wx');
+  let lastWx = '';
+  function applyEnv(dt) {
+    hours = vnNow().h;
+    const target = live ? live.rain : autoRain(hours);
+    rainNow += (target - rainNow) * Math.min(1, dt * 0.7);
+    if (rainNow < 0.001) rainNow = 0;
+    flash = Math.max(0, flash - dt * 5);
+    const thunder = live ? live.thunder : true;
+    if (!reduce && rainNow > 0.85 && thunder) { boltT -= dt; if (boltT <= 0) { flash = 1; boltT = 3 + Math.random() * 6; } }
+    const e = envAt(hours, rainNow);
+    hemi.color.copy(e.hs); hemi.groundColor.copy(e.hg); hemi.intensity = e.hi + flash * 1.4;
+    amb.intensity = 0.35 * (0.6 + 0.4 * e.n);
+    sun.color.copy(e.sc); sun.intensity = e.si;
+    const a = Math.min(Math.PI, Math.max(0, (hours - 5.7) / (17.95 - 5.7) * Math.PI));
+    sun.position.set(-Math.cos(a) * 70, Math.max(Math.sin(a), 0.15) * 80 + 8, 30);
+    sun.castShadow = !small && e.si > 0.15;
+    moon.intensity = 0.75 * e.n * (1 - 0.6 * rainNow);
+    moon.castShadow = !small && !sun.castShadow;
+    const n = Math.max(e.n, rainNow * 0.45);
+    if (Math.abs(n - N) > 0.004) {
+      N = n;
+      for (let i = 0; i < winMesh.count; i++) paintWin(i);
+      winMesh.instanceColor.needsUpdate = true;
+      for (const b of matBase) b.m.color.copy(b.day).lerp(b.night, n);
+    }
+    warm.intensity = 1.2 * n;
+    for (const g of glows) g.m.opacity = g.o * (0.18 + 0.82 * n);
+    cloudMat.color.copy(CLOUD_DAY).lerp(e.sc, 0.25 * (1 - e.n)).lerp(CLOUD_NIGHT, e.n).lerp(CLOUD_RAIN, rainNow * 0.75);
+    rainMat.opacity = rainNow * 0.7;
+    // bầu trời (nền CSS phía sau canvas trong suốt)
+    if (host) {
+      const st = host.style;
+      st.setProperty('--ccsky-top', `#${e.top.getHexString()}`);
+      st.setProperty('--ccsky-bot', `#${e.bot.getHexString()}`);
+      st.setProperty('--ccstar', String(Math.max(0, e.n - 0.25) * (1 - rainNow) * 1.2));
+      st.setProperty('--ccmoon', String(e.n * (1 - 0.8 * rainNow)));
+      st.setProperty('--ccsun', String((1 - e.n) * (1 - 0.85 * rainNow)));
+      st.setProperty('--ccflash', String(flash * 0.5));
+      host.dataset.daylight = e.n < 0.5 ? 'day' : 'night';
+    }
+    // nhãn giờ & thời tiết
+    const hh = Math.floor(hours) % 24, mm = Math.floor((hours % 1) * 60);
+    const night = e.n > 0.6;
+    let wx;
+    if (live) {
+      const k = live.kind, tC = live.temp != null ? ` ${Math.round(live.temp)}°C` : '';
+      wx = (k === 'storm' ? '⛈ Giông' : k === 'rain' ? '🌧 Mưa' : k === 'drizzle' ? '🌦 Mưa phùn' : k === 'fog' ? '🌫 Sương mù'
+        : k === 'overcast' ? '☁️ Nhiều mây' : k === 'cloudy' ? (night ? '☁️ Có mây' : '⛅ Ít mây') : night ? '🌙 Trời quang' : '☀️ Nắng') + tC;
+    } else wx = rainNow > 0.35 ? '🌧 Mưa rào' : night ? '🌙 Trời quang' : '☀️ Nắng';
+    const txt = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')} · ${wx}`;
+    if (txt !== lastWx) { lastWx = txt; wxEl.textContent = txt; wxEl.title = 'Giờ và thời tiết thật ở TP.HCM'; }
+  }
+  let envT = 1;
 
   // ================= nhãn khu, chọn, bay tới =================
   const labelsEl = $('labels'), tip = $('tip');
@@ -561,6 +689,16 @@ export function createCreativeCity(root, opts = {}) {
     }
     for (const b of blinkers) b.visible = Math.sin(elapsed * 4) > -0.2;
     for (const c of clouds) { c.a += c.v * dt * m; c.g.position.x = Math.cos(c.a) * c.r; c.g.position.z = Math.sin(c.a) * c.r; }
+    envT += dt; if (envT > 0.25 || flash > 0) { applyEnv(envT); envT = 0; }
+    if (rainNow > 0.01) {
+      const fall = 32 * dt;
+      for (let i = 0; i < DROPS; i++) {
+        const o = i * 6; rainPos[o + 1] -= fall; rainPos[o + 4] -= fall; rainPos[o] -= fall * 0.18; rainPos[o + 3] -= fall * 0.18;
+        if (rainPos[o + 1] < -8) seedDrop(i, false);
+      }
+      rainGeo.attributes.position.needsUpdate = true;
+    }
+    rainLines.visible = rainNow > 0.01;
     flickT += dt;
     if (!reduce && flickT > 0.12) { flickT = 0; for (let k = 0; k < 6; k++) { const i = (Math.random() * winMesh.count) | 0; winLit[i] = !winLit[i]; paintWin(i); } winMesh.instanceColor.needsUpdate = true; }
     if (fly) {
@@ -578,7 +716,7 @@ export function createCreativeCity(root, opts = {}) {
   fit();
   camera.zoom = homeZoom(); camera.updateProjectionMatrix();
   const ro = new ResizeObserver(() => fit()); ro.observe(root); cleanups.push(() => ro.disconnect());
-  controls.update(); placeLabels();
+  controls.update(); placeLabels(); applyEnv(1);
   raf = requestAnimationFrame(tick);
 
   return {
@@ -586,6 +724,7 @@ export function createCreativeCity(root, opts = {}) {
     setPad(p) { pad.right = p.right || 0; pad.bottom = p.bottom || 0; focus(selected, false); },
     destroy() {
       alive = false; cancelAnimationFrame(raf);
+      if (host) ['--ccsky-top', '--ccsky-bot', '--ccstar', '--ccmoon', '--ccsun', '--ccflash'].forEach((k) => host.style.removeProperty(k));
       cleanups.forEach((f) => f());
       controls.dispose(); renderer.dispose(); renderer.forceContextLoss();
       root.innerHTML = '';

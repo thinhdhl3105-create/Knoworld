@@ -89,3 +89,23 @@
   .kwh-track { transition: none; }
   .kwh-transit { display: none; }
 }
+
+/* v69: Creative City theo giờ & thời tiết thật (biến do createCreativeCity đặt) */
+.kwh-cc { background:
+  radial-gradient(900px 420px at 72% 8%, rgba(255,143,177,calc(.16 * var(--ccstar-k, 1))), transparent 70%),
+  linear-gradient(var(--ccsky-top, #0b0a1a), var(--ccsky-bot, #241f4f)); transition: background .6s; }
+.kwh-cc::after { content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; background: rgba(230,236,255,var(--ccflash, 0)); }
+.kwh-cc > .cc-stars { opacity: var(--ccstar, .75); transition: opacity 1s; }
+.kwh-moon { opacity: var(--ccmoon, 1); transition: opacity 1s; }
+.kwh-sun { position: absolute; left: 60%; top: 11%; width: 54px; height: 54px; border-radius: 50%; pointer-events: none; opacity: var(--ccsun, 0); transition: opacity 1s;
+  background: radial-gradient(circle, #fff8dc 0 40%, #ffd27a 70%); box-shadow: 0 0 60px 26px rgba(255,214,140,.45); }
+.kwh-cc[data-daylight="day"] .kwh-cc-brand b, .kwh-cc[data-daylight="day"] .kwh-cc-brand span { text-shadow: 0 1px 8px rgba(10,12,40,.55); }
+.kwh-cc[data-daylight="day"] .kwh-cc-brand span { color: #fff; }
+.ccx-wx { position: absolute; z-index: 4; left: 16px; bottom: 22px; height: 32px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 999px;
+  font: 600 12.5px/1 Inter, sans-serif; color: #e9e6f5; background: rgba(19,17,28,.78); border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); white-space: nowrap; pointer-events: none; }
+.ccx-wx:empty { display: none; }
+@media (max-width: 767px) {
+  .ccx-wx { left: auto; right: 12px; bottom: auto; top: 152px; height: 28px; font-size: 11.5px; }
+  .kwh-sun { left: 16%; top: 24%; width: 40px; height: 40px; }
+}
+.kwh-instant .kwh-track { transition: none !important; }

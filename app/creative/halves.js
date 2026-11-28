@@ -94,11 +94,13 @@ export const HALF_DRAWINGS = [
   },
 ];
 
+// v69: khung vẽ ngang 4:3 — nửa hình có sẵn nằm bên trái đường giữa, nửa phải để trống cho học sinh vẽ tiếp.
 export function halfSvg(h) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="400" height="500">
-  <rect x="200" y="0" width="200" height="500" fill="#fff3f8"/>
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-133.33 0 666.67 500" width="960" height="720">
+  <rect x="-133.33" y="0" width="666.67" height="500" fill="#fbfaff"/>
+  <rect x="200" y="0" width="333.33" height="500" fill="#fff3f8"/>
   <line x1="200" y1="10" x2="200" y2="490" stroke="#ff8fb1" stroke-width="3" stroke-dasharray="10 10"/>
-  <text x="300" y="476" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#ff8fb1" font-weight="700">vẽ tiếp ở đây →</text>
+  <text x="366" y="476" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#ff8fb1" font-weight="700">vẽ tiếp ở đây →</text>
   ${h.svg}
 </svg>`;
 }

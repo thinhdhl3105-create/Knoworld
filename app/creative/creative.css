@@ -291,3 +291,35 @@ body:has(> main .cc), body:has(.cc){padding-bottom:0}
 .cc-clock.hot{color:var(--coral);animation:ccBeat 1s infinite}
 @keyframes ccBeat{50%{transform:scale(1.12)}}
 .cc-tool:disabled{opacity:.4}
+
+/* ---------------------------------------------------------------- v69: khung vẽ ngang + toàn màn hình */
+.cc-padbox{display:grid;place-items:center;width:100%}
+.cc-pad{width:fit-content;max-width:100%}
+.cc-pad canvas{width:auto;aspect-ratio:auto}
+.cc-padactions{display:flex;gap:8px;margin-top:12px}
+.cc-padactions .cc-btn{flex:1}
+.cc-rotate{display:flex;align-items:center;gap:12px;width:100%;margin:0 0 10px;padding:10px 12px;border-radius:12px;border:1px dashed rgba(255,143,177,.55);background:rgba(255,143,177,.08);color:var(--soft);font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.cc-rotate b{color:var(--pink)}
+.cc-rotate-ico{display:inline-block;font-size:24px;animation:ccTurn 2.4s ease-in-out infinite}
+.cc-rotate-ico.big{font-size:44px}
+@keyframes ccTurn{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+.cc-padfull{position:fixed;inset:0;z-index:95;background:#0e0d16;display:grid;grid-template-rows:auto 1fr auto;gap:8px;padding:8px max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
+.cc-padfull .cc-padbox{min-height:0;height:100%;position:relative}
+.cc-padfull .cc-pad{border-radius:10px}
+.cc-padfull-head{display:flex;align-items:center;gap:10px;min-width:0}
+.cc-padfull-title{display:flex;align-items:center;gap:10px;min-width:0;flex:1;font-family:var(--display);font-size:15px}
+.cc-padfull-title b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.cc-padfull-title .cc-clock{margin-left:auto}
+.cc-padfull-x{flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--line2);background:rgba(255,255,255,.06);color:#fff;display:grid;place-items:center;cursor:pointer}
+.cc-padfull .cc-tools{margin-top:6px}
+.cc-padfull .cc-padactions{margin-top:8px}
+.cc-padfull .cc-padactions .cc-btn{height:40px}
+.cc-padfull-turn{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:10px;color:#fff;font:600 15px var(--display);background:rgba(14,13,22,.55);pointer-events:none;text-align:center}
+/* ngang: công cụ thành cột bên phải, khung vẽ chiếm phần còn lại */
+.cc-padfull.land{grid-template-columns:1fr minmax(150px,200px);grid-template-rows:auto 1fr}
+.cc-padfull.land .cc-padfull-head{grid-column:1/-1}
+.cc-padfull.land .cc-padtools{overflow-y:auto;align-self:stretch}
+.cc-padfull.land .cc-tools{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.cc-padfull.land .cc-tools .cc-tool{padding:0 4px;font-size:11.5px}
+.cc-padfull.land .cc-padactions{flex-direction:column}
+@media (max-height:430px){.cc-padfull.land .cc-padfull-head{min-height:36px}.cc-padfull-x{width:34px;height:34px}}

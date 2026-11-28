@@ -9,7 +9,7 @@
 //      (Trung tâm Sáng tạo ở giữa gom toàn bộ + 4 khu). Máy bay chuyển cảnh giữ nguyên.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import KnoworldCity from './KnoworldCity';
 import { useAuth } from '../AuthProvider';
 import { CC_ADMIN_EMAIL, normRoom } from '@/lib/creative';
@@ -30,14 +30,15 @@ function Plane({ size = 64 }) {
 }
 
 export default function HomeCities() {
-  const [city, setCity] = useState('knoworld');
+  // v69: mở thẳng Creative City khi link có ?city=creative (menu, nút quay lại) — không trượt qua Knoworld City trước.
+  const sp = useSearchParams();
+  const want = sp?.get('city') === 'creative' ? 'creative' : 'knoworld';
+  const [city, setCity] = useState(want);
+  const [instant, setInstant] = useState(true); // khung đầu tiên: đặt sẵn vị trí, không chạy hiệu ứng trượt
   const [transit, setTransit] = useState(0); // tăng mỗi lần chuyển -> máy bay bay qua màn hình
   const touch = useRef(null);
   const wheel = useRef({ x: 0, t: 0 });
-
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('city') === 'creative') setCity('creative');
-  }, []);
+  useEffect(() => { const id = requestAnimationFrame(() => requestAnimationFrame(() => setInstant(false))); return () => cancelAnimationFrame(id); }, []);
 
   const go = useCallback((c) => {
     setCity((cur) => {
@@ -47,6 +48,9 @@ export default function HomeCities() {
       return c;
     });
   }, []);
+
+  // bấm "Creative City" trên menu khi đang ở trang chủ -> bay sang luôn
+  useEffect(() => { go(want); }, [want, go]);
 
   // Vuốt: từ mép phải sang trái -> Creative City; ở Creative City vuốt từ mép trái sang phải -> về Knoworld City.
   const onTouchStart = (e) => {
@@ -73,7 +77,7 @@ export default function HomeCities() {
   };
 
   return (
-    <section className="kwh" data-city={city} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} onWheel={onWheel}>
+    <section className={`kwh${instant ? ' kwh-instant' : ''}`} data-city={city} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} onWheel={onWheel}>
       <h1 className="sr-only">Knoworld — explore knowledge like a living city</h1>
       <div className="kwh-track">
         <div className="kwh-pane" aria-hidden={city !== 'knoworld'} inert={city !== 'knoworld' ? '' : undefined}>
@@ -149,6 +153,7 @@ function CreativePane({ active, onBack }) {
     <div className="cc kwh-cc">
       <div className="cc-stars" />
       <div className="kwh-moon" aria-hidden="true" />
+      <div className="kwh-sun" aria-hidden="true" />
       <div ref={stage} className="ccx" />
 
       <div className="kwh-cc-top">

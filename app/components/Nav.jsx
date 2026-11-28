@@ -42,7 +42,7 @@ const links = [
   { href: '/temple', label: 'Temple', dot: '#ffb347' },
   { href: '/home', label: 'My Home', dot: '#e9a8ff' },
   { href: '/medisland', label: 'Medisland', dot: '#ff8f6b' },
-  { href: '/creative', label: 'Creative City', dot: '#ffb876' },
+  { href: '/?city=creative', label: 'Creative City', dot: '#ffb876', match: '/creative', tour: 'creative' },
   { group: 'admin', label: 'Admin', admin: true, dot: '#7ee8ff', lock: true, children: ADMIN_LINKS },
 ];
 
@@ -218,9 +218,9 @@ export default function Nav() {
                   </div>
                 );
               }
-              const active = pathname === l.href || (l.href !== '/' && pathname.startsWith(`${l.href}/`));
+              const active = pathname === l.href || (l.href !== '/' && pathname.startsWith(`${l.href}/`)) || (l.match && pathname.startsWith(l.match));
               return (
-                <Link key={l.href} href={l.href} data-tour={l.href.slice(1)} className={`kw-pill ${active ? 'is-on' : ''}`}>
+                <Link key={l.href} href={l.href} data-tour={l.tour || l.href.slice(1)} className={`kw-pill ${active ? 'is-on' : ''}`}>
                   <Dot c={l.dot} />{l.label}
                 </Link>
               );
