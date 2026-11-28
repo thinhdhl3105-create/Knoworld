@@ -423,6 +423,9 @@ function DrawPad({ disabled, blockMsg, onDone, bg = null, top = null, head = nul
   const [msg, setMsg] = useState('');
   const [full, setFull] = useState(false);
   const land = useLandscape();
+  // v70: điện thoại đang dọc (thường do bật khoá xoay) -> tự quay khung vẽ 90°, học sinh cầm ngang là vẽ được
+  const rot = full && !land;
+  const rotRef = useRef(false); rotRef.current = rot;
   const [touchDev, setTouchDev] = useState(false);
   useEffect(() => { setTouchDev(matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0 || 'ontouchstart' in window); }, []);
   const paintBg = useCallback(() => {
@@ -469,8 +472,13 @@ function DrawPad({ disabled, blockMsg, onDone, bg = null, top = null, head = nul
     try { if (document.fullscreenElement) document.exitFullscreen(); } catch { /* ignore */ }
   };
   const ctx = () => ref.current.getContext('2d');
-  const scale = () => PAD_W / ref.current.getBoundingClientRect().width; // điểm ảnh canvas / px màn hình
-  const pos = (e) => { const r = ref.current.getBoundingClientRect(); const k = PAD_W / r.width; return [(e.clientX - r.left) * k, (e.clientY - r.top) * k]; };
+  // điểm ảnh canvas / px màn hình (khi khung đang quay 90° thì cạnh ngang của canvas nằm dọc màn hình)
+  const scale = () => { const r = ref.current.getBoundingClientRect(); return PAD_W / (rotRef.current ? r.height : r.width); };
+  const pos = (e) => {
+    const r = ref.current.getBoundingClientRect();
+    if (rotRef.current) { const k = PAD_W / r.height; return [(e.clientY - r.top) * k, (r.right - e.clientX) * k]; }
+    const k = PAD_W / r.width; return [(e.clientX - r.left) * k, (e.clientY - r.top) * k];
+  };
   const ink = () => (s.current.erase ? '#fbfaff' : s.current.color);
   const wid = () => (s.current.erase ? s.current.size * 2.5 : s.current.size) * scale();
   const snap = () => { try { s.current.hist.push(ctx().getImageData(0, 0, PAD_W, PAD_H)); if (s.current.hist.length > 12) s.current.hist.shift(); } catch { /* ignore */ } };
@@ -501,17 +509,18 @@ function DrawPad({ disabled, blockMsg, onDone, bg = null, top = null, head = nul
     </>
   );
   return (
-    <div className={full ? `cc-padfull${land ? ' land' : ' port'}` : ''}>
+    <div className={full ? `cc-padfull land${rot ? ' rot' : ''}` : ''}>
       {full && (
         <div className="cc-padfull-head">
           <div className="cc-padfull-title">{head}</div>
+          {rot && <span className="cc-rot-hint"><span className="cc-rotate-ico" aria-hidden="true">📱</span>Cầm ngang máy để vẽ</span>}
           <button type="button" className="cc-padfull-x" onClick={exitFull} aria-label="Thu nhỏ khung vẽ"><span className="material-symbols-outlined">close_fullscreen</span></button>
         </div>
       )}
       {!full && touchDev && !land && (
         <button type="button" className="cc-rotate" onClick={enterFull}>
           <span className="cc-rotate-ico" aria-hidden="true">📱</span>
-          <span><b>Xoay ngang điện thoại</b> để có khung vẽ rộng hơn. Bấm vào đây để vẽ toàn màn hình.</span>
+          <span><b>Bấm để vẽ toàn màn hình</b> rồi cầm ngang điện thoại: khung vẽ tự xoay theo, không cần mở khoá xoay màn hình.</span>
         </button>
       )}
       <div className="cc-padbox" ref={boxRef}>
@@ -519,7 +528,6 @@ function DrawPad({ disabled, blockMsg, onDone, bg = null, top = null, head = nul
           <canvas ref={ref} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} aria-label="Khung vẽ" />
           {top && <div className="cc-pad-over">{top}</div>}
         </div>
-        {full && !land && <div className="cc-padfull-turn" aria-hidden="true"><span className="cc-rotate-ico big">📱</span>Xoay ngang để vẽ rộng hơn</div>}
       </div>
       <div className="cc-padtools">
         {tools}

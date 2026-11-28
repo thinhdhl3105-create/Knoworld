@@ -323,3 +323,18 @@ body:has(> main .cc), body:has(.cc){padding-bottom:0}
 .cc-padfull.land .cc-tools .cc-tool{padding:0 4px;font-size:11.5px}
 .cc-padfull.land .cc-padactions{flex-direction:column}
 @media (max-height:430px){.cc-padfull.land .cc-padfull-head{min-height:36px}.cc-padfull-x{width:34px;height:34px}}
+
+/* ---------------------------------------------------------------- v70: cài đặt lượt Ảnh Lạ */
+.cc-qset{display:grid;gap:8px;padding:12px 14px;margin:0 0 14px;border-radius:14px;border:1px solid rgba(126,232,255,.3);background:rgba(126,232,255,.06)}
+.cc-qset-row{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end}
+.cc-qset-row label{display:grid;gap:4px;font-size:12.5px;font-weight:600;color:var(--soft)}
+.cc-qset-row small{font-weight:400;color:var(--muted);font-size:11px}
+.cc-step{display:inline-flex;align-items:center;border:1px solid var(--line2);border-radius:10px;overflow:hidden;background:rgba(19,17,28,.8)}
+.cc-step button{width:36px;height:38px;border:0;background:rgba(255,255,255,.05);color:#fff;font-size:18px;cursor:pointer}
+.cc-step button:hover{background:rgba(255,255,255,.12)}
+.cc-step input{width:56px;height:38px;border:0;background:transparent;color:#fff;text-align:center;font:600 17px var(--display);-moz-appearance:textfield}
+.cc-step input::-webkit-outer-spin-button,.cc-step input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+
+/* v70: khung vẽ tự quay 90° khi máy đang khoá xoay dọc — cầm ngang là vẽ được */
+.cc-padfull.rot{inset:auto;top:0;left:100vw;width:100vh;width:100dvh;height:100vw;transform-origin:top left;transform:rotate(90deg)}
+.cc-rot-hint{display:inline-flex;align-items:center;gap:6px;font:600 12px var(--body);color:var(--pink);white-space:nowrap}

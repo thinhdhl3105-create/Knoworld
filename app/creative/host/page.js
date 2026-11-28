@@ -12,7 +12,7 @@ import {
   adminRooms, adminCreateRoom, adminUpdateRoom, adminResetRoom, adminPlayers, adminQuestions, adminSaveQuestion,
   adminDeleteQuestion, adminUploadQuizImage, adminArt, adminSetArt, adminBrands, adminSaveBrand, adminDeleteBrand,
   adminClearWords, adminQuiz, adminDraw, adminShuffleQuestions, adminScans, withZoom, parseQuizImage,
-  adminDeleteRoom, ccZone, ccStation, joinLink, CC_ZONES, CC_ZONE_VIEWS, CC_QUIZ_SECONDS,
+  adminDeleteRoom, ccZone, ccStation, joinLink, CC_ZONES, CC_ZONE_VIEWS, CC_QUIZ_SECONDS, CC_QUIZ_COUNT,
 } from '@/lib/creative';
 import { Av, Board, Cloud, Pin, QuizPhoto, Ring, Shape, TILE_COLORS } from '../ui';
 
@@ -246,7 +246,7 @@ function Host() {
                 ))}
               </div>
               {tab === 'gate' && <HostGate room={room} players={players} scans={Math.max(scans.size, players.length)} patchRoom={patchRoom} joinUrl={joinUrl} onStart={() => goStation(zone || 'guess')} />}
-              {tab === 'guess' && <HostGuess room={room} st={st} offset={offset} questions={questions.filter((x) => x.active)} quiz={quiz} reloadQuestions={loadQuestions} patchRoom={patchRoom} />}
+              {tab === 'guess' && <HostGuess room={room} st={st} offset={offset} questions={questions.filter((x) => x.active).slice(0, room.quiz_count ?? CC_QUIZ_COUNT)} allCount={questions.filter((x) => x.active).length} quiz={quiz} reloadQuestions={loadQuestions} patchRoom={patchRoom} />}
               {tab === 'draw' && <HostDraw room={room} st={st} offset={offset} players={players} code={code} ping={ping} reload={loadRooms} />}
               {tab === 'wall' && <HostWall code={code} />}
               {tab === 'plaza' && <HostPlaza st={st} code={code} refresh={refresh} ping={ping} />}
@@ -408,7 +408,48 @@ function HostGate({ room, players, scans, patchRoom, joinUrl, onStart }) {
 // -> bảng điểm (5 giây) -> tự sang câu tiếp theo, tới hết bộ câu hỏi.
 const REVEAL_S = 5;
 const BOARD_S = 5;
-function HostGuess({ room, st, offset, questions, quiz, reloadQuestions, patchRoom }) {
+// v70: admin chỉnh số câu mỗi lượt + số giây mỗi câu (lưu theo lớp)
+function QuizSettings({ room, allCount, patchRoom }) {
+  const [count, setCount] = useState(room.quiz_count ?? CC_QUIZ_COUNT);
+  const [secs, setSecs] = useState(room.quiz_seconds);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => { setCount(room.quiz_count ?? CC_QUIZ_COUNT); setSecs(room.quiz_seconds); }, [room.code, room.quiz_count, room.quiz_seconds]);
+  const dirty = count !== (room.quiz_count ?? CC_QUIZ_COUNT) || secs !== room.quiz_seconds;
+  const save = async () => {
+    const c = Math.min(Math.max(1, Math.round(count) || 1), Math.max(1, allCount), 100);
+    const sec = Math.min(120, Math.max(3, Math.round(secs) || CC_QUIZ_SECONDS));
+    setCount(c); setSecs(sec);
+    await patchRoom({ quiz_count: c, quiz_seconds: sec });
+    setSaved(true); setTimeout(() => setSaved(false), 1500);
+  };
+  const step = (set, v, d, lo, hi) => set(Math.min(hi, Math.max(lo, (Number(v) || 0) + d)));
+  return (
+    <div className="cc-qset">
+      <span className="cc-label">Cài đặt lượt chơi</span>
+      <div className="cc-qset-row">
+        <label>Số câu
+          <span className="cc-step">
+            <button type="button" onClick={() => step(setCount, count, -1, 1, allCount || 100)} aria-label="Bớt 1 câu">−</button>
+            <input type="number" min={1} max={allCount || 100} value={count} onChange={(e) => setCount(Number(e.target.value))} aria-label="Số câu mỗi lượt" />
+            <button type="button" onClick={() => step(setCount, count, 1, 1, allCount || 100)} aria-label="Thêm 1 câu">+</button>
+          </span>
+          <small>/ {allCount} câu trong bộ</small>
+        </label>
+        <label>Giây mỗi câu
+          <span className="cc-step">
+            <button type="button" onClick={() => step(setSecs, secs, -1, 3, 120)} aria-label="Bớt 1 giây">−</button>
+            <input type="number" min={3} max={120} value={secs} onChange={(e) => setSecs(Number(e.target.value))} aria-label="Số giây mỗi câu" />
+            <button type="button" onClick={() => step(setSecs, secs, 1, 3, 120)} aria-label="Thêm 1 giây">+</button>
+          </span>
+          <small>3–120 giây</small>
+        </label>
+        <button type="button" className="cc-btn sm" disabled={!dirty} onClick={save}>{saved ? 'Đã lưu ✓' : 'Lưu'}</button>
+      </div>
+    </div>
+  );
+}
+
+function HostGuess({ room, st, offset, questions, allCount, quiz, reloadQuestions, patchRoom }) {
   const [mixing, setMixing] = useState(false);
   const mix = async () => { setMixing(true); try { await adminShuffleQuestions(); await reloadQuestions(); await quiz('idle', 0); } catch { /* ignore */ } finally { setMixing(false); } };
   const autoKey = `cc_auto_${room.code}`;
@@ -450,7 +491,6 @@ function HostGuess({ room, st, offset, questions, quiz, reloadQuestions, patchRo
   }, [q, phase, left, since, auto, answered, players, n, isLast, phaseKey, quiz, step, setAuto]);
 
   const startAuto = async () => {
-    if (room.quiz_seconds !== CC_QUIZ_SECONDS) await patchRoom({ quiz_seconds: CC_QUIZ_SECONDS });
     fired.current = '';
     setAuto(true);
     if (phase === 'board' && isLast) quiz('run', 0);
@@ -477,7 +517,8 @@ function HostGuess({ room, st, offset, questions, quiz, reloadQuestions, patchRo
       <>
         <HH title={done ? 'Bảng điểm chung cuộc' : 'Bảng điểm'} sub={`Sau câu ${n + 1}/${questions.length}`}>
           {!auto && !isLast && <button type="button" className="cc-btn gold" onClick={startAuto}>▶ Tự chạy tiếp</button>}
-          {!auto && <button type="button" className="cc-btn ghost" onClick={() => (isLast ? quiz('idle', 0) : quiz('run', n + 1))}>{isLast ? 'Chơi lại từ câu 1' : 'Câu tiếp theo'}</button>}
+          {!auto && isLast && <button type="button" className="cc-btn gold" disabled={mixing} onClick={mix}>{mixing ? 'Đang xáo…' : `🔀 Lượt mới · ${questions.length} câu khác`}</button>}
+          {!auto && <button type="button" className="cc-btn ghost" onClick={() => (isLast ? quiz('idle', 0) : quiz('run', n + 1))}>{isLast ? 'Chơi lại đúng các câu này' : 'Câu tiếp theo'}</button>}
         </HH>
         {autoBar}
         <div style={{ maxWidth: 620 }}><Board rows={st?.top} /></div>
@@ -494,7 +535,7 @@ function HostGuess({ room, st, offset, questions, quiz, reloadQuestions, patchRo
           {n === 0 && <button type="button" className="cc-btn ghost sm" disabled={mixing} onClick={mix} title="Đổi thứ tự câu hỏi và vị trí đáp án">{mixing ? 'Đang xáo…' : '🔀 Xáo trộn'}</button>}
           <button type="button" className="cc-btn ghost sm" disabled={n === 0} onClick={() => quiz('idle', n - 1)}>← Câu trước</button>
           <button type="button" className="cc-btn ghost sm" disabled={isLast} onClick={() => quiz('idle', n + 1)}>Câu sau →</button>
-          <button type="button" className="cc-btn gold" onClick={startAuto}>▶ Bắt đầu tự động · {CC_QUIZ_SECONDS} giây/câu</button>
+          <button type="button" className="cc-btn gold" onClick={startAuto}>▶ Bắt đầu tự động · {questions.length} câu · {room.quiz_seconds} giây/câu</button>
         </>}
         {phase === 'run' && !auto && <button type="button" className="cc-btn gold" onClick={() => quiz('reveal', n)}>Lộ đáp án</button>}
         {reveal && !auto && <>
@@ -503,6 +544,7 @@ function HostGuess({ room, st, offset, questions, quiz, reloadQuestions, patchRo
         </>}
       </HH>
       {autoBar}
+      {phase === 'idle' && !auto && n === 0 && <QuizSettings room={room} allCount={allCount} patchRoom={patchRoom} />}
       <div className="cc-split">
         <QuizPhoto q={q} uid={`h${n}`} full={reveal}>{phase === 'run' && <Ring left={left} total={room.quiz_seconds} />}</QuizPhoto>
         <div style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
@@ -518,7 +560,7 @@ function HostGuess({ room, st, offset, questions, quiz, reloadQuestions, patchRo
               <div key={j} className={`cc-tile cc-t${j}${reveal && j !== q.ok ? ' dim' : ''}`}><Shape i={j} /><span>{o}</span>{reveal && j === q.ok && <span className="tick">✓</span>}</div>
             ))}
           </div>
-          <span className="cc-hint">{phase === 'idle' ? `Bấm Bắt đầu tự động: mỗi câu ${CC_QUIZ_SECONDS} giây, hết giờ hiện đáp án, rồi bảng điểm, rồi tự sang câu tiếp.` : phase === 'run' ? (auto ? `Hết ${room.quiz_seconds} giây sẽ tự lộ đáp án.` : 'Hết giờ hoặc cả lớp trả lời xong sẽ tự lộ đáp án.') : 'Đáp án đúng đã hiện trên mọi điện thoại.'}</span>
+          <span className="cc-hint">{phase === 'idle' ? `Bấm Bắt đầu tự động: ${questions.length} câu, mỗi câu ${room.quiz_seconds} giây, hết giờ hiện đáp án, rồi bảng điểm, rồi tự sang câu tiếp.` : phase === 'run' ? (auto ? `Hết ${room.quiz_seconds} giây sẽ tự lộ đáp án.` : 'Hết giờ hoặc cả lớp trả lời xong sẽ tự lộ đáp án.') : 'Đáp án đúng đã hiện trên mọi điện thoại.'}</span>
         </div>
       </div>
     </>
@@ -782,7 +824,8 @@ function RoomsPanel({ rooms, current, onCreated, patchRoom, onReset, onDelete })
         <div className="cc-glass cc-card">
           <span className="cc-label">Phòng đang mở · {current.code}</span>
           <div className="cc-field"><label htmlFor="cc-rt">Tên buổi học</label><input id="cc-rt" className="cc-input" defaultValue={current.title} onBlur={(e) => e.target.value.trim() && e.target.value !== current.title && patchRoom({ title: e.target.value.trim() })} /></div>
-          <div className="cc-field"><label htmlFor="cc-qs">Số giây mỗi câu Ảnh Lạ</label><input id="cc-qs" className="cc-input" style={{ width: 100 }} type="number" min={5} max={120} defaultValue={current.quiz_seconds} onBlur={(e) => { const v = Math.min(120, Math.max(5, Number(e.target.value) || 20)); if (v !== current.quiz_seconds) patchRoom({ quiz_seconds: v }); }} /></div>
+          <div className="cc-field"><label htmlFor="cc-qs">Số giây mỗi câu Ảnh Lạ</label><input id="cc-qs" className="cc-input" style={{ width: 100 }} type="number" min={3} max={120} defaultValue={current.quiz_seconds} key={`s${current.quiz_seconds}`} onBlur={(e) => { const v = Math.min(120, Math.max(3, Number(e.target.value) || CC_QUIZ_SECONDS)); if (v !== current.quiz_seconds) patchRoom({ quiz_seconds: v }); }} /></div>
+          <div className="cc-field"><label htmlFor="cc-qc">Số câu Ảnh Lạ mỗi lượt</label><input id="cc-qc" className="cc-input" style={{ width: 100 }} type="number" min={1} max={100} defaultValue={current.quiz_count ?? CC_QUIZ_COUNT} key={`c${current.quiz_count}`} onBlur={(e) => { const v = Math.min(100, Math.max(1, Number(e.target.value) || CC_QUIZ_COUNT)); if (v !== (current.quiz_count ?? CC_QUIZ_COUNT)) patchRoom({ quiz_count: v }); }} /></div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <button type="button" className="cc-btn ghost sm" onClick={() => patchRoom({ is_open: !current.is_open })}>{current.is_open ? 'Đóng phòng' : 'Mở lại phòng'}</button>
             {confirm
